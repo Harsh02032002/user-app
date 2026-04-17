@@ -1,0 +1,487 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// API Configuration
+const API_BASE_URL = 'https://dabbanation.in/api'; // Updated to match Dabba Delights backend
+
+// Request timeout
+const REQUEST_TIMEOUT = 10000;
+
+// Helper to add timeout to fetch
+async function fetchWithTimeout(url: string, options: RequestInit, timeout = REQUEST_TIMEOUT): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Request timed out. Please check your connection.');
+    }
+    throw error;
+  }
+}
+
+// Helper to convert params to query string
+function toQuery(params?: Record<string, unknown>) {
+  if (!params) return "";
+  const entries = Object.entries(params).reduce<Record<string, string>>(
+    (acc, [k, v]) => {
+      if (v !== undefined && v !== null && v !== "") acc[k] = String(v);
+      return acc;
+    },
+    {},
+  );
+  const qs = new URLSearchParams(entries).toString();
+  return qs ? `?${qs}` : "";
+}
+
+// Get auth token
+const getAuthToken = async () => {
+  try {
+    const token = await AsyncStorage.getItem('token');
+    return token;
+  } catch (error) {
+    console.error('Error getting auth token:', error);
+    return null;
+  }
+};
+
+// Generic API request function with timeout and better error handling
+const apiRequest = async (endpoint: string, options: RequestInit = {}, requireAuth = true) => {
+  try {
+    const url = `${API_BASE_URL}${endpoint}`;
+    
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    // Only add auth token for protected endpoints
+    let token = null;
+    if (requireAuth) {
+      token = await getAuthToken();
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+        // Debug: Log token preview (first 20 chars)
+        console.log(`[API] Token sent: ${token.substring(0, 20)}...`);
+      } else {
+        console.warn(`[API] No token found for protected endpoint: ${endpoint}`);
+      }
+    }
+    
+    // Merge any additional headers
+    if (options.headers) {
+      Object.assign(headers, options.headers);
+    }
+    
+    console.log(`[API] ${endpoint}`, requireAuth ? '(with auth)' : '(no auth)', token ? '✓ token' : '✗ no token');
+    
+    const response = await fetchWithTimeout(url, {
+      ...options,
+      headers,
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error((error as any).message || `API request failed: ${response.status}`);
+    }
+    
+    return response.json();
+  } catch (error: any) {
+    console.error(`[API Error] ${endpoint} - ${error.message}`);
+    throw error;
+  }
+};
+
+// API Services - Matching Dabba Delights Backend
+export const api = {
+  // Auth APIs (no auth required)
+  auth: {
+    // Email/Password login
+    login: async (email: string, password: string) => {
+      return apiRequest('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      }, false); // No auth required
+    },
+    
+    // Phone/OTP login
+    loginWithPhone: async (phone: string, otp: string) => {
+      return apiRequest('/auth/login-phone', {
+        method: 'POST',
+        body: JSON.stringify({ phone, otp }),
+      }, false); // No auth required
+    },
+    
+    // Send OTP
+    sendOtp: async (phone: string) => {
+      return apiRequest('/auth/send-otp', {
+        method: 'POST',
+        body: JSON.stringify({ phone }),
+      }, false); // No auth required
+    },
+    
+    register: async (userData: any) => {
+      return apiRequest('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify(userData),
+      }, false); // No auth required
+    },
+    
+    getProfile: async () => {
+      return apiRequest('/auth/me');
+    },
+  },
+
+  // User APIs (matching Dabba Delights userAPI exactly)
+  user: {
+    // Sellers
+    getSellers: async (params?: Record<string, unknown>) => {
+      const res = await apiRequest(`/user/sellers${toQuery(params)}`);
+      const sellers = Array.isArray(res) ? res : Array.isArray(res?.sellers) ? res.sellers : Array.isArray(res?.data) ? res.data : [];
+      return { sellers, total: res?.total || sellers.length, success: true };
+    },
+    
+    getHomeChefs: async (params?: Record<string, unknown>) => {
+      const res = await apiRequest(`/user/sellers${toQuery(params)}`);
+      const sellers = Array.isArray(res) ? res : Array.isArray(res?.sellers) ? res.sellers : Array.isArray(res?.data) ? res.data : [];
+      const homeChefs = sellers.filter((s: any) => s.type === 'home-chef');
+      return { sellers: homeChefs, total: homeChefs.length, success: true };
+    },
+    
+    getRestaurants: async (params?: Record<string, unknown>) => {
+      const res = await apiRequest(`/user/sellers${toQuery(params)}`);
+      const sellers = Array.isArray(res) ? res : Array.isArray(res?.sellers) ? res.sellers : Array.isArray(res?.data) ? res.data : [];
+      const restaurants = sellers.filter((s: any) => s.type === 'restaurant');
+      return { sellers: restaurants, total: restaurants.length, success: true };
+    },
+    
+    // Menu Items
+    getMenuItems: async (params?: Record<string, unknown>) => {
+      const res = await apiRequest(`/user/menu${toQuery(params)}`);
+      const products = Array.isArray(res) ? res : Array.isArray(res?.products) ? res.products : Array.isArray(res?.data) ? res.data : Array.isArray(res?.menu) ? res.menu : [];
+      return { products, total: res?.total || products.length, page: res?.page, limit: res?.limit, success: true };
+    },
+    
+    getRecommendations: async () => {
+      return apiRequest('/user/recommendations');
+    },
+    
+    // Cart
+    getCart: async () => {
+      return apiRequest('/user/cart');
+    },
+    
+    addToCart: async (data: Record<string, unknown>) => {
+      return apiRequest('/user/cart/add', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+    
+    updateCartQuantity: async (itemId: string, quantity: number) => {
+      return apiRequest('/user/cart/update', {
+        method: 'PATCH',
+        body: JSON.stringify({ itemId, quantity }),
+      });
+    },
+    
+    removeFromCart: async (itemId: string) => {
+      return apiRequest(`/user/cart/remove/${itemId}`, {
+        method: 'DELETE',
+      });
+    },
+    
+    // Orders
+    getOrders: async (status?: string) => {
+      return apiRequest(`/user/orders${status ? `?status=${status}` : ''}`);
+    },
+    
+    getOrderById: async (id: string) => {
+      return apiRequest(`/user/orders/${id}`);
+    },
+    
+    placeOrder: async (data: Record<string, unknown>) => {
+      return apiRequest('/user/orders/place', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+    
+    deleteOrder: async (id: string) => {
+      return apiRequest(`/user/orders/${id}/delete`, {
+        method: 'DELETE',
+      });
+    },
+    
+    rateOrder: async (id: string, rating: number, review?: string) => {
+      return apiRequest(`/user/orders/${id}/rate`, {
+        method: 'POST',
+        body: JSON.stringify({ rating, review }),
+      });
+    },
+    
+    rateMenuItem: async (menuItemId: string, rating: number) => {
+      return apiRequest(`/user/menu/${menuItemId}/rate`, {
+        method: 'POST',
+        body: JSON.stringify({ rating }),
+      });
+    },
+    
+    rateSeller: async (sellerId: string, rating: number) => {
+      return apiRequest(`/user/sellers/${sellerId}/rate`, {
+        method: 'POST',
+        body: JSON.stringify({ rating }),
+      });
+    },
+    
+    // Wallet
+    getWalletTransactions: async () => {
+      return apiRequest('/user/wallet/transactions');
+    },
+    
+    topupWallet: async (amount: number) => {
+      return apiRequest('/user/wallet/topup', {
+        method: 'POST',
+        body: JSON.stringify({ amount }),
+      });
+    },
+    
+    verifyPayment: async (data: Record<string, unknown>) => {
+      return apiRequest('/user/wallet/verify', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+    
+    // Subscriptions
+    getActiveSubscription: async () => {
+      return apiRequest('/user/subscriptions/active');
+    },
+    
+    getSubscriptionPlans: async () => {
+      return apiRequest('/subscriptions/plans');
+    },
+    
+    purchaseSubscription: async (totalAmount: number, totalDays: number) => {
+      return apiRequest('/user/subscriptions/purchase', {
+        method: 'POST',
+        body: JSON.stringify({ totalAmount, totalDays }),
+      });
+    },
+    
+    verifySubscriptionPayment: async (paymentData: any) => {
+      return apiRequest('/user/subscriptions/verify-payment', {
+        method: 'POST',
+        body: JSON.stringify(paymentData),
+      });
+    },
+    
+    // Wishlist
+    getWishlist: async () => {
+      return apiRequest('/user/wishlist');
+    },
+    
+    addToWishlist: async (productId: string) => {
+      return apiRequest('/user/wishlist/add', {
+        method: 'POST',
+        body: JSON.stringify({ productId }),
+      });
+    },
+    
+    removeFromWishlist: async (productId: string) => {
+      return apiRequest(`/user/wishlist/remove/${productId}`, {
+        method: 'DELETE',
+      });
+    },
+    
+    // Notifications
+    getNotifications: async () => {
+      return apiRequest('/user/notifications');
+    },
+    
+    markNotificationRead: async (id: string) => {
+      return apiRequest(`/user/notifications/${id}/read`, {
+        method: 'PATCH',
+      });
+    },
+    
+    markAllNotificationsRead: async () => {
+      return apiRequest('/user/notifications/mark-all-read', {
+        method: 'PATCH',
+      });
+    },
+    
+    deleteNotification: async (id: string) => {
+      return apiRequest(`/user/notifications/${id}`, {
+        method: 'DELETE',
+      });
+    },
+    
+    // Banners
+    getActiveBanners: async () => {
+      return apiRequest('/user/banners');
+    },
+    
+    // Invoice
+    downloadInvoice: async (orderId: string) => {
+      const token = await getAuthToken();
+      if (!token) {
+        throw new Error('No token found for invoice download');
+      }
+      const API_BASE = 'https://dabbanation.in/api';
+      const encodedToken = encodeURIComponent(token);
+      return `${API_BASE}/invoice/download/${orderId}?token=${encodedToken}`;
+    },
+    
+    generateInvoice: async (orderId: string) => {
+      return apiRequest(`/invoice/generate/${orderId}`, {
+        method: 'POST',
+      });
+    },
+    
+    // Addresses
+    getAddresses: async () => {
+      return apiRequest('/user/addresses');
+    },
+    
+    saveAddress: async (data: Record<string, unknown>) => {
+      return apiRequest('/user/addresses', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+    
+    updateOrderStatus: async (orderId: string, status: string) => {
+      return apiRequest(`/user/orders/${orderId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      });
+    },
+  },
+
+  // Payment APIs
+  payment: {
+    createRazorpayOrder: async (data: Record<string, unknown>) => {
+      return apiRequest('/payment/razorpay/create-order', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+    
+    processWalletPayment: async (data: Record<string, unknown>) => {
+      return apiRequest('/payment/wallet', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+    
+    verifyPayment: async (data: Record<string, unknown>) => {
+      return apiRequest('/payment/razorpay/verify', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+  },
+
+  // Legacy endpoints for backward compatibility
+  sellers: {
+    getAll: async (type?: string) => {
+      return api.user.getSellers(type ? { type } : {});
+    },
+    
+    getById: async (id: string) => {
+      return apiRequest(`/sellers/${id}`);
+    },
+  },
+
+  menuItems: {
+    getAll: async (sellerId?: string) => {
+      return api.user.getMenuItems(sellerId ? { sellerId } : {});
+    },
+    
+    getBySeller: async (sellerId: string) => {
+      return api.user.getMenuItems({ sellerId });
+    },
+  },
+
+  // Orders APIs
+  orders: {
+    getUserOrders: async () => {
+      return apiRequest('/orders/user');
+    },
+    
+    getById: async (id: string) => {
+      return apiRequest(`/orders/${id}`);
+    },
+    
+    create: async (orderData: any) => {
+      return apiRequest('/orders', {
+        method: 'POST',
+        body: JSON.stringify(orderData),
+      });
+    },
+  },
+
+  // Subscriptions APIs
+  subscriptions: {
+    getPlans: async () => {
+      return apiRequest('/subscriptions/plans');
+    },
+    
+    getUserSubscriptions: async () => {
+      return apiRequest('/subscriptions/user');
+    },
+    
+    create: async (subscriptionData: any) => {
+      return apiRequest('/subscriptions', {
+        method: 'POST',
+        body: JSON.stringify(subscriptionData),
+      });
+    },
+  },
+
+  // Wishlist APIs
+  wishlist: {
+    get: async () => {
+      return apiRequest('/wishlist');
+    },
+    
+    add: async (itemId: string) => {
+      return apiRequest('/wishlist/add', {
+        method: 'POST',
+        body: JSON.stringify({ itemId }),
+      });
+    },
+    
+    remove: async (itemId: string) => {
+      return apiRequest(`/wishlist/remove/${itemId}`, {
+        method: 'DELETE',
+      });
+    },
+  },
+
+  // Location APIs
+  location: {
+    update: async (locationData: any) => {
+      return apiRequest('/user/location', {
+        method: 'PUT',
+        body: JSON.stringify(locationData),
+      });
+    },
+  },
+
+  // Promo Banners APIs
+  promos: {
+    getActive: async () => {
+      return apiRequest('/promos/active');
+    },
+  },
+};
+
+export default api;

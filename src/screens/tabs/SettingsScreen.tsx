@@ -1,0 +1,504 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  TextInput,
+  Switch,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../context/AuthContext';
+import { AppHeader } from '../../components/common/AppHeader';
+
+interface UserProfile {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  bio: string;
+  avatar: string;
+  banner: string;
+}
+
+export function SettingsScreen() {
+  const { user, updateProfile } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [smsNotifications, setSmsNotifications] = useState(false);
+  const [profile, setProfile] = useState<UserProfile>({
+    name: user?.name || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+    address: user?.address || '',
+    bio: user?.bio || '',
+    avatar: user?.profileImage || '',
+    banner: user?.banner || '',
+  });
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+
+  const handleSaveProfile = async () => {
+    setLoading(true);
+    try {
+      await updateProfile(profile);
+      Alert.alert('Success', 'Profile updated successfully');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to update profile');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      // API call to change password
+      Alert.alert('Success', 'Password changed successfully');
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to change password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const pickImage = async (type: 'avatar' | 'banner') => {
+    Alert.alert(
+      'Select Image',
+      'Choose an option to update your ' + type,
+      [
+        { text: 'Camera', onPress: () => Alert.alert('Camera', 'Camera functionality will be implemented') },
+        { text: 'Gallery', onPress: () => Alert.alert('Gallery', 'Gallery functionality will be implemented') },
+        { text: 'Cancel', style: 'cancel' }
+      ]
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <AppHeader showSearch={false} />
+
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Profile Information Card */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="person-outline" size={20} color="#FF6B00" />
+            <Text style={styles.cardTitle}>Profile Information</Text>
+          </View>
+
+          {/* Profile Picture */}
+          <View style={styles.profileSection}>
+            <TouchableOpacity onPress={() => pickImage('avatar')} style={styles.avatarContainer}>
+              {profile.avatar ? (
+                <Image source={{ uri: profile.avatar }} style={styles.avatar} />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Ionicons name="person" size={40} color="#999" />
+                </View>
+              )}
+              <View style={styles.cameraButton}>
+                <Ionicons name="camera" size={16} color="#fff" />
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => pickImage('avatar')} style={styles.changePhotoButton}>
+              <Ionicons name="camera-outline" size={16} color="#FF6B00" />
+              <Text style={styles.changePhotoText}>Change Photo</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Banner Image */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Banner Image</Text>
+            <TouchableOpacity onPress={() => pickImage('banner')} style={styles.bannerContainer}>
+              {profile.banner ? (
+                <Image source={{ uri: profile.banner }} style={styles.bannerImage} />
+              ) : (
+                <View style={styles.bannerPlaceholder}>
+                  <Ionicons name="camera-outline" size={24} color="#999" />
+                  <Text style={styles.bannerPlaceholderText}>Upload Banner</Text>
+                </View>
+              )}
+              <View style={styles.bannerOverlay}>
+                <Ionicons name="camera" size={24} color="#fff" />
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* Basic Info */}
+          <View style={styles.formRow}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Full Name</Text>
+              <TextInput
+                style={styles.input}
+                value={profile.name}
+                onChangeText={(text) => setProfile(prev => ({ ...prev, name: text }))}
+                placeholder="Enter your name"
+              />
+            </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Email</Text>
+              <TextInput
+                style={styles.input}
+                value={profile.email}
+                onChangeText={(text) => setProfile(prev => ({ ...prev, email: text }))}
+                placeholder="Enter your email"
+                keyboardType="email-address"
+              />
+            </View>
+          </View>
+
+          <View style={styles.formRow}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Phone Number</Text>
+              <TextInput
+                style={styles.input}
+                value={profile.phone}
+                onChangeText={(text) => setProfile(prev => ({ ...prev, phone: text }))}
+                placeholder="Enter your phone"
+                keyboardType="phone-pad"
+              />
+            </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Location</Text>
+              <TextInput
+                style={styles.input}
+                value={profile.address}
+                onChangeText={(text) => setProfile(prev => ({ ...prev, address: text }))}
+                placeholder="Enter your location"
+              />
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Bio</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              value={profile.bio}
+              onChangeText={(text) => setProfile(prev => ({ ...prev, bio: text }))}
+              placeholder="Tell us about yourself..."
+              multiline
+              numberOfLines={3}
+            />
+          </View>
+
+          <TouchableOpacity style={styles.saveButton} onPress={handleSaveProfile} disabled={loading}>
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="save-outline" size={18} color="#fff" />
+                <Text style={styles.saveButtonText}>Save Changes</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Notification Settings */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="notifications-outline" size={20} color="#FF6B00" />
+            <Text style={styles.cardTitle}>Notification Settings</Text>
+          </View>
+
+          <View style={styles.settingItem}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingTitle}>Push Notifications</Text>
+              <Text style={styles.settingSubtitle}>Receive order updates and offers</Text>
+            </View>
+            <Switch
+              value={notificationsEnabled}
+              onValueChange={setNotificationsEnabled}
+              trackColor={{ false: '#e5e5e5', true: '#FFB380' }}
+              thumbColor={notificationsEnabled ? '#FF6B00' : '#fff'}
+            />
+          </View>
+
+          <View style={styles.settingItem}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingTitle}>Email Notifications</Text>
+              <Text style={styles.settingSubtitle}>Get updates via email</Text>
+            </View>
+            <Switch
+              value={emailNotifications}
+              onValueChange={setEmailNotifications}
+              trackColor={{ false: '#e5e5e5', true: '#FFB380' }}
+              thumbColor={emailNotifications ? '#FF6B00' : '#fff'}
+            />
+          </View>
+
+          <View style={styles.settingItem}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingTitle}>SMS Notifications</Text>
+              <Text style={styles.settingSubtitle}>Receive SMS updates</Text>
+            </View>
+            <Switch
+              value={smsNotifications}
+              onValueChange={setSmsNotifications}
+              trackColor={{ false: '#e5e5e5', true: '#FFB380' }}
+              thumbColor={smsNotifications ? '#FF6B00' : '#fff'}
+            />
+          </View>
+        </View>
+
+        {/* Change Password */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="lock-closed-outline" size={20} color="#FF6B00" />
+            <Text style={styles.cardTitle}>Change Password</Text>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Current Password</Text>
+            <TextInput
+              style={styles.input}
+              value={passwordData.currentPassword}
+              onChangeText={(text) => setPasswordData(prev => ({ ...prev, currentPassword: text }))}
+              placeholder="Enter current password"
+              secureTextEntry
+            />
+          </View>
+
+          <View style={styles.formRow}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>New Password</Text>
+              <TextInput
+                style={styles.input}
+                value={passwordData.newPassword}
+                onChangeText={(text) => setPasswordData(prev => ({ ...prev, newPassword: text }))}
+                placeholder="Enter new password"
+                secureTextEntry
+              />
+            </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Confirm Password</Text>
+              <TextInput
+                style={styles.input}
+                value={passwordData.confirmPassword}
+                onChangeText={(text) => setPasswordData(prev => ({ ...prev, confirmPassword: text }))}
+                placeholder="Confirm new password"
+                secureTextEntry
+              />
+            </View>
+          </View>
+
+          <TouchableOpacity style={styles.saveButton} onPress={handleChangePassword} disabled={loading}>
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.saveButtonText}>Update Password</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ height: 20 }} />
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F5F2E8',
+  },
+  header: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    backgroundColor: '#fff',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+  },
+  scrollView: {
+    flex: 1,
+    padding: 16,
+  },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    gap: 8,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1a1a1a',
+  },
+  profileSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    gap: 16,
+  },
+  avatarContainer: {
+    position: 'relative',
+  },
+  avatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 4,
+    borderColor: '#fff',
+  },
+  avatarPlaceholder: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#f5f5f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#e5e5e5',
+  },
+  cameraButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#FF6B00',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  changePhotoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF5F0',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 8,
+  },
+  changePhotoText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#FF6B00',
+  },
+  bannerContainer: {
+    height: 120,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#f5f5f5',
+    borderWidth: 2,
+    borderColor: '#e5e5e5',
+    borderStyle: 'dashed',
+    position: 'relative',
+  },
+  bannerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  bannerPlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  bannerPlaceholderText: {
+    fontSize: 14,
+    color: '#999',
+  },
+  bannerOverlay: {
+    position: 'absolute',
+    inset: 0,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    opacity: 0,
+  },
+  formRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  inputGroup: {
+    flex: 1,
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#111827',
+    backgroundColor: '#fff',
+  },
+  textArea: {
+    height: 80,
+    textAlignVertical: 'top',
+  },
+  saveButton: {
+    backgroundColor: '#FF6B00',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  settingItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  settingInfo: {
+    flex: 1,
+  },
+  settingTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#1a1a1a',
+    marginBottom: 2,
+  },
+  settingSubtitle: {
+    fontSize: 12,
+    color: '#666',
+  },
+});

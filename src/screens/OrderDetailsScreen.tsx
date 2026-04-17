@@ -1,0 +1,679 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  Platform,
+  Linking,
+} from 'react-native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
+import api from '../services/api';
+import { RootStackParamList } from '../navigation/RootNavigator';
+import { extractCoordinates, getCurrentCoordinates } from '../utils/location';
+
+// Dynamic import for react-native-maps to avoid web bundling issues
+let MapView: any = null;
+let Marker: any = null;
+let PROVIDER_GOOGLE: any = null;
+
+if (Platform.OS !== 'web') {
+  try {
+    const maps = require('react-native-maps');
+    MapView = maps.default;
+    Marker = maps.Marker;
+    PROVIDER_GOOGLE = maps.PROVIDER_GOOGLE;
+  } catch (e) {
+    console.warn('react-native-maps not available');
+  }
+}
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type RouteType = RouteProp<RootStackParamList, 'OrderDetails'>;
+
+interface OrderDetails {
+  _id: string;
+  orderNumber: string;
+  seller: {
+    name: string;
+    shopName: string;
+    phone: string;
+  };
+  items: Array<{
+    name: string;
+    quantity: number;
+    price: number;
+  }>;
+  totalAmount: number;
+  deliveryCharges: number;
+  grandTotal: number;
+  subscriptionAmountUsed: number;
+  onlineAmountPaid: number;
+  daysDeducted: number;
+  paymentMethod: string;
+  status: string;
+  paymentStatus: string;
+  deliveryAddress: {
+    address: string;
+    area: string;
+    city: string;
+    pincode: string;
+    latitude?: number | string;
+    longitude?: number | string;
+    lat?: number | string;
+    lng?: number | string;
+    fullAddress?: string;
+    street?: string;
+    location?: {
+      coordinates?: [number, number] | number[];
+    };
+  };
+  createdAt: string;
+}
+
+export default function OrderDetailsScreen() {
+  const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<RouteType>();
+  const { orderId } = route.params;
+
+  const [loading, setLoading] = useState(true);
+  const [order, setOrder] = useState<OrderDetails | null>(null);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
+
+  useEffect(() => {
+    fetchOrderDetails();
+    getCurrentLocation();
+  }, []);
+
+  const fetchOrderDetails = async () => {
+    try {
+      const response = await api.user.getOrderById(orderId as string);
+      setOrder(response?.data || response);
+    } catch (error) {
+      console.error('Error fetching order details:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getCurrentLocation = async () => {
+    try {
+      const location = await getCurrentCoordinates();
+      setUserLocation(location);
+      setLocationPermissionDenied(!location);
+    } catch (error) {
+      console.error('Error getting location:', error);
+      setLocationPermissionDenied(true);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'confirmed':
+      case 'preparing':
+        return '#2196F3';
+      case 'out_for_delivery':
+        return '#FF9800';
+      case 'delivered':
+        return '#22C55E';
+      case 'cancelled':
+        return '#EF4444';
+      default:
+        return '#888';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'confirmed':
+        return 'Confirmed';
+      case 'preparing':
+        return 'Preparing';
+      case 'out_for_delivery':
+        return 'Out for Delivery';
+      case 'delivered':
+        return 'Delivered';
+      case 'cancelled':
+        return 'Cancelled';
+      default:
+        return status;
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-IN', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#FF6B00" />
+      </View>
+    );
+  }
+
+  if (!order) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>Order not found</Text>
+      </View>
+    );
+  }
+
+  const deliveryCoordinates = extractCoordinates(order.deliveryAddress);
+  const mapRegion = deliveryCoordinates || userLocation;
+  const deliveryAddressText =
+    order.deliveryAddress?.fullAddress ||
+    order.deliveryAddress?.address ||
+    order.deliveryAddress?.street ||
+    [order.deliveryAddress?.area, order.deliveryAddress?.city].filter(Boolean).join(', ');
+  const openStreetMapUrl = mapRegion
+    ? `https://www.openstreetmap.org/?mlat=${mapRegion.latitude}&mlon=${mapRegion.longitude}#map=16/${mapRegion.latitude}/${mapRegion.longitude}`
+    : null;
+
+  const renderMapContent = () => {
+    if (!mapRegion) {
+      return null;
+    }
+
+    if (Platform.OS === 'web') {
+      const src = `https://www.openstreetmap.org/export/embed.html?bbox=${mapRegion.longitude - 0.01},${mapRegion.latitude - 0.01},${mapRegion.longitude + 0.01},${mapRegion.latitude + 0.01}&layer=mapnik&marker=${mapRegion.latitude},${mapRegion.longitude}`;
+
+      return (
+        <View style={styles.webMapWrapper}>
+          {React.createElement('iframe', {
+            src,
+            style: {
+              width: '100%',
+              height: '100%',
+              border: '0',
+            } as React.CSSProperties,
+          })}
+          {openStreetMapUrl && (
+            <TouchableOpacity
+              style={styles.webMapButton}
+              onPress={() => Linking.openURL(openStreetMapUrl)}
+            >
+              <Ionicons name="open-outline" size={16} color="#FF6B00" />
+              <Text style={styles.webMapButtonText}>Open full map</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      );
+    }
+
+    // Use dynamically imported map components
+    if (!MapView) {
+      return (
+        <View style={[styles.map, styles.mapFallback]}>
+          <Ionicons name="map-outline" size={48} color="#ccc" />
+          <Text style={styles.mapFallbackText}>Map not available</Text>
+        </View>
+      );
+    }
+
+    const googleProvider = Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined;
+
+    return (
+      <MapView
+        provider={googleProvider}
+        style={styles.map}
+        initialRegion={{
+          latitude: mapRegion.latitude,
+          longitude: mapRegion.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        }}
+        region={{
+          latitude: mapRegion.latitude,
+          longitude: mapRegion.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        }}
+        showsUserLocation={true}
+        showsMyLocationButton={true}
+      >
+        {deliveryCoordinates && Marker && (
+          <Marker
+            coordinate={deliveryCoordinates}
+            title="Delivery Location"
+            description={deliveryAddressText}
+          >
+            <View style={styles.markerContainer}>
+              <Ionicons name="location" size={32} color="#FF6B00" />
+            </View>
+          </Marker>
+        )}
+      </MapView>
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Order Details</Text>
+        <View style={{ width: 24 }} />
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Status Card */}
+        <View style={styles.statusCard}>
+          <View
+            style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status) + '20' }]}
+          >
+            <Text style={[styles.statusText, { color: getStatusColor(order.status) }]}>
+              {getStatusText(order.status)}
+            </Text>
+          </View>
+          <Text style={styles.orderNumber}>#{order.orderNumber}</Text>
+          <Text style={styles.orderDate}>{formatDate(order.createdAt)}</Text>
+        </View>
+
+        {/* Seller Info */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Order From</Text>
+          <View style={styles.sellerCard}>
+            <View style={styles.sellerIcon}>
+              <Ionicons name="restaurant" size={24} color="#FF6B00" />
+            </View>
+            <View style={styles.sellerInfo}>
+              <Text style={styles.sellerName}>{order.seller?.shopName || order.seller?.name}</Text>
+              <Text style={styles.sellerPhone}>{order.seller?.phone}</Text>
+            </View>
+            <TouchableOpacity style={styles.callBtn}>
+              <Ionicons name="call" size={20} color="#FF6B00" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Items */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Items Ordered</Text>
+          <View style={styles.itemsCard}>
+            {order.items.map((item, index) => (
+              <View key={index} style={styles.itemRow}>
+                <View style={styles.itemInfo}>
+                  <Text style={styles.itemName}>{item.name}</Text>
+                  <Text style={styles.itemQty}>x{item.quantity}</Text>
+                </View>
+                <Text style={styles.itemPrice}>Rs. {item.price * item.quantity}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Payment Details */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Payment Details</Text>
+          <View style={styles.billCard}>
+            <View style={styles.billRow}>
+              <Text style={styles.billLabel}>Item Total</Text>
+              <Text style={styles.billValue}>Rs. {order.totalAmount}</Text>
+            </View>
+            <View style={styles.billRow}>
+              <Text style={styles.billLabel}>Delivery Charges</Text>
+              <Text style={styles.billValue}>Rs. {order.deliveryCharges}</Text>
+            </View>
+
+            {order.subscriptionAmountUsed > 0 && (
+              <View style={[styles.billRow, styles.subscriptionRow]}>
+                <View>
+                  <Text style={styles.subscriptionLabel}>Subscription Balance Used</Text>
+                  <Text style={styles.daysDeducted}>
+                    {order.daysDeducted} days deducted from subscription
+                  </Text>
+                </View>
+                <Text style={styles.subscriptionValue}>- Rs. {order.subscriptionAmountUsed}</Text>
+              </View>
+            )}
+
+            <View style={styles.divider} />
+
+            <View style={styles.billRow}>
+              <Text style={styles.totalLabel}>Total Paid</Text>
+              <Text style={styles.totalValue}>Rs. {order.onlineAmountPaid}</Text>
+            </View>
+
+            <View style={styles.paymentMethod}>
+              <Ionicons name="card" size={16} color="#888" />
+              <Text style={styles.paymentMethodText}>
+                {order.paymentMethod === 'subscription'
+                  ? 'Paid via Subscription Balance'
+                  : order.paymentMethod === 'hybrid'
+                  ? 'Hybrid Payment (Subscription + Online)'
+                  : 'Online Payment'}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Delivery Address */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Delivery Address</Text>
+          <View style={styles.addressCard}>
+            <Ionicons name="location" size={20} color="#FF6B00" />
+            <View style={styles.addressInfo}>
+              <Text style={styles.addressText}>
+                {order.deliveryAddress?.address}, {order.deliveryAddress?.area}
+              </Text>
+              <Text style={styles.addressCity}>
+                {order.deliveryAddress?.city} - {order.deliveryAddress?.pincode}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Map */}
+        {mapRegion && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Delivery Location</Text>
+            <View style={styles.mapContainer}>
+              {renderMapContent()}
+            </View>
+            {locationPermissionDenied && !deliveryCoordinates && (
+              <Text style={styles.mapHint}>
+                Location permission is off, so the map is using the saved delivery address only.
+              </Text>
+            )}
+          </View>
+        )}
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#888',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 16,
+    backgroundColor: '#fff',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1a1a1a',
+  },
+  statusCard: {
+    backgroundColor: '#fff',
+    padding: 20,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  statusBadge: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginBottom: 12,
+  },
+  statusText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  orderNumber: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+    marginBottom: 4,
+  },
+  orderDate: {
+    fontSize: 14,
+    color: '#888',
+  },
+  section: {
+    backgroundColor: '#fff',
+    padding: 16,
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#888',
+    marginBottom: 12,
+    textTransform: 'uppercase',
+  },
+  sellerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sellerIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FFF5F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  sellerInfo: {
+    flex: 1,
+  },
+  sellerName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a1a1a',
+  },
+  sellerPhone: {
+    fontSize: 14,
+    color: '#888',
+    marginTop: 2,
+  },
+  callBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFF5F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  itemsCard: {
+    backgroundColor: '#f9f9f9',
+    borderRadius: 12,
+    padding: 12,
+  },
+  itemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  itemInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  itemName: {
+    fontSize: 14,
+    color: '#1a1a1a',
+  },
+  itemQty: {
+    fontSize: 13,
+    color: '#888',
+    marginLeft: 8,
+  },
+  itemPrice: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1a1a1a',
+  },
+  billCard: {
+    backgroundColor: '#f9f9f9',
+    borderRadius: 12,
+    padding: 16,
+  },
+  billRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  billLabel: {
+    fontSize: 14,
+    color: '#666',
+  },
+  billValue: {
+    fontSize: 14,
+    color: '#1a1a1a',
+  },
+  subscriptionRow: {
+    backgroundColor: '#FFF5F0',
+    marginHorizontal: -16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 12,
+  },
+  subscriptionLabel: {
+    fontSize: 14,
+    color: '#FF6B00',
+    fontWeight: '500',
+  },
+  daysDeducted: {
+    fontSize: 12,
+    color: '#FF6B00',
+    marginTop: 2,
+  },
+  subscriptionValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FF6B00',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#ddd',
+    marginBottom: 12,
+  },
+  totalLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+  },
+  totalValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+  },
+  paymentMethod: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  paymentMethodText: {
+    fontSize: 12,
+    color: '#888',
+    marginLeft: 6,
+  },
+  addressCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#f9f9f9',
+    borderRadius: 12,
+    padding: 16,
+  },
+  addressInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  addressText: {
+    fontSize: 14,
+    color: '#1a1a1a',
+    lineHeight: 20,
+  },
+  addressCity: {
+    fontSize: 13,
+    color: '#888',
+    marginTop: 4,
+  },
+  mapContainer: {
+    height: 250,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#f0f0f0',
+  },
+  map: {
+    flex: 1,
+  },
+  webMapWrapper: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  webMapButton: {
+    position: 'absolute',
+    right: 12,
+    bottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  webMapButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FF6B00',
+  },
+  mapHint: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 8,
+    lineHeight: 18,
+  },
+  markerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mapFallback: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  mapFallbackText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#666',
+  },
+});
