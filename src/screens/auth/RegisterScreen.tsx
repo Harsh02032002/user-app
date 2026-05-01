@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -23,11 +23,14 @@ type RouteType = RouteProp<RootStackParamList, 'Register'>;
 export default function RegisterScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteType>();
-  const { phone } = route.params;
+  const phone = route.params?.phone || '';
   const { register, sendOtp } = useAuth();
+
+
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [localPhone, setLocalPhone] = useState('');
   const [loading, setLoading] = useState(false);
 
   const validateEmail = (email: string) => {
@@ -44,11 +47,17 @@ export default function RegisterScreen() {
       return;
     }
 
+    const finalPhone = phone || localPhone;
+    if (finalPhone.length !== 10) {
+      Alert.alert('Error', 'Please enter a valid 10-digit phone number');
+      return;
+    }
+
     setLoading(true);
     try {
-      await register({ name: name.trim(), email: email.trim(), phone });
-      await sendOtp(phone);
-      navigation.navigate('Otp', { phone });
+      await register({ name: name.trim(), email: email.trim(), phone: finalPhone });
+      await sendOtp(finalPhone);
+      navigation.navigate('Otp', { phone: finalPhone });
       Alert.alert('Success', 'Registration successful! Please verify OTP');
     } catch (error: any) {
       Alert.alert('Error', error.message);
@@ -103,9 +112,12 @@ export default function RegisterScreen() {
             <View style={styles.phoneContainer}>
               <Text style={styles.countryCode}>+91</Text>
               <TextInput
-                style={[styles.input, styles.phoneInput]}
-                value={phone}
-                editable={false}
+                style={[styles.input, styles.phoneInput, !route.params?.phone && { backgroundColor: '#f9f9f9' }]}
+                value={phone || localPhone}
+                onChangeText={setLocalPhone}
+                keyboardType="phone-pad"
+                maxLength={10}
+                editable={!route.params?.phone}
               />
               <View style={styles.verifiedBadge}>
                 <Ionicons name="checkmark-circle" size={18} color="#22C55E" />

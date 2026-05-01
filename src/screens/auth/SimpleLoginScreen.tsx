@@ -50,7 +50,7 @@ export default function SimpleLoginScreen() {
   };
 
   const handleSignUp = () => {
-    navigation.navigate('Register' as never);
+    navigation.navigate('Register', { phone: '' });
   };
 
   return (
