@@ -51,37 +51,39 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [items, isInitialized]);
 
-  const loadCart = async () => {
+  const loadCart = React.useCallback(async () => {
     try {
       const savedCart = await AsyncStorage.getItem('cart');
       if (savedCart) {
         const parsedCart = JSON.parse(savedCart);
-        setItems(parsedCart);
+        if (Array.isArray(parsedCart)) {
+          setItems(parsedCart);
+        } else {
+          setItems([]);
+        }
       }
     } catch (error) {
       console.error('Error loading cart:', error);
     } finally {
       setIsInitialized(true);
     }
-  };
+  }, []);
 
-  const saveCart = async () => {
+  const saveCart = React.useCallback(async () => {
     try {
       await AsyncStorage.setItem('cart', JSON.stringify(items));
       console.log('[CartContext] Cart saved:', items.length, 'items');
     } catch (error) {
       console.error('Error saving cart:', error);
     }
-  };
+  }, [items]);
 
-  const addToCart = (newItem: Omit<CartItem, 'quantity'>) => {
+  const addToCart = React.useCallback((newItem: Omit<CartItem, 'quantity'>) => {
     console.log('[CartContext] addToCart called with:', newItem);
     setItems(currentItems => {
-      console.log('[CartContext] Current items:', currentItems);
       const existingItem = currentItems.find(item => item.id === newItem.id);
       
       if (existingItem) {
-        console.log('[CartContext] Item exists, updating quantity');
         // Update quantity if item already exists
         return currentItems.map(item =>
           item.id === newItem.id
@@ -89,20 +91,17 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             : item
         );
       } else {
-        console.log('[CartContext] Adding new item');
         // Add new item
-        const newItems = [...currentItems, { ...newItem, quantity: 1 }];
-        console.log('[CartContext] New items array:', newItems);
-        return newItems;
+        return [...currentItems, { ...newItem, quantity: 1 }];
       }
     });
-  };
+  }, []);
 
-  const removeFromCart = (itemId: string) => {
+  const removeFromCart = React.useCallback((itemId: string) => {
     setItems(currentItems => currentItems.filter(item => item.id !== itemId));
-  };
+  }, []);
 
-  const updateQuantity = (itemId: string, quantity: number) => {
+  const updateQuantity = React.useCallback((itemId: string, quantity: number) => {
     if (quantity <= 0) {
       removeFromCart(itemId);
       return;
@@ -113,16 +112,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         item.id === itemId ? { ...item, quantity } : item
       )
     );
-  };
+  }, [removeFromCart]);
 
-  const clearCart = () => {
+  const clearCart = React.useCallback(() => {
     setItems([]);
-  };
+  }, []);
 
-  const getItemQuantity = (itemId: string): number => {
+  const getItemQuantity = React.useCallback((itemId: string): number => {
     const item = items.find(item => item.id === itemId);
     return item ? item.quantity : 0;
-  };
+  }, [items]);
 
   const totalItems = Array.isArray(items) ? items.reduce((sum, item) => sum + item.quantity, 0) : 0;
   const totalAmount = Array.isArray(items) ? items.reduce((sum, item) => {
@@ -130,7 +129,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return sum + (price * item.quantity);
   }, 0) : 0;
 
-  const value: CartContextType = {
+  const value = React.useMemo(() => ({
     items,
     totalItems,
     totalAmount,
@@ -139,7 +138,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     updateQuantity,
     clearCart,
     getItemQuantity,
-  };
+  }), [items, totalItems, totalAmount, addToCart, removeFromCart, updateQuantity, clearCart, getItemQuantity]);
 
   return (
     <CartContext.Provider value={value}>

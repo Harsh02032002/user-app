@@ -144,7 +144,10 @@ export default function RestaurantScreen() {
         } : undefined}
       />
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 150 }}
+      >
         {/* Categories */}
         <ScrollView
           horizontal
@@ -432,7 +435,7 @@ const styles = StyleSheet.create({
   },
   cartButton: {
     position: 'absolute',
-    bottom: 20,
+    bottom: 90,
     left: 20,
     right: 20,
     backgroundColor: '#FF6B00',

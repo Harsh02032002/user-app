@@ -21,9 +21,9 @@ type RouteType = RouteProp<RootStackParamList, 'SelectHomeChef'>;
 
 interface HomeChef {
   _id: string;
-  name: string;
-  shopName: string;
-  image?: string;
+  businessName: string;
+  logo?: string;
+  coverImage?: string;
   rating: number;
   phone: string;
   address?: {
@@ -58,7 +58,7 @@ export default function SelectHomeChefScreen() {
     try {
       setError(null);
       const response = await api.get(API_ENDPOINTS.HOME_CHEFS);
-      const chefsData = response.data?.data || response.data?.homeChefs || [];
+      const chefsData = response.data?.sellers || response.data?.data || response.data?.homeChefs || [];
       setHomeChefs(chefsData);
     } catch (error: any) {
       console.error('Error fetching home chefs:', error);
@@ -84,7 +84,7 @@ export default function SelectHomeChefScreen() {
       durationDays: durationDays || 30,
       perDayValue: perDayValue || Math.round(amount / 30),
       homeChefId: selectedChef,
-      homeChefName: selectedChefData?.shopName || selectedChefData?.name || 'Home Chef',
+      homeChefName: selectedChefData?.businessName || 'Home Chef',
     });
   };
 
@@ -94,6 +94,7 @@ export default function SelectHomeChefScreen() {
       <View style={styles.container}>
         <AppHeader 
           showSearch={false} 
+          showBack={true}
           sellerInfo={{ name: "Home Chefs Near You", type: 'home_chef', rating: 4.8 }}
         />
         <View style={styles.loadingContainer}>
@@ -110,6 +111,7 @@ export default function SelectHomeChefScreen() {
       <View style={styles.container}>
         <AppHeader 
           showSearch={false} 
+          showBack={true}
           sellerInfo={{ name: "Home Chefs Near You", type: 'home_chef', rating: 4.8 }}
         />
         <View style={styles.errorContainer}>
@@ -127,6 +129,7 @@ export default function SelectHomeChefScreen() {
     <View style={styles.container}>
       <AppHeader 
         showSearch={false} 
+        showBack={true}
         sellerInfo={{
           name: "Home Chefs Near You",
           type: 'home_chef',
@@ -163,8 +166,10 @@ export default function SelectHomeChefScreen() {
               onPress={() => setSelectedChef(chef._id)}
             >
               <View style={styles.chefImageContainer}>
-                {chef.image ? (
-                  <Image source={{ uri: chef.image }} style={styles.chefImage} />
+                {chef.logo ? (
+                  <Image source={{ uri: chef.logo }} style={styles.chefImage} />
+                ) : chef.coverImage ? (
+                  <Image source={{ uri: chef.coverImage }} style={styles.chefImage} />
                 ) : (
                   <View style={[styles.chefImage, styles.placeholderImage]}>
                     <Ionicons name="person" size={32} color="#ccc" />
@@ -173,7 +178,7 @@ export default function SelectHomeChefScreen() {
               </View>
 
               <View style={styles.chefInfo}>
-                <Text style={styles.chefName}>{chef.shopName || chef.name}</Text>
+                <Text style={styles.chefName}>{chef.businessName}</Text>
                 {chef.speciality && (
                   <Text style={styles.chefSpeciality}>{chef.speciality}</Text>
                 )}

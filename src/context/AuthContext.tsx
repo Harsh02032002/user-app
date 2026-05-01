@@ -8,6 +8,8 @@ interface User {
   email: string;
   phone: string;
   profileImage?: string;
+  avatar?: string;
+  banner?: string;
 }
 
 interface AuthContextType {
@@ -21,6 +23,9 @@ interface AuthContextType {
   sendOtp: (phone: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<void>;
+  uploadAvatar: (formData: FormData) => Promise<void>;
+  uploadBanner: (formData: FormData) => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 interface RegisterData {
@@ -40,7 +45,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     checkAuth();
   }, []);
 
-  const checkAuth = async () => {
+  const checkAuth = React.useCallback(async () => {
     try {
       const storedToken = await AsyncStorage.getItem('token');
       const storedUser = await AsyncStorage.getItem('user');
@@ -64,17 +69,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const sendOtp = async (phone: string) => {
+  const sendOtp = React.useCallback(async (phone: string) => {
     try {
       await api.auth.sendOtp(phone);
     } catch (error: any) {
       throw new Error(error.message || 'Failed to send OTP');
     }
-  };
+  }, []);
 
-  const login = async (phone: string, otp: string) => {
+  const login = React.useCallback(async (phone: string, otp: string) => {
     try {
       // Use phone/OTP login API
       const response = await api.auth.loginWithPhone(phone, otp);
@@ -93,9 +98,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error('Login error:', error);
       throw new Error(error.message || 'Login failed');
     }
-  };
+  }, []);
 
-  const loginWithEmail = async (email: string, password: string) => {
+  const loginWithEmail = React.useCallback(async (email: string, password: string) => {
     try {
       // Use real API for email login
       const response = await api.auth.login(email, password);
@@ -115,50 +120,90 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error('Login error:', error);
       throw new Error(error.message || 'Login failed');
     }
-  };
+  }, []);
 
-  const register = async (data: RegisterData) => {
+  const register = React.useCallback(async (data: RegisterData) => {
     try {
       const response = await api.auth.register(data);
       return response;
     } catch (error: any) {
       throw new Error(error.message || 'Registration failed');
     }
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = React.useCallback(async () => {
+    const { clearTokenCache } = require('../services/api');
     await AsyncStorage.removeItem('token');
     await AsyncStorage.removeItem('user');
+    clearTokenCache();
     setToken(null);
     setUser(null);
-  };
+  }, []);
 
-  const updateProfile = async (data: Partial<User>) => {
+  const updateProfile = React.useCallback(async (data: Partial<User>) => {
     try {
-      // TODO: Implement profile update when backend endpoint is ready
-      const updatedUser = { ...user, ...data } as User;
+      const response = await api.auth.updateProfile(data);
+      const updatedUser = { ...user, ...response } as User;
       await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
     } catch (error: any) {
       throw new Error(error.message || 'Update failed');
     }
-  };
+  }, [user]);
+
+  const uploadAvatar = React.useCallback(async (formData: FormData) => {
+    try {
+      const response = await api.auth.uploadAvatar(formData);
+      const avatarUrl = response.avatar || response.user?.avatar || response.url;
+      const updatedUser = { ...user, avatar: avatarUrl, profileImage: avatarUrl } as User;
+      await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+      setUser(updatedUser);
+    } catch (error: any) {
+      throw new Error(error.message || 'Avatar upload failed');
+    }
+  }, [user]);
+
+  const uploadBanner = React.useCallback(async (formData: FormData) => {
+    try {
+      const response = await api.auth.uploadBanner(formData);
+      const bannerUrl = response.banner || response.user?.banner || response.url;
+      const updatedUser = { ...user, banner: bannerUrl } as User;
+      await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+      setUser(updatedUser);
+    } catch (error: any) {
+      throw new Error(error.message || 'Banner upload failed');
+    }
+  }, [user]);
+
+  const refreshProfile = React.useCallback(async () => {
+    try {
+      const response = await api.auth.getProfile();
+      const userData = { ...response, profileImage: response.avatar } as User;
+      setUser(userData);
+      await AsyncStorage.setItem('user', JSON.stringify(userData));
+    } catch (error) {
+      console.error('Refresh profile error:', error);
+    }
+  }, []);
+
+  const value = React.useMemo(() => ({
+    user,
+    token,
+    isLoading,
+    isAuthenticated: !!token,
+    login,
+    loginWithEmail,
+    register,
+    sendOtp,
+    logout,
+    updateProfile,
+    uploadAvatar,
+    uploadBanner,
+    refreshProfile,
+  }), [user, token, isLoading, login, loginWithEmail, register, sendOtp, logout, updateProfile, uploadAvatar, uploadBanner, refreshProfile]);
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        token,
-        isLoading,
-        isAuthenticated: !!token,
-        login,
-        loginWithEmail,
-        register,
-        sendOtp,
-        logout,
-        updateProfile,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

@@ -15,6 +15,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { AppHeader } from '../../components/common/AppHeader';
+import { AppFooter } from '../../components/common/AppFooter';
+
+import * as ImagePicker from 'expo-image-picker';
+import { useNavigation } from '@react-navigation/native';
 
 interface UserProfile {
   name: string;
@@ -22,35 +26,50 @@ interface UserProfile {
   phone: string;
   address: string;
   bio: string;
-  avatar: string;
+  profileImage: string;
   banner: string;
 }
 
 export function SettingsScreen() {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, refreshProfile, uploadAvatar, uploadBanner } = useAuth();
+  const navigation = useNavigation();
   const [loading, setLoading] = useState(false);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [smsNotifications, setSmsNotifications] = useState(false);
   const [profile, setProfile] = useState<UserProfile>({
     name: user?.name || '',
     email: user?.email || '',
     phone: user?.phone || '',
     address: user?.address || '',
     bio: user?.bio || '',
-    avatar: user?.profileImage || '',
+    profileImage: user?.profileImage || '',
     banner: user?.banner || '',
   });
+
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
   });
 
+  // Update profile when user data changes
+  useEffect(() => {
+    if (user) {
+      setProfile({
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        address: user.address || '',
+        bio: user.bio || '',
+        profileImage: user.profileImage || '',
+        banner: user.banner || '',
+      });
+    }
+  }, [user]);
+
   const handleSaveProfile = async () => {
     setLoading(true);
     try {
       await updateProfile(profile);
+      await refreshProfile();
       Alert.alert('Success', 'Profile updated successfully');
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to update profile');
@@ -77,23 +96,81 @@ export function SettingsScreen() {
     }
   };
 
-  const pickImage = async (type: 'avatar' | 'banner') => {
+  const pickImage = async (type: 'profileImage' | 'banner') => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Sorry, we need camera roll permissions to make this work!');
+      return;
+    }
+
     Alert.alert(
-      'Select Image',
-      'Choose an option to update your ' + type,
+      'Update ' + (type === 'profileImage' ? 'Profile Photo' : 'Banner'),
+      'Select source',
       [
-        { text: 'Camera', onPress: () => Alert.alert('Camera', 'Camera functionality will be implemented') },
-        { text: 'Gallery', onPress: () => Alert.alert('Gallery', 'Gallery functionality will be implemented') },
+        { 
+          text: 'Camera', 
+          onPress: async () => {
+            const result = await ImagePicker.launchCameraAsync({
+              allowsEditing: true,
+              aspect: type === 'profileImage' ? [1, 1] : [16, 9],
+              quality: 0.8,
+            });
+            if (!result.canceled) {
+              handleImageUpload(type, result.assets[0]);
+            }
+          } 
+        },
+        { 
+          text: 'Gallery', 
+          onPress: async () => {
+            const result = await ImagePicker.launchImageLibraryAsync({
+              allowsEditing: true,
+              aspect: type === 'profileImage' ? [1, 1] : [16, 9],
+              quality: 0.8,
+            });
+            if (!result.canceled) {
+              handleImageUpload(type, result.assets[0]);
+            }
+          } 
+        },
         { text: 'Cancel', style: 'cancel' }
       ]
     );
+  };
+
+  const handleImageUpload = async (type: 'profileImage' | 'banner', asset: any) => {
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      const fileName = asset.uri.split('/').pop() || (type === 'profileImage' ? 'avatar.jpg' : 'banner.jpg');
+      const fileType = asset.mimeType || 'image/jpeg';
+      
+      formData.append(type === 'profileImage' ? 'avatar' : 'banner', {
+        uri: asset.uri,
+        name: fileName,
+        type: fileType,
+      } as any);
+
+      if (type === 'profileImage') {
+        await uploadAvatar(formData);
+      } else {
+        await uploadBanner(formData);
+      }
+      
+      Alert.alert('Success', `${type === 'profileImage' ? 'Profile photo' : 'Banner'} updated successfully`);
+    } catch (error: any) {
+      console.error('Image upload error:', error);
+      Alert.alert('Error', error.message || 'Failed to upload image');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <AppHeader showSearch={false} />
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Profile Information Card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
@@ -103,9 +180,9 @@ export function SettingsScreen() {
 
           {/* Profile Picture */}
           <View style={styles.profileSection}>
-            <TouchableOpacity onPress={() => pickImage('avatar')} style={styles.avatarContainer}>
-              {profile.avatar ? (
-                <Image source={{ uri: profile.avatar }} style={styles.avatar} />
+            <TouchableOpacity onPress={() => pickImage('profileImage')} style={styles.avatarContainer}>
+              {profile.profileImage ? (
+                <Image source={{ uri: profile.profileImage }} style={styles.avatar} />
               ) : (
                 <View style={styles.avatarPlaceholder}>
                   <Ionicons name="person" size={40} color="#999" />
@@ -115,7 +192,7 @@ export function SettingsScreen() {
                 <Ionicons name="camera" size={16} color="#fff" />
               </View>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => pickImage('avatar')} style={styles.changePhotoButton}>
+            <TouchableOpacity onPress={() => pickImage('profileImage')} style={styles.changePhotoButton}>
               <Ionicons name="camera-outline" size={16} color="#FF6B00" />
               <Text style={styles.changePhotoText}>Change Photo</Text>
             </TouchableOpacity>
@@ -208,53 +285,6 @@ export function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Notification Settings */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Ionicons name="notifications-outline" size={20} color="#FF6B00" />
-            <Text style={styles.cardTitle}>Notification Settings</Text>
-          </View>
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              <Text style={styles.settingTitle}>Push Notifications</Text>
-              <Text style={styles.settingSubtitle}>Receive order updates and offers</Text>
-            </View>
-            <Switch
-              value={notificationsEnabled}
-              onValueChange={setNotificationsEnabled}
-              trackColor={{ false: '#e5e5e5', true: '#FFB380' }}
-              thumbColor={notificationsEnabled ? '#FF6B00' : '#fff'}
-            />
-          </View>
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              <Text style={styles.settingTitle}>Email Notifications</Text>
-              <Text style={styles.settingSubtitle}>Get updates via email</Text>
-            </View>
-            <Switch
-              value={emailNotifications}
-              onValueChange={setEmailNotifications}
-              trackColor={{ false: '#e5e5e5', true: '#FFB380' }}
-              thumbColor={emailNotifications ? '#FF6B00' : '#fff'}
-            />
-          </View>
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              <Text style={styles.settingTitle}>SMS Notifications</Text>
-              <Text style={styles.settingSubtitle}>Receive SMS updates</Text>
-            </View>
-            <Switch
-              value={smsNotifications}
-              onValueChange={setSmsNotifications}
-              trackColor={{ false: '#e5e5e5', true: '#FFB380' }}
-              thumbColor={smsNotifications ? '#FF6B00' : '#fff'}
-            />
-          </View>
-        </View>
-
         {/* Change Password */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
@@ -306,6 +336,7 @@ export function SettingsScreen() {
         </View>
 
         <View style={{ height: 20 }} />
+        <AppFooter />
       </ScrollView>
     </SafeAreaView>
   );
@@ -479,26 +510,5 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-  },
-  settingItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  settingInfo: {
-    flex: 1,
-  },
-  settingTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#1a1a1a',
-    marginBottom: 2,
-  },
-  settingSubtitle: {
-    fontSize: 12,
-    color: '#666',
   },
 });

@@ -21,6 +21,8 @@ import { RootStackParamList } from '../navigation/RootNavigator';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import { DEFAULT_LOCATION_LABEL, getReadableLocation } from '../utils/location';
+import * as Location from 'expo-location';
+import { Alert } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -90,7 +92,8 @@ export default function LandingScreen() {
   const [detecting, setDetecting] = useState(false);
   const [imagesLoaded, setImagesLoaded] = useState(false);
   const [loadedCount, setLoadedCount] = useState(0);
-  const totalImages = 5; // heroBg, logo, homeChef, restaurant (characters load separately)
+  const totalImages = 1; // Only wait for the hero background to avoid deadlock
+  const tabBarHeight = 65; // Height of the bottom tab bar
 
   useEffect(() => {
     if (loadedCount >= totalImages) {
@@ -105,6 +108,13 @@ export default function LandingScreen() {
   const detectLocation = async () => {
     setDetecting(true);
     try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Please allow location access.');
+        return;
+      }
+      const loc = await Location.getCurrentPositionAsync({});
+      
       const nextLocation = await getReadableLocation();
       setLocation(nextLocation);
     } catch {
@@ -207,23 +217,24 @@ export default function LandingScreen() {
         </View>
 
         <ScrollView
-          contentContainerStyle={styles.scroll}
+          contentContainerStyle={[styles.scroll, { paddingBottom: 120 }]}
           showsVerticalScrollIndicator={false}
-          // ✅ Add bottom padding so content doesn't hide behind characters
-          contentInset={{ bottom: 20 }}
         >
 
           {/* LOCATION */}
-          <TouchableOpacity style={styles.location} onPress={detectLocation}>
-            <Ionicons name="location" size={18} color={PRIMARY} />
-            <View style={{ marginHorizontal: 10 }}>
-              <Text style={styles.locLabel}>DELIVER TO</Text>
-              <Text style={styles.locValue}>
-                {detecting ? 'Locating...' : location || 'Detect my location'}
-              </Text>
-            </View>
-            <Ionicons name="chevron-down" size={16} color="#555" />
-          </TouchableOpacity>
+          <View style={{ width: '100%', alignItems: 'center' }}>
+            <TouchableOpacity style={styles.location} onPress={detectLocation}>
+              <Ionicons name="location" size={18} color={PRIMARY} />
+              <View style={{ marginHorizontal: 10 }}>
+                <Text style={styles.locLabel}>DELIVER TO</Text>
+                <Text style={styles.locValue}>
+                  {detecting ? 'Locating...' : location || 'Detect my location'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-down" size={16} color="#555" />
+            </TouchableOpacity>
+
+          </View>
 
           {/* HERO TEXT */}
           <View style={styles.hero}>
@@ -295,8 +306,8 @@ export default function LandingScreen() {
             </Text>
           </TouchableOpacity>
 
-          {/* ✅ Spacer so characters don't overlap browse text */}
-          <View style={{ height: width * 0.32 }} />
+          {/* Spacer so characters don't overlap browse text */}
+          <View style={{ height: 100 }} />
 
         </ScrollView>
       </SafeAreaView>
@@ -526,22 +537,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 
-  // ✅ Fix: larger + positioned properly so full character is visible
+  // ✅ Fixed character positioning to prevent cutting and removed overflow: hidden
   animatedChar: {
     position: 'absolute',
-    width: width * 0.30,
-    height: width * 0.52,
+    width: width * 0.35,
+    height: width * 0.60,
     zIndex: 10,
-    bottom: 0,
-    overflow: 'hidden',
+    bottom: 45, // Moved up slightly
   },
 
   charLeft: {
-    left: -4,
+    left: -10,
   },
 
   charRight: {
-    right: -4,
+    right: -10,
   },
 
   charImage: {

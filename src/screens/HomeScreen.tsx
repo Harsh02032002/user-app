@@ -19,6 +19,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import api, { API_ENDPOINTS } from '../config/api';
 import { RootStackParamList } from '../navigation/RootNavigator';
+import { getCurrentCoordinates, getReadableLocation } from '../utils/location';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -54,10 +55,25 @@ export default function HomeScreen() {
   const [homeChefs, setHomeChefs] = useState<Restaurant[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [subscriptionBalance, setSubscriptionBalance] = useState(0);
+  const [locationName, setLocationName] = useState('Detecting location...');
+  const [coords, setCoords] = useState<{ latitude: number, longitude: number } | null>(null);
 
   useEffect(() => {
     fetchHomeData();
+    fetchLocation();
   }, []);
+
+  const fetchLocation = async () => {
+    try {
+      const name = await getReadableLocation();
+      setLocationName(name);
+      const position = await getCurrentCoordinates();
+      setCoords(position);
+    } catch (error) {
+      console.error('Error fetching location:', error);
+      setLocationName('Mumbai, Maharashtra');
+    }
+  };
 
   const fetchHomeData = async () => {
     try {
@@ -69,7 +85,10 @@ export default function HomeScreen() {
 
       setRestaurants(restaurantsRes.data.data || []);
       setHomeChefs(homeChefRes.data.data || []);
-      setSubscriptionBalance(balanceRes.data.data?.totalBalance || 0);
+      
+      // Backend returns { success: true, subscription: { ... } }
+      const subscription = balanceRes.data?.subscription || balanceRes.data?.data?.subscription;
+      setSubscriptionBalance(subscription?.remaining_amount || 0);
     } catch (error) {
       console.error('Error fetching home data:', error);
     } finally {
@@ -142,12 +161,24 @@ export default function HomeScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>Hello, {user?.name?.split(' ')[0] || 'User'}</Text>
-            <Text style={styles.headerSubtitle}>What would you like to eat?</Text>
-          </View>
-          <TouchableOpacity style={styles.notificationBtn}>
-            <Ionicons name="notifications-outline" size={24} color="#1a1a1a" />
+          <TouchableOpacity 
+            style={styles.locationContainer}
+            onPress={fetchLocation}
+          >
+            <View style={styles.locationHeaderRow}>
+              <Ionicons name="location" size={18} color="#FF6B00" />
+              <Text style={styles.locationLabel}>DELIVER TO</Text>
+              <Ionicons name="chevron-down" size={14} color="#FF6B00" />
+            </View>
+            <Text style={styles.locationName} numberOfLines={1}>{locationName}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.profileBtn}
+            onPress={() => navigation.navigate('MainTabs', { screen: 'Profile' } as any)}
+          >
+            <View style={styles.avatarPlaceholder}>
+              <Text style={styles.avatarText}>{user?.name?.charAt(0) || 'U'}</Text>
+            </View>
           </TouchableOpacity>
         </View>
 
@@ -314,24 +345,46 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 60,
     paddingBottom: 16,
+    backgroundColor: '#fff',
   },
-  greeting: {
-    fontSize: 24,
-    fontWeight: 'bold',
+  locationContainer: {
+    flex: 1,
+    marginRight: 16,
+  },
+  locationHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  locationLabel: {
+    fontSize: 12,
+    fontWeight: '800',
     color: '#1a1a1a',
+    letterSpacing: 0.5,
   },
-  headerSubtitle: {
+  locationName: {
     fontSize: 14,
     color: '#666',
-    marginTop: 2,
+    fontWeight: '500',
+    marginLeft: 22,
   },
-  notificationBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#f5f5f5',
+  profileBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  avatarPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#FF6B00',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  avatarText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   searchBar: {
     flexDirection: 'row',

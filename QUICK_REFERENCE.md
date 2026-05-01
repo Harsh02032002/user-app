@@ -70,7 +70,7 @@ const [walletResponse, subResponse] = await Promise.all([
 ```
 
 **New Features:**
-- Dabba Express subscription section
+- Dabba Nation subscription section
 - Subscription balance and days display
 - Enhanced wallet UI
 - Better transaction history

@@ -58,7 +58,7 @@ export const API_ENDPOINTS = {
   
   // Restaurants & Home Chefs
   RESTAURANTS: '/restaurants',
-  HOME_CHEFS: '/subscription/home-chefs',
+  HOME_CHEFS: '/user/sellers?type=home_chef',
   SELLER_DETAILS: '/seller',
   SELLER_MENU: '/seller/menu',
   
@@ -82,12 +82,13 @@ export const API_ENDPOINTS = {
   
   // Subscription (Same as Dabba Delights Web)
   SUBSCRIPTION_PLANS: '/subscriptions/plans',
-  PURCHASE_SUBSCRIPTION: '/user/subscriptions/purchase',
-  VERIFY_SUBSCRIPTION: '/user/subscriptions/verify-payment',
-  MY_SUBSCRIPTIONS: '/user/subscriptions/active',
-  SUBSCRIPTION_HISTORY: '/user/subscriptions/history',
-  SUBSCRIPTION_ITEMS: '/user/subscriptions/my-items',
+  PURCHASE_SUBSCRIPTION: '/subscriptions/purchase',
+  VERIFY_SUBSCRIPTION: '/payment/razorpay/verify',
+  MY_SUBSCRIPTIONS: '/subscriptions/active',
+  SUBSCRIPTION_HISTORY: '/subscriptions/my-subscriptions',
+  SUBSCRIPTION_ITEMS: '/subscriptions/my-items',
   HOME_CHEFS_SUBS: '/subscription/home-chefs',
+  SUBSCRIPTION_BALANCE: '/subscriptions/active',
   
   // Address
   ADDRESSES: '/address',
@@ -96,5 +97,7 @@ export const API_ENDPOINTS = {
   DELETE_ADDRESS: '/address/delete',
   
   // Razorpay
-  RAZORPAY_KEY: 'rzp_live_YOUR_KEY_HERE', // Replace with actual key
+  CREATE_RAZORPAY_ORDER: '/payment/razorpay/create-order',
+  VERIFY_RAZORPAY_PAYMENT: '/payment/razorpay/verify',
+  RAZORPAY_KEY: 'rzp_test_RDG5JVvoKELSk0',
 };

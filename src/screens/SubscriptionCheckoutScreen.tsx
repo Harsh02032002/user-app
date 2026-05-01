@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,7 +31,7 @@ interface PaymentBreakdown {
 export default function SubscriptionCheckoutScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteType>();
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   
   const { planId, planName, amount, durationDays, homeChefId, homeChefName, perDayValue } = route.params;
 
@@ -52,24 +53,7 @@ export default function SubscriptionCheckoutScreen() {
     return () => clearTimeout(timer);
   }, []);
 
-  const fetchWalletBalance = async () => {
-    try {
-      setError(null);
-      // Get user wallet balance - same as web app
-      const response = await api.get('/user/wallet');
-      const balance = response.data?.balance || response.data?.data?.balance || 0;
-      setWalletBalance(balance);
-      calculateBreakdown(balance, true);
-    } catch (error: any) {
-      console.error('Error fetching wallet balance:', error);
-      setError(error?.response?.data?.message || 'Failed to load wallet balance');
-      calculateBreakdown(0, false);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const calculateBreakdown = (balance: number, useWalletPay: boolean) => {
+  const calculateBreakdown = React.useCallback((balance: number, useWalletPay: boolean) => {
     let walletAmount = 0;
     let razorpayAmount = amount;
 
@@ -89,81 +73,55 @@ export default function SubscriptionCheckoutScreen() {
       walletAmount,
       razorpayAmount,
     });
-  };
+  }, [amount]);
 
-  const toggleWallet = () => {
+  const fetchWalletBalance = React.useCallback(async () => {
+    try {
+      setError(null);
+      // Get user wallet balance - same as web app
+      const response = await api.get('/user/wallet');
+      const balance = response.data?.balance || response.data?.data?.balance || 0;
+      setWalletBalance(balance);
+      calculateBreakdown(balance, useWallet);
+    } catch (error: any) {
+      console.error('Error fetching wallet balance:', error);
+      setError(error?.response?.data?.message || 'Failed to load wallet balance');
+      calculateBreakdown(0, false);
+    } finally {
+      setLoading(false);
+    }
+  }, [useWallet, calculateBreakdown]);
+
+  const toggleWallet = React.useCallback(() => {
     const newUseWallet = !useWallet;
     setUseWallet(newUseWallet);
     calculateBreakdown(walletBalance, newUseWallet);
-  };
+  }, [useWallet, walletBalance, calculateBreakdown]);
 
-  const handlePayment = async () => {
-    if (!breakdown) return;
-    
-    setProcessing(true);
+  const verifyHybridPayment = React.useCallback(async (paymentData: any, rzOrderId: string) => {
     try {
-      // Create subscription order - same API as web app
-      const orderResponse = await api.post(API_ENDPOINTS.PURCHASE_SUBSCRIPTION, {
+      // Step 1: Verify payment with Razorpay
+      await api.post(API_ENDPOINTS.VERIFY_RAZORPAY_PAYMENT, {
+        razorpayOrderId: rzOrderId,
+        razorpayPaymentId: paymentData.razorpay_payment_id,
+        razorpaySignature: paymentData.razorpay_signature,
+      });
+
+      // Step 2: Finalize subscription purchase
+      await api.post(API_ENDPOINTS.PURCHASE_SUBSCRIPTION, {
         planId,
         sellerId: homeChefId,
         totalAmount: amount,
         totalDays: durationDays,
-      });
-
-      // Response structure from backend: { success, subscription, order }
-      const orderData = orderResponse.data?.order || orderResponse.data?.data?.order;
-      const rzOrderId = orderData?.id || orderData?.orderId;
-      const rzAmount = orderData?.amount || amount;
-
-      if (breakdown.razorpayAmount === 0) {
-        // Full wallet payment - no Razorpay needed
-        await verifyWalletPayment(orderData?.id || orderResponse.data?.subscription?._id);
-        return;
-      }
-
-      setRazorpayOrderId(rzOrderId);
-
-      // Open Razorpay
-      const options = {
-        description: `Subscription - ${planName}`,
-        image: 'https://dabbanation.in/logo.png',
-        currency: 'INR',
-        key: API_ENDPOINTS.RAZORPAY_KEY,
-        amount: Math.round(rzAmount * 100),
-        name: 'Dabba Delights',
-        order_id: rzOrderId,
-        prefill: {
-          email: user?.email || '',
-          contact: user?.phone || '',
-          name: user?.name || '',
-        },
-        theme: { color: '#FF6B00' },
-      };
-
-      const data = await RazorpayCheckout.open(options);
-      await verifyHybridPayment(orderData?.id || orderData?.orderId, data, rzOrderId);
-    } catch (error: any) {
-      if (error.code !== 2) {
-        Alert.alert('Payment Failed', error.description || 'Payment was not completed');
-      }
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const verifyHybridPayment = async (orderId: string, paymentData: any, rzOrderId: string) => {
-    try {
-      await api.post(API_ENDPOINTS.VERIFY_SUBSCRIPTION, {
-        orderId,
+        usedWallet: useWallet && (breakdown?.walletAmount || 0) > 0,
+        walletAmount: breakdown?.walletAmount || 0,
         razorpay_order_id: rzOrderId,
         razorpay_payment_id: paymentData.razorpay_payment_id,
         razorpay_signature: paymentData.razorpay_signature,
-        planId,
-        homeChefId,
-        usedWallet: useWallet && breakdown?.walletAmount > 0,
-        walletAmount: breakdown?.walletAmount,
       });
 
+      await refreshProfile();
+      
       Alert.alert(
         'Subscription Activated! 🎉',
         `Your ${planName} subscription with ${homeChefName} is now active!`,
@@ -177,19 +135,20 @@ export default function SubscriptionCheckoutScreen() {
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.message || 'Payment verification failed');
     }
-  };
+  }, [planId, homeChefId, amount, durationDays, useWallet, breakdown, planName, homeChefName, navigation]);
 
-  const verifyWalletPayment = async (orderId: string) => {
+  const verifyWalletPayment = React.useCallback(async () => {
     try {
-      await api.post(API_ENDPOINTS.VERIFY_SUBSCRIPTION, {
-        orderId,
+      await api.post(API_ENDPOINTS.PURCHASE_SUBSCRIPTION, {
         planId,
-        homeChefId,
+        sellerId: homeChefId,
+        totalAmount: amount,
+        totalDays: durationDays,
         usedWallet: true,
         walletAmount: amount,
-        fullWalletPayment: true,
       });
 
+      await refreshProfile();
       Alert.alert(
         'Subscription Activated! 🎉',
         `Your ${planName} subscription with ${homeChefName} is now active! Paid fully from wallet.`,
@@ -201,9 +160,68 @@ export default function SubscriptionCheckoutScreen() {
         ]
       );
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Payment verification failed');
+      Alert.alert('Error', error.response?.data?.message || 'Wallet payment failed');
     }
-  };
+  }, [planId, homeChefId, amount, durationDays, planName, homeChefName, navigation]);
+
+  const handlePayment = React.useCallback(async () => {
+    if (!breakdown) return;
+    
+    setProcessing(true);
+    try {
+      if (breakdown.razorpayAmount === 0) {
+        // Full wallet payment - no Razorpay needed
+        await verifyWalletPayment();
+        return;
+      }
+
+      if (Platform.OS === 'web') {
+        Alert.alert('Web Payment', 'Razorpay native integration is not available on web. Please use the mobile app for subscription payments.');
+        setProcessing(false);
+        return;
+      }
+
+      // Create Razorpay order
+      const orderResponse = await api.post(API_ENDPOINTS.CREATE_RAZORPAY_ORDER, {
+        amount: breakdown.razorpayAmount,
+      });
+
+      const orderData = orderResponse.data?.order || orderResponse.data?.data?.order || orderResponse.data;
+      const rzOrderId = orderData?.id || orderData?.orderId;
+
+      if (!rzOrderId) {
+        throw new Error('Failed to create payment order');
+      }
+
+      setRazorpayOrderId(rzOrderId);
+
+      // Open Razorpay
+      const options = {
+        description: `Subscription - ${planName}`,
+        image: 'https://dabbanation.in/logo.png',
+        currency: 'INR',
+        key: API_ENDPOINTS.RAZORPAY_KEY,
+        amount: Math.round(breakdown.razorpayAmount * 100),
+        name: 'Dabba Delights',
+        order_id: rzOrderId,
+        prefill: {
+          email: user?.email || '',
+          contact: user?.phone || '',
+          name: user?.name || '',
+        },
+        theme: { color: '#FF6B00' },
+      };
+
+      const data = await RazorpayCheckout.open(options);
+      await verifyHybridPayment(data, rzOrderId);
+    } catch (error: any) {
+      if (error.code !== 2) {
+        Alert.alert('Payment Failed', error.message || error.description || 'Payment was not completed');
+      }
+    } finally {
+      setProcessing(false);
+    }
+  }, [breakdown, planName, user, verifyWalletPayment, verifyHybridPayment]);
 
   // Show loading state with UI skeleton to prevent blank screen
   if (loading && !mounted) {

@@ -29,7 +29,7 @@ interface UserProfile {
 const getMenuItems = (user: UserProfile | null) => [
   {
     icon: 'person-outline',
-    title: 'Personal Information',
+    title: 'Settings',
     subtitle: 'Update your profile details',
     action: 'personal'
   },
@@ -139,6 +139,8 @@ export function ProfileScreen() {
   const handleMenuAction = (action: string) => {
     if (action === 'logout') {
       logout();
+    } else if (action === 'personal') {
+      navigation.navigate('Settings');
     }
   };
 

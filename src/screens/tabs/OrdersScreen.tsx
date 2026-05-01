@@ -17,6 +17,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { AppHeader } from '../../components/common/AppHeader';
+import { AppFooter } from '../../components/common/AppFooter';
+import { DeliveryMap } from '../../components/common/DeliveryMap';
+import { getCurrentCoordinates } from '../../utils/location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const ORDERS_CACHE_KEY = 'orders_screen_cache';
 
 const { width } = Dimensions.get('window');
 
@@ -85,10 +91,33 @@ export function OrdersScreen() {
   const [showTrackingModal, setShowTrackingModal] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [rating, setRating] = useState(0);
+  const [userLocation, setUserLocation] = useState<[number, number] | undefined>(undefined);
 
   useEffect(() => {
-    fetchOrders();
+    loadCachedData().then(() => {
+      fetchOrders();
+      loadUserLocation();
+    });
   }, [activeTab]);
+
+  const loadCachedData = async () => {
+    try {
+      const cached = await AsyncStorage.getItem(ORDERS_CACHE_KEY + activeTab);
+      if (cached) {
+        setOrders(JSON.parse(cached));
+        setLoading(false);
+      }
+    } catch (e) {
+      console.error('Error loading orders cache:', e);
+    }
+  };
+
+  const loadUserLocation = async () => {
+    const coords = await getCurrentCoordinates();
+    if (coords) {
+      setUserLocation([coords.longitude, coords.latitude]);
+    }
+  };
 
   const fetchOrders = async () => {
     try {
@@ -97,6 +126,9 @@ export function OrdersScreen() {
       const response = await api.user.getOrders(activeTab === 'all' ? undefined : activeTab);
       const ordersData = Array.isArray(response) ? response : response.orders || response.data || [];
       setOrders(ordersData);
+      
+      // Cache the results for this tab
+      await AsyncStorage.setItem(ORDERS_CACHE_KEY + activeTab, JSON.stringify(ordersData));
     } catch (err: any) {
       console.error('Error fetching orders:', err);
       setError(err.message || 'Failed to load orders');
@@ -269,9 +301,15 @@ export function OrdersScreen() {
               <Ionicons name="location" size={16} color="#FF6B00" />
               <Text style={styles.trackingTitle}>Live Order Tracking</Text>
             </View>
+            
+            <DeliveryMap 
+              userCoords={userLocation}
+              height={180}
+            />
+
             <TouchableOpacity style={styles.mapButton} onPress={() => openMap(order)}>
               <Ionicons name="map" size={16} color="#fff" />
-              <Text style={styles.mapButtonText}>View on Map</Text>
+              <Text style={styles.mapButtonText}>Open in Google Maps</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -325,7 +363,7 @@ export function OrdersScreen() {
           </TouchableOpacity>
 
           {/* Cancel Button */}
-          {['pending', 'confirmed'].includes(order.status) && (
+          {['pending', 'confirmed', 'preparing'].includes(order.status) && (
             <TouchableOpacity style={styles.cancelButton} onPress={() => handleCancelOrder(order)}>
               <Ionicons name="close-circle-outline" size={14} color="#DC2626" />
               <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -411,8 +449,9 @@ export function OrdersScreen() {
             </TouchableOpacity>
           </View>
         )}
-        
         <View style={{ height: 20 }} />
+        <AppFooter />
+        <View style={{ height: 120 }} />
       </ScrollView>
 
       {/* Rating Modal */}
@@ -573,19 +612,23 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   orderInfo: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
+    marginRight: 8,
   },
   orderNumber: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1a1a1a',
+    flexShrink: 1,
   },
   orderPrice: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#1a1a1a',
+    textAlign: 'right',
   },
   statusBadge: {
     paddingHorizontal: 8,

@@ -193,7 +193,7 @@ export default function SearchScreen() {
           data={results}
           renderItem={renderResultItem}
           keyExtractor={(item) => item._id}
-          contentContainerStyle={styles.resultsList}
+          contentContainerStyle={[styles.resultsList, { paddingBottom: 100 }]}
           showsVerticalScrollIndicator={false}
         />
       )}

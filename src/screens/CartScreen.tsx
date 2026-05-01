@@ -72,7 +72,10 @@ export function CartScreen() {
         </View>
       ) : (
         <>
-          <ScrollView style={styles.scrollView}>
+            <ScrollView 
+              style={styles.scrollView}
+              contentContainerStyle={{ paddingBottom: 150 }}
+            >
             {cartItems.map(item => (
               <View key={item.id} style={styles.cartItem}>
                 <Image source={{ uri: item.image }} style={styles.itemImage} />
@@ -317,6 +320,7 @@ const styles = StyleSheet.create({
   checkoutSection: {
     backgroundColor: '#fff',
     padding: 20,
+    paddingBottom: 10,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     shadowColor: '#000',
@@ -324,6 +328,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 8,
+    position: 'absolute',
+    bottom: 65,
+    left: 0,
+    right: 0,
   },
   billDetails: {
     marginBottom: 20,

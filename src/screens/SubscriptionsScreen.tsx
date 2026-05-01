@@ -18,22 +18,25 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 interface Subscription {
   _id: string;
-  subscriptionPlan: {
-    name: string;
-    amount: number;
-    durationDays: number;
+  plan_id?: {
+    _id: string;
+    plan_name: string;
+    description?: string;
   };
-  homeChef: {
-    name: string;
-    shopName: string;
-    phone: string;
+  seller_id?: {
+    _id: string;
+    businessName: string;
+    type: string;
+    logo?: string;
   };
-  remainingBalance: number;
-  remainingDays: number;
-  status: string;
-  startDate: string;
-  endDate: string;
-  totalAmount: number;
+  total_amount: number;
+  remaining_amount: number;
+  total_days: number;
+  remaining_days: number;
+  per_day_value: number;
+  status: "active" | "expired";
+  createdAt: string;
+  updatedAt: string;
 }
 
 export default function SubscriptionsScreen() {
@@ -49,14 +52,33 @@ export default function SubscriptionsScreen() {
 
   const fetchSubscriptions = async () => {
     try {
-      const [subsRes, balanceRes] = await Promise.all([
-        api.get(API_ENDPOINTS.MY_SUBSCRIPTIONS),
-        api.get(API_ENDPOINTS.SUBSCRIPTION_BALANCE),
-      ]);
-      setSubscriptions(subsRes.data.data || []);
-      setTotalBalance(balanceRes.data.data?.totalBalance || 0);
+      // Exact same API as web app: /subscriptions/active
+      const activeRes = await api.get('/subscriptions/active');
+      console.log('[Subscriptions] Response from /subscriptions/active:', activeRes.data);
+      const subscription = activeRes.data?.subscription || activeRes.data?.data?.subscription;
+      
+      if (subscription) {
+        console.log('[Subscriptions] Active subscription found:', subscription._id);
+        // Convert single subscription to array format for UI
+        setSubscriptions([subscription]);
+        setTotalBalance(subscription.remaining_amount || 0);
+      } else {
+        console.log('[Subscriptions] No active subscription found in response');
+        // If /active returns nothing, try /my-subscriptions (the history one)
+        const allRes = await api.get('/subscriptions/my-subscriptions');
+        const allSubs = allRes.data?.subscriptions || allRes.data?.data?.subscriptions || [];
+        console.log('[Subscriptions] All subscriptions found:', allSubs.length);
+        setSubscriptions(allSubs);
+        
+        // Calculate total balance from all active subs if needed
+        const activeSubs = allSubs.filter((s: any) => s.status === 'active');
+        const balance = activeSubs.reduce((sum: number, s: any) => sum + (s.remaining_amount || 0), 0);
+        setTotalBalance(balance);
+      }
     } catch (error) {
       console.error('Error fetching subscriptions:', error);
+      setSubscriptions([]);
+      setTotalBalance(0);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -140,10 +162,10 @@ export default function SubscriptionsScreen() {
                   <View style={styles.cardHeader}>
                     <View>
                       <Text style={styles.planName}>
-                        {subscription.subscriptionPlan?.name || 'Subscription Plan'}
+                        {subscription.plan_id?.plan_name || 'Subscription Plan'}
                       </Text>
                       <Text style={styles.chefName}>
-                        {subscription.homeChef?.shopName || subscription.homeChef?.name}
+                        {subscription.seller_id?.businessName || 'Home Chef'}
                       </Text>
                     </View>
                     <View
@@ -164,12 +186,12 @@ export default function SubscriptionsScreen() {
                     <View style={styles.balanceItem}>
                       <Text style={styles.balanceItemLabel}>Remaining Balance</Text>
                       <Text style={styles.balanceItemValue}>
-                        Rs. {subscription.remainingBalance}
+                        Rs. {subscription.remaining_amount}
                       </Text>
                     </View>
                     <View style={styles.balanceItem}>
                       <Text style={styles.balanceItemLabel}>Days Left</Text>
-                      <Text style={styles.balanceItemValue}>{subscription.remainingDays}</Text>
+                      <Text style={styles.balanceItemValue}>{subscription.remaining_days}</Text>
                     </View>
                   </View>
 
@@ -181,7 +203,7 @@ export default function SubscriptionsScreen() {
                           styles.progressFill,
                           {
                             width: `${
-                              (subscription.remainingBalance / subscription.totalAmount) * 100
+                              (subscription.remaining_amount / subscription.total_amount) * 100
                             }%`,
                           },
                         ]}
@@ -189,7 +211,7 @@ export default function SubscriptionsScreen() {
                     </View>
                     <Text style={styles.progressText}>
                       {Math.round(
-                        (subscription.remainingBalance / subscription.totalAmount) * 100
+                        (subscription.remaining_amount / subscription.total_amount) * 100
                       )}
                       % remaining
                     </Text>
@@ -199,12 +221,8 @@ export default function SubscriptionsScreen() {
                     <View style={styles.dateItem}>
                       <Ionicons name="calendar-outline" size={14} color="#888" />
                       <Text style={styles.dateText}>
-                        Start: {formatDate(subscription.startDate)}
+                        Started: {formatDate(subscription.createdAt)}
                       </Text>
-                    </View>
-                    <View style={styles.dateItem}>
-                      <Ionicons name="calendar-outline" size={14} color="#888" />
-                      <Text style={styles.dateText}>End: {formatDate(subscription.endDate)}</Text>
                     </View>
                   </View>
                 </View>
@@ -223,10 +241,10 @@ export default function SubscriptionsScreen() {
                   <View style={styles.cardHeader}>
                     <View>
                       <Text style={styles.planName}>
-                        {subscription.subscriptionPlan?.name || 'Subscription Plan'}
+                        {subscription.plan_id?.plan_name || 'Subscription Plan'}
                       </Text>
                       <Text style={styles.chefName}>
-                        {subscription.homeChef?.shopName || subscription.homeChef?.name}
+                        {subscription.seller_id?.businessName || 'Home Chef'}
                       </Text>
                     </View>
                     <View
@@ -244,9 +262,9 @@ export default function SubscriptionsScreen() {
                   </View>
                   <View style={styles.dateRow}>
                     <Text style={styles.pastDateText}>
-                      {formatDate(subscription.startDate)} - {formatDate(subscription.endDate)}
+                      Started: {formatDate(subscription.createdAt)}
                     </Text>
-                    <Text style={styles.pastAmountText}>Rs. {subscription.totalAmount}</Text>
+                    <Text style={styles.pastAmountText}>Rs. {subscription.total_amount}</Text>
                   </View>
                 </View>
               ))}

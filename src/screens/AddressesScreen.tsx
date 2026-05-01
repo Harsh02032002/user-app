@@ -202,7 +202,7 @@ export default function AddressesScreen() {
 
       <TouchableOpacity
         style={styles.addButton}
-        onPress={() => navigation.navigate('AddAddress')}
+        onPress={() => navigation.navigate('AddAddress' as never)}
       >
         <Ionicons name="add" size={24} color="#fff" />
         <Text style={styles.addButtonText}>Add New Address</Text>

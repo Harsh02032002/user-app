@@ -4,10 +4,11 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
   TextInput,
   Alert,
+  Modal,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
@@ -16,6 +17,7 @@ import { DEFAULT_LOCATION_LABEL, getReadableLocation } from '../../utils/locatio
 
 interface AppHeaderProps {
   showSearch?: boolean;
+  showBack?: boolean;
   sellerInfo?: {
     name: string;
     type: 'home_chef' | 'restaurant';
@@ -24,31 +26,53 @@ interface AppHeaderProps {
   };
 }
 
-export function AppHeader({ showSearch = true, sellerInfo }: AppHeaderProps) {
+export const AppHeader = React.memo(function AppHeader({ showSearch = true, showBack = false, sellerInfo }: AppHeaderProps) {
   const { user, logout } = useAuth();
   const { totalItems } = useCart();
   const navigation = useNavigation();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [location, setLocation] = useState('Detecting location...');
+  const [location, setLocation] = useState(DEFAULT_LOCATION_LABEL);
+  const fetchingLocation = React.useRef(false);
 
   useEffect(() => {
-    getCurrentLocation();
+    let isMounted = true;
+    const fetch = async () => {
+      if (fetchingLocation.current) return;
+      fetchingLocation.current = true;
+      try {
+        const loc = await getReadableLocation();
+        if (isMounted) setLocation(loc);
+      } finally {
+        fetchingLocation.current = false;
+      }
+    };
+    fetch();
+    return () => { isMounted = false; };
   }, []);
 
-  const getCurrentLocation = async () => {
+  const handleRefreshLocation = async () => {
+    if (fetchingLocation.current) return;
+    fetchingLocation.current = true;
     try {
-      const nextLocation = await getReadableLocation();
-      setLocation(nextLocation);
-    } catch (error) {
-      console.error('Error getting location:', error);
-      setLocation(DEFAULT_LOCATION_LABEL);
+      const loc = await getReadableLocation();
+      setLocation(loc);
+    } finally {
+      fetchingLocation.current = false;
     }
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        {showBack && (
+          <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
+          </TouchableOpacity>
+        )}
         <View style={styles.logoContainer}>
           {sellerInfo ? (
             // Seller/Restaurant Header
@@ -85,18 +109,25 @@ export function AppHeader({ showSearch = true, sellerInfo }: AppHeaderProps) {
             </View>
           ) : (
             // Main App Logo
-            <View style={styles.mainLogoContainer}>
+            <TouchableOpacity 
+              style={styles.mainLogoContainer}
+              onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })}
+              activeOpacity={0.7}
+            >
               <Image 
                 source={require('../../../assets/images/logo.png')} 
                 style={styles.logoImage}
                 resizeMode="cover"
               />
-            </View>
+            </TouchableOpacity>
           )}
         </View>
         
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.iconButton}>
+          <TouchableOpacity 
+            style={styles.iconButton}
+            onPress={() => navigation.navigate('Search' as never)}
+          >
             <Ionicons name="search-outline" size={24} color="#1a1a1a" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('Cart' as never)}>
@@ -107,7 +138,10 @@ export function AppHeader({ showSearch = true, sellerInfo }: AppHeaderProps) {
               </View>
             )}
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton}>
+          <TouchableOpacity 
+            style={styles.iconButton}
+            onPress={() => navigation.navigate('Notifications' as never)}
+          >
             <Ionicons name="notifications-outline" size={24} color="#1a1a1a" />
             <View style={styles.notificationDot} />
           </TouchableOpacity>
@@ -150,7 +184,7 @@ export function AppHeader({ showSearch = true, sellerInfo }: AppHeaderProps) {
       )}
 
       {/* Location Button */}
-      <TouchableOpacity style={styles.locationButton} onPress={getCurrentLocation}>
+      <TouchableOpacity style={styles.locationButton} onPress={handleRefreshLocation}>
         <Ionicons name="location" size={18} color="#FF6B00" />
         <View style={styles.locationContent}>
           <Text style={styles.locationLabel}>Deliver to</Text>
@@ -160,26 +194,48 @@ export function AppHeader({ showSearch = true, sellerInfo }: AppHeaderProps) {
       </TouchableOpacity>
 
       {/* User Dropdown Menu */}
-      {showUserMenu && user && (
-        <View style={styles.userDropdown}>
-          <View style={styles.userDropdownHeader}>
-            <Text style={styles.dropdownUserEmail}>{user.email || 'user@example.com'}</Text>
+      <Modal
+        visible={showUserMenu && !!user}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowUserMenu(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setShowUserMenu(false)}
+        >
+          <View style={styles.userDropdown}>
+            <View style={styles.userDropdownHeader}>
+              <Text style={styles.dropdownUserEmail}>{user?.email || 'user@example.com'}</Text>
+            </View>
+            
+            <TouchableOpacity 
+              style={styles.dropdownMenuItem} 
+              onPress={() => {
+                setShowUserMenu(false);
+                navigation.navigate('MainTabs', { screen: 'Settings' });
+              }}
+            >
+              <Ionicons name="person-outline" size={18} color="#1a1a1a" />
+              <Text style={styles.dropdownMenuText}>Profile Settings</Text>
+            </TouchableOpacity>
+
+            <View style={styles.dropdownDivider} />
+            
+            <TouchableOpacity style={styles.dropdownMenuItem} onPress={() => {
+              setShowUserMenu(false);
+              logout();
+            }}>
+              <Ionicons name="log-out-outline" size={18} color="#DC2626" />
+              <Text style={[styles.dropdownMenuText, { color: '#DC2626' }]}>Logout</Text>
+            </TouchableOpacity>
           </View>
-          
-          <View style={styles.dropdownDivider} />
-          
-          <TouchableOpacity style={styles.dropdownMenuItem} onPress={() => {
-            setShowUserMenu(false);
-            logout();
-          }}>
-            <Ionicons name="log-out-outline" size={18} color="#DC2626" />
-            <Text style={[styles.dropdownMenuText, { color: '#DC2626' }]}>Logout</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -193,6 +249,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
+  },
+  backButton: {
+    marginRight: 12,
+    padding: 4,
   },
   logoContainer: {
     flex: 1,
@@ -208,10 +268,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
     elevation: 6,
   },
   sellerHeader: {
@@ -379,6 +435,10 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
     fontWeight: '500',
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+  },
   userDropdown: {
     position: 'absolute',
     top: 80,
@@ -387,10 +447,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 0,
     minWidth: 240,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
     elevation: 12,
     zIndex: 1000,
     borderWidth: 1,

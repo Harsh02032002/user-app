@@ -11,6 +11,9 @@ import RegisterScreen from '../screens/auth/RegisterScreen';
 
 // Landing
 import LandingScreen from '../screens/LandingScreen';
+import StaticPageScreen from '../screens/static/StaticPageScreen';
+import AllMenusScreen from '../screens/AllMenusScreen';
+import AllPlansScreen from '../screens/AllPlansScreen';
 
 // Main App
 import MainTabNavigator from './MainTabNavigator';
@@ -33,6 +36,7 @@ import SubscriptionPlansScreen from '../screens/SubscriptionPlansScreen';
 import SubscriptionsScreen from '../screens/SubscriptionsScreen';
 import WalletScreen from '../screens/WalletScreen';
 import WishlistScreen from '../screens/WishlistScreen';
+import { SettingsScreen } from '../screens/tabs/SettingsScreen';
 
 export type RootStackParamList = {
   Landing: undefined;
@@ -74,9 +78,15 @@ export type RootStackParamList = {
   // Orders & Subscriptions
   Orders: undefined;
   Subscriptions: undefined;
+  StaticPage: { type: 'about' | 'help' | 'privacy' | 'terms' | 'contact' | 'refund' };
+  AllMenus: undefined;
+  AllPlans: undefined;
+  Settings: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+import { MobileNavBar } from '../components/common/MobileNavBar';
 
 export default function RootNavigator() {
   const { isLoading, isAuthenticated } = useAuth();
@@ -92,12 +102,13 @@ export default function RootNavigator() {
   }
 
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: '#fff' },
-      }}
-    >
+    <View style={{ flex: 1 }}>
+      <Stack.Navigator
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: '#fff' },
+        }}
+      >
       {!isAuthenticated ? (
         // Auth Stack with Landing as initial
         <>
@@ -198,8 +209,30 @@ export default function RootNavigator() {
             component={SubscriptionsScreen}
             options={{ animation: 'slide_from_right' }}
           />
+          <Stack.Screen 
+            name="StaticPage" 
+            component={StaticPageScreen}
+            options={{ animation: 'slide_from_right' }}
+          />
+          <Stack.Screen 
+            name="AllMenus" 
+            component={AllMenusScreen}
+            options={{ animation: 'slide_from_right' }}
+          />
+          <Stack.Screen 
+            name="AllPlans" 
+            component={AllPlansScreen}
+            options={{ animation: 'slide_from_right' }}
+          />
+          <Stack.Screen 
+            name="Settings" 
+            component={SettingsScreen}
+            options={{ animation: 'slide_from_right' }}
+          />
         </>
       )}
-    </Stack.Navigator>
+      </Stack.Navigator>
+      {isAuthenticated && <MobileNavBar />}
+    </View>
   );
 }

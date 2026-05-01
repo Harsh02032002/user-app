@@ -5,12 +5,13 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   Dimensions,
   FlatList,
   ActivityIndicator,
   Platform,
+  RefreshControl,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -18,11 +19,13 @@ import { useCart } from '../../context/CartContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../services/api';
 import { AppHeader } from '../../components/common/AppHeader';
+import { AppFooter } from '../../components/common/AppFooter';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/RootNavigator';
 
 const { width } = Dimensions.get('window');
+const CACHE_KEY = 'home_screen_data_cache';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -82,6 +85,8 @@ export function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedType, setSelectedTypeState] = useState('all');
+  const [refreshing, setRefreshing] = useState(false);
+
   
   // Wrapper to save type to storage when changed
   const setSelectedType = async (type: string) => {
@@ -97,170 +102,209 @@ export function HomeScreen() {
   const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
   const [promoBanners, setPromoBanners] = useState<PromoBanner[]>([]);
 
-  useEffect(() => {
-    loadPreferredType();
-  }, []);
+  const fetching = React.useRef(false);
 
-  useEffect(() => {
-    if (selectedType) {
-      fetchData();
+
+
+  const loadCachedData = async () => {
+    try {
+      const cachedData = await AsyncStorage.getItem(CACHE_KEY);
+      if (cachedData) {
+        const parsed = JSON.parse(cachedData);
+        setSellers(parsed.sellers || []);
+        setMenuItems(parsed.menuItems || []);
+        setSubscriptionPlans(parsed.subscriptionPlans || []);
+        setPromoBanners(parsed.promoBanners || []);
+        setLoading(false); // Show cached data immediately
+      }
+    } catch (error) {
+      console.error('Error loading cache:', error);
     }
-  }, [selectedType]);
+  };
 
-  const loadPreferredType = async () => {
+  const loadPreferredType = React.useCallback(async () => {
+    console.log('[HomeScreen] loadPreferredType called, current selectedType:', selectedType);
     try {
       const savedType = await AsyncStorage.getItem('preferredFoodType');
-      if (savedType) {
+      if (savedType && savedType !== selectedType) {
+        console.log('[HomeScreen] Updating selectedType from storage:', savedType);
         setSelectedTypeState(savedType);
       }
     } catch (error) {
       console.error('Error loading preferred type:', error);
     }
-  };
+  }, [selectedType]);
 
-  const fetchData = async () => {
+
+
+  const fetchData = React.useCallback(async () => {
+    if (fetching.current) {
+      console.log('[HomeScreen] fetchData ignored, already fetching');
+      return;
+    }
+    console.log('[HomeScreen] fetchData starting for type:', selectedType, 'loading:', loading, 'refreshing:', refreshing);
+    fetching.current = true;
+    
     try {
-      setLoading(true);
+      if (!refreshing && !loading) {
+        setLoading(true);
+      }
       setError(null);
       
       console.log('[HomeScreen] Fetching data for type:', selectedType);
       
-      // First fetch all sellers to use for filtering
-      const sellersResponse = await api.user.getSellers();
+      // Fetch all data in parallel for better performance
+      const [sellersResponse, menuResponse, plansData, bannersData] = await Promise.all([
+        api.user.getSellers().catch(err => { console.log('Sellers error:', err); return { sellers: [] }; }),
+        api.user.getMenuItems().catch(err => { console.log('Menu error:', err); return { products: [] }; }),
+        api.user.getSubscriptionPlans().catch(err => { console.log('Plans error:', err); return []; }),
+        api.user.getActiveBanners().catch(err => { console.log('Banners error:', err); return []; })
+      ]);
+
+      // Process Sellers
       const allSellers = sellersResponse.sellers || [];
-      
-      // Filter sellers by selected type locally
       const filteredSellers = selectedType === 'all' 
         ? allSellers 
         : allSellers.filter((seller: Seller) => seller.type === selectedType);
-      
       setSellers(filteredSellers);
-      console.log('[HomeScreen] Sellers loaded:', filteredSellers.length, 'Type:', selectedType);
-      
-      // Fetch all menu items
-      const menuResponse = await api.user.getMenuItems();
+
+      // Process Menu Items
       const allMenuData = menuResponse.products || [];
-      
-      // Filter menu items based on seller type from sellerId object
       const filteredMenuData = selectedType === 'all' 
         ? allMenuData
-        : allMenuData.filter((item: MenuItem) => {
-            // sellerId is an object with type field
-            return item.sellerId?.type === selectedType;
-          });
-      
+        : allMenuData.filter((item: MenuItem) => item.sellerId?.type === selectedType);
       setMenuItems(filteredMenuData);
-      console.log('[HomeScreen] Menu items loaded:', filteredMenuData.length, 'Total:', allMenuData.length, 'Type:', selectedType);
+
+      // Process Plans & Banners
+      setSubscriptionPlans(plansData.plans || plansData || []);
+      setPromoBanners(bannersData.banners || bannersData || []);
       
-      // Try to fetch subscription plans (may not exist on backend yet)
-      try {
-        const plansData = await api.user.getSubscriptionPlans();
-        setSubscriptionPlans(plansData.plans || plansData || []);
-      } catch (err) {
-        console.log('Subscription plans endpoint not available yet');
-        setSubscriptionPlans([]);
-      }
+      // Cache the new data
+      await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({
+        sellers: filteredSellers,
+        menuItems: filteredMenuData,
+        subscriptionPlans: plansData.plans || plansData || [],
+        promoBanners: bannersData.banners || bannersData || [],
+        timestamp: Date.now(),
+      }));
       
-      // Try to fetch banners (may not exist on backend yet)
-      try {
-        const bannersData = await api.user.getActiveBanners();
-        setPromoBanners(bannersData.banners || bannersData || []);
-      } catch (err) {
-        console.log('Banners endpoint not available yet');
-        setPromoBanners([]);
-      }
+      console.log('[HomeScreen] Data loaded successfully and cached');
       
     } catch (err: any) {
       console.error('Error fetching data:', err);
       setError(err.message || 'Failed to load data');
     } finally {
       setLoading(false);
+      fetching.current = false;
     }
-  };
+  }, [selectedType, loading, refreshing]);
+
+  useEffect(() => {
+    loadCachedData().then(() => {
+      loadPreferredType();
+    });
+  }, []);
+
+  useEffect(() => {
+    if (selectedType) {
+      console.log('[HomeScreen] useEffect triggered by selectedType:', selectedType);
+      fetchData();
+    }
+  }, [selectedType]);
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    await fetchData();
+    setRefreshing(false);
+  }, [fetchData]);
 
   const typeLabel = selectedType === 'home_chef' ? 'Home Chef' : selectedType === 'restaurant' ? 'Restaurant' : 'All Sellers';
 
-  const renderSellerCard = ({ item }: any) => (
-    <TouchableOpacity 
-      style={styles.sellerCard} 
-      activeOpacity={0.9}
-      onPress={() => {
-        console.log('Navigating to seller:', item._id, item.businessName, 'Type:', item.type);
-        navigation.navigate('Restaurant', {
-          sellerId: item._id,
-          sellerName: item.businessName,
-        });
-      }}
-    >
-      {/* Cover Image with Gradient Overlay */}
-      <View style={styles.sellerCoverContainer}>
-        <Image source={{ uri: item.coverImage || item.image }} style={styles.sellerCoverImage} />
-        <View style={styles.sellerGradientOverlay} />
+  const renderSellerCard = React.useCallback(({ item }: any) => {
+    const defaultLogo = 'https://images.unsplash.com/photo-1495195129352-aec325b55b65?w=200&h=200&fit=crop&q=80';
+    const defaultCover = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1000&h=400&fit=crop&q=80';
+    
+    return (
+      <TouchableOpacity 
+        style={styles.sellerCard} 
+        activeOpacity={0.9}
+        onPress={() => {
+          console.log('Navigating to seller:', item._id, item.businessName, 'Type:', item.type);
+          navigation.navigate('Restaurant', {
+            sellerId: item._id,
+            sellerName: item.businessName,
+          });
+        }}
+      >
+        {/* Cover Image with Gradient Overlay */}
+        <View style={styles.sellerCoverContainer}>
+          <Image source={{ uri: item.coverImage || item.image || defaultCover }} style={styles.sellerCoverImage} />
+          <View style={styles.sellerGradientOverlay} />
+          
+          {/* Type Badge */}
+          <View style={styles.sellerBadgeContainer}>
+            <View style={[styles.typeBadge, item.type === 'home_chef' ? styles.homeChefBadge : styles.restaurantBadge]}>
+              <Ionicons 
+                name={item.type === 'home_chef' ? 'home' : 'restaurant'} 
+                size={10} 
+                color="#fff" 
+              />
+              <Text style={styles.typeBadgeText}>
+                {item.type === 'home_chef' ? 'Home Cooked' : 'Restaurant'}
+              </Text>
+            </View>
+          </View>
+        </View>
         
-        {/* Type Badge */}
-        <View style={styles.sellerBadgeContainer}>
-          <View style={[styles.typeBadge, item.type === 'home_chef' ? styles.homeChefBadge : styles.restaurantBadge]}>
-            <Ionicons 
-              name={item.type === 'home_chef' ? 'home' : 'restaurant'} 
-              size={10} 
-              color="#fff" 
+        {/* Content */}
+        <View style={styles.sellerCardContent}>
+          {/* Logo overlapping cover */}
+          <View style={styles.sellerLogoContainer}>
+            <Image 
+              source={{ uri: item.logo || item.image || defaultLogo }} 
+              style={styles.sellerLogo} 
             />
-            <Text style={styles.typeBadgeText}>
-              {item.type === 'home_chef' ? 'Home Cooked' : 'Restaurant'}
+          </View>
+          
+          <View style={styles.sellerInfo}>
+            <Text style={styles.sellerName} numberOfLines={1}>{item.businessName}</Text>
+            <Text style={styles.sellerCuisines} numberOfLines={1}>
+              {(item.cuisines || []).join(' • ') || 'Multi-cuisine'}
             </Text>
           </View>
-        </View>
-      </View>
-      
-      {/* Content */}
-      <View style={styles.sellerCardContent}>
-        {/* Logo overlapping cover */}
-        <View style={styles.sellerLogoContainer}>
-          <Image 
-            source={{ uri: item.logo || item.image }} 
-            style={styles.sellerLogo} 
-          />
-        </View>
-        
-        <View style={styles.sellerInfo}>
-          <Text style={styles.sellerName} numberOfLines={1}>{item.businessName}</Text>
-          <Text style={styles.sellerCuisines} numberOfLines={1}>
-            {(item.cuisines || []).join(' • ') || 'Multi-cuisine'}
-          </Text>
-        </View>
-        
-        {/* Rating & Location */}
-        <View style={styles.sellerMeta}>
-          <View style={styles.ratingContainer}>
-            <Ionicons name="star" size={12} color="#FFD700" />
-            <Text style={styles.ratingText}>{item.rating?.toFixed(1) || '4.0'}</Text>
+          
+          {/* Rating & Location */}
+          <View style={styles.sellerMeta}>
+            <View style={styles.ratingContainer}>
+              <Ionicons name="star" size={12} color="#FFD700" />
+              <Text style={styles.ratingText}>{item.rating?.toFixed(1) || '4.0'}</Text>
+            </View>
+            <View style={styles.locationContainer}>
+              <Ionicons name="location" size={12} color="#999" />
+              <Text style={styles.locationText} numberOfLines={1}>
+                {item.address?.city || 'Mumbai'}
+              </Text>
+            </View>
           </View>
-          <View style={styles.locationContainer}>
-            <Ionicons name="location" size={12} color="#999" />
-            <Text style={styles.locationText} numberOfLines={1}>
-              {item.address?.city || 'Mumbai'}
-            </Text>
-          </View>
+          
+          {/* Tags */}
+          {item.tags && item.tags.length > 0 && (
+            <View style={styles.tagsContainer}>
+              {item.tags.slice(0, 3).map((tag: string, idx: number) => (
+                <View key={idx} style={styles.tag}>
+                  <Text style={styles.tagText}>{tag}</Text>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
-        
-        {/* Tags */}
-        {item.tags && item.tags.length > 0 && (
-          <View style={styles.tagsContainer}>
-            {item.tags.slice(0, 3).map((tag: string, idx: number) => (
-              <View key={idx} style={styles.tag}>
-                <Text style={styles.tagText}>{tag}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  }, [navigation]);
 
-  const renderFoodCard = ({ item }: any) => {
+  const renderFoodCard = React.useCallback(({ item }: any) => {
     // sellerId is an object from backend with _id, businessName, type
     const sellerType = item.sellerId?.type;
-    const sellerName = item.sellerId?.businessName;
     const discountPrice = item.discountPrice || null;
     const sellingPrice = item.sellingPrice || item.price;
     const discountPercent = discountPrice ? Math.round(((sellingPrice - discountPrice) / sellingPrice) * 100) : 0;
@@ -320,7 +364,7 @@ export function HomeScreen() {
               <Ionicons name="star" size={12} color="#FFD700" />
               <Text style={styles.ratingText}>{item.rating?.toFixed(1) || '4.0'}</Text>
             </View>
-            <Text style={styles.ordersText}>{(item.totalOrders || 0).toLocaleString()} orders</Text>
+
           </View>
           
           {/* Price & Add Button */}
@@ -354,9 +398,9 @@ export function HomeScreen() {
         </View>
       </TouchableOpacity>
     );
-  };
+  }, [addToCart]);
 
-  const renderPromoBanner = ({ item }: any) => (
+  const renderPromoBanner = React.useCallback(({ item }: any) => (
     <TouchableOpacity style={[styles.promoBanner, { backgroundColor: item.color }]}>
       <View style={styles.promoContent}>
         <Text style={styles.promoTitle}>{item.title}</Text>
@@ -364,41 +408,52 @@ export function HomeScreen() {
       </View>
       <Image source={{ uri: item.image }} style={styles.promoImage} />
     </TouchableOpacity>
-  );
+  ), []);
 
-  const renderSubscriptionPlan = ({ item }: any) => (
-    <TouchableOpacity style={styles.planCard}>
-      {item.badge && (
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{item.badge}</Text>
-        </View>
-      )}
-      <View style={styles.planHeader}>
-        <Text style={styles.planTitle}>{item.plan_name}</Text>
-        <Text style={styles.planDescription}>{item.description}</Text>
-      </View>
-      <View style={styles.planPricing}>
-        <Text style={styles.planPrice}>₹{item.total_amount}</Text>
-        <Text style={styles.planDuration}>/ {item.total_days} days</Text>
-        <Text style={styles.planDaily}>
-          ₹{(item.total_amount / item.total_days).toFixed(0)} per day
-        </Text>
-      </View>
-      {item.features && (
-        <View style={styles.featuresContainer}>
-          {item.features.slice(0, 3).map((feature: string, idx: number) => (
-            <View key={idx} style={styles.featureItem}>
-              <Ionicons name="checkmark-circle" size={14} color="#4CAF50" />
-              <Text style={styles.featureText}>{feature}</Text>
+  const renderSubscriptionPlan = React.useCallback(({ item }: any) => {
+    // Resolve banner image
+    let bannerSource = null;
+    if (item.banner_image || item.image) {
+      const imgPath = item.banner_image || item.image;
+      if (imgPath.startsWith('http')) {
+        bannerSource = { uri: imgPath };
+      } else {
+        const baseUrl = 'https://dabbanation.in';
+        bannerSource = { uri: `${baseUrl}${imgPath.startsWith('/') ? '' : '/'}${imgPath}` };
+      }
+    } else {
+      if (item.total_days <= 7) bannerSource = require('../../../assets/images/weekly_plan.png');
+      else if (item.total_days <= 14) bannerSource = require('../../../assets/images/fortnightly_plan.png');
+      else bannerSource = require('../../../assets/images/monthly_plan.png');
+    }
+
+    return (
+      <TouchableOpacity 
+        style={styles.planCard}
+        onPress={() => navigation.navigate('SubscriptionPlans', { planId: item._id })}
+      >
+        <View style={styles.planImageContainer}>
+          <Image source={bannerSource} style={styles.planImage} />
+          {item.badge && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{item.badge}</Text>
             </View>
-          ))}
+          )}
         </View>
-      )}
-      <TouchableOpacity style={styles.viewPlanButton}>
-        <Text style={styles.viewPlanText}>View Details</Text>
+        <View style={styles.planHeader}>
+          <Text style={styles.planTitle}>{item.plan_name}</Text>
+          <Text style={styles.planDescription} numberOfLines={1}>{item.description}</Text>
+        </View>
+        <View style={styles.planPricing}>
+          <Text style={styles.planPrice}>₹{item.total_amount}</Text>
+          <Text style={styles.planDuration}>/ {item.total_days} days</Text>
+        </View>
+        <View style={styles.viewPlanButton}>
+          <Text style={styles.viewPlanText}>View Details</Text>
+        </View>
       </TouchableOpacity>
-    </TouchableOpacity>
-  );
+    );
+  }, [navigation]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -410,33 +465,44 @@ export function HomeScreen() {
           <Text style={styles.loadingText}>Loading delicious food...</Text>
         </View>
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
+        <ScrollView 
+          showsVerticalScrollIndicator={false} 
+          style={styles.scrollView}
+          contentContainerStyle={{ paddingBottom: 120 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#FF6B00']} />}
+        >
           {/* Type Filter Toggle */}
-          <View style={styles.filterContainer}>
-            <TouchableOpacity 
-              style={[styles.filterButton, selectedType === 'all' && styles.filterButtonActive]}
-              onPress={() => setSelectedType('all')}
+          <View style={styles.filterSection}>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false} 
+              contentContainerStyle={styles.filterContainer}
             >
-              <Text style={[styles.filterText, selectedType === 'all' && styles.filterTextActive]}>
-                🌟 All
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.filterButton, selectedType === 'home_chef' && styles.filterButtonActive]}
-              onPress={() => setSelectedType('home_chef')}
-            >
-              <Text style={[styles.filterText, selectedType === 'home_chef' && styles.filterTextActive]}>
-                🏠 Home Chef
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.filterButton, selectedType === 'restaurant' && styles.filterButtonActive]}
-              onPress={() => setSelectedType('restaurant')}
-            >
-              <Text style={[styles.filterText, selectedType === 'restaurant' && styles.filterTextActive]}>
-                🍽️ Restaurant
-              </Text>
-            </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.filterButton, selectedType === 'all' && styles.filterButtonActive]}
+                onPress={() => setSelectedType('all')}
+              >
+                <Text style={[styles.filterText, selectedType === 'all' && styles.filterTextActive]}>
+                  🌟 All
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.filterButton, selectedType === 'home_chef' && styles.filterButtonActive]}
+                onPress={() => setSelectedType('home_chef')}
+              >
+                <Text style={[styles.filterText, selectedType === 'home_chef' && styles.filterTextActive]}>
+                  🏠 Home Chef
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.filterButton, selectedType === 'restaurant' && styles.filterButtonActive]}
+                onPress={() => setSelectedType('restaurant')}
+              >
+                <Text style={[styles.filterText, selectedType === 'restaurant' && styles.filterTextActive]}>
+                  🍽️ Restaurant
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
 
           {/* Promo Banners */}
@@ -447,7 +513,7 @@ export function HomeScreen() {
             keyExtractor={(item) => item._id}
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.promoList}
+            contentContainerStyle={styles.scrollContent}
           />
         </View>
 
@@ -470,12 +536,9 @@ export function HomeScreen() {
         {/* Menu Items Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>
-              {selectedType === 'home_chef' ? 'Home-Cooked Delights' : 
-               selectedType === 'restaurant' ? 'Popular Dishes' : 'All Dishes'}
-            </Text>
-            <TouchableOpacity>
-              <Text style={styles.viewAllText}>View All</Text>
+            <Text style={styles.sectionTitle}>What's on the menu?</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('AllMenus')}>
+              <Text style={styles.viewAll}>View All</Text>
             </TouchableOpacity>
           </View>
           <FlatList
@@ -522,86 +585,17 @@ export function HomeScreen() {
             contentContainerStyle={styles.horizontalList}
           />
           
-          <TouchableOpacity style={styles.viewAllPlansButton}>
+          <TouchableOpacity 
+            style={styles.viewAllPlansButton}
+            onPress={() => navigation.navigate('AllPlans')}
+          >
             <Text style={styles.viewAllPlansText}>View All Plans</Text>
             <Ionicons name="chevron-forward" size={16} color="#FF6B00" />
           </TouchableOpacity>
         </View>
 
-        {/* Footer */}
-        <View style={styles.footer}>
-          <View style={styles.footerContent}>
-            {/* Company Info */}
-            <View style={styles.footerSection}>
-              <Text style={[styles.linkTitle, { color: '#FF6B00', fontSize: 20 }]}>Dabba Nation</Text>
-              <Text style={styles.footerDescription}>
-                Your trusted food delivery partner, bringing delicious homemade and restaurant meals to your doorstep.
-              </Text>
-              <View style={styles.socialLinks}>
-                <TouchableOpacity style={styles.socialButton}>
-                  <Ionicons name="logo-facebook" size={20} color="#1877F2" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.socialButton}>
-                  <Ionicons name="logo-twitter" size={20} color="#1DA1F2" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.socialButton}>
-                  <Ionicons name="logo-instagram" size={20} color="#E4405F" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.socialButton}>
-                  <Ionicons name="logo-youtube" size={20} color="#FF0000" />
-                </TouchableOpacity>
-              </View>
-            </View>
-            
-            {/* Quick Links */}
-            <View style={styles.linkColumn}>
-              <Text style={styles.linkTitle}>Quick Links</Text>
-              <TouchableOpacity><Text style={styles.linkText}>About Us</Text></TouchableOpacity>
-              <TouchableOpacity><Text style={styles.linkText}>How it Works</Text></TouchableOpacity>
-              <TouchableOpacity><Text style={styles.linkText}>Become a Partner</Text></TouchableOpacity>
-              <TouchableOpacity><Text style={styles.linkText}>Delivery Areas</Text></TouchableOpacity>
-              <TouchableOpacity><Text style={styles.linkText}>Careers</Text></TouchableOpacity>
-            </View>
-            
-            {/* Support */}
-            <View style={styles.linkColumn}>
-              <Text style={styles.linkTitle}>Support</Text>
-              <TouchableOpacity><Text style={styles.linkText}>Help Center</Text></TouchableOpacity>
-              <TouchableOpacity><Text style={styles.linkText}>Contact Us</Text></TouchableOpacity>
-              <TouchableOpacity><Text style={styles.linkText}>Privacy Policy</Text></TouchableOpacity>
-              <TouchableOpacity><Text style={styles.linkText}>Terms of Service</Text></TouchableOpacity>
-              <TouchableOpacity><Text style={styles.linkText}>Refund Policy</Text></TouchableOpacity>
-            </View>
-            
-            {/* Contact Info */}
-            <View style={styles.linkColumn}>
-              <Text style={styles.linkTitle}>Contact Us</Text>
-              <View style={styles.contactInfo}>
-                <Ionicons name="call" size={18} color="#FF6B00" />
-                <Text style={styles.contactText}>+91 73030 23539</Text>
-              </View>
-              <View style={styles.contactInfo}>
-                <Ionicons name="location" size={18} color="#FF6B00" />
-                <Text style={styles.contactText}>
-                  East Shastri Nagar{"\n"}
-                  Ram Gulam Tola{"\n"}
-                  Deoria 274001
-                </Text>
-              </View>
-              <View style={styles.contactInfo}>
-                <Ionicons name="mail" size={18} color="#FF6B00" />
-                <Text style={styles.contactText}>support@dabbanation.com</Text>
-              </View>
-            </View>
-          </View>
-          
-          <View style={styles.footerBottom}>
-            <Text style={styles.copyright}>© 2024 Dabba Nation. All rights reserved.</Text>
-            <Text style={styles.madeWith}>Made with ❤️ in India</Text>
-          </View>
-        </View>
-
-        <View style={{ height: 20 }} />
+        <View style={{ height: 40 }} />
+        <AppFooter />
         </ScrollView>
       )}
     </SafeAreaView>
@@ -630,16 +624,18 @@ const styles = StyleSheet.create({
   },
   filterContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
     paddingVertical: 12,
     gap: 10,
+  },
+  filterSection: {
     backgroundColor: '#fff',
     marginHorizontal: 16,
     marginTop: 12,
     marginBottom: 16,
     borderRadius: 12,
+    overflow: 'hidden',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -649,6 +645,9 @@ const styles = StyleSheet.create({
       },
       android: {
         elevation: 2,
+      },
+      web: {
+        boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.08)',
       },
     }),
   },
@@ -689,6 +688,9 @@ const styles = StyleSheet.create({
       },
       android: {
         elevation: 3,
+      },
+      web: {
+        boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.08)',
       },
     }),
   },
@@ -764,11 +766,7 @@ const styles = StyleSheet.create({
     borderRadius: 30,
   },
 
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-    marginBottom: 16,
+  scrollContent: {
     paddingHorizontal: 16,
   },
   sectionHeader: {
@@ -778,7 +776,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingHorizontal: 16,
   },
-  viewAllText: {
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+  },
+  viewAll: {
     fontSize: 14,
     color: '#FF6B00',
     fontWeight: '600',
@@ -1182,14 +1185,33 @@ const styles = StyleSheet.create({
     width: 200,
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 16,
     marginRight: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+      web: {
+        boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
+      },
+    }),
     position: 'relative',
+  },
+  planImageContainer: {
+    width: '100%',
+    height: 100,
+    position: 'relative',
+  },
+  planImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
   badge: {
     position: 'absolute',
@@ -1206,7 +1228,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   planHeader: {
-    marginBottom: 16,
+    padding: 12,
+    marginBottom: 8,
   },
   planTitle: {
     fontSize: 16,
@@ -1222,7 +1245,7 @@ const styles = StyleSheet.create({
   },
   planPricing: {
     alignItems: 'center',
-    marginBottom: 16,
+    paddingBottom: 12,
   },
   planPrice: {
     fontSize: 24,
@@ -1316,6 +1339,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  footerLinksGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
   },
   footerLinks: {
     marginBottom: 32,

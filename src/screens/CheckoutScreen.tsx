@@ -19,6 +19,7 @@ import * as Location from 'expo-location';
 import { AppHeader } from '../components/common/AppHeader';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { DeliveryMap } from '../components/common/DeliveryMap';
 import api from '../services/api';
 // WebView is only available on native platforms
 const WebViewComponent = Platform.OS !== 'web' ? require('react-native-webview').WebView : null;
@@ -44,7 +45,7 @@ interface Address {
 export function CheckoutScreen() {
   const navigation = useNavigation();
   const { items: cartItems, totalAmount, clearCart } = useCart();
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   
   const [loading, setLoading] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<PaymentMethod | null>(null);
@@ -53,6 +54,8 @@ export function CheckoutScreen() {
   const [razorpayModal, setRazorpayModal] = useState(false);
   const [razorpayHtml, setRazorpayHtml] = useState('');
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [activeSubs, setActiveSubs] = useState<any[]>([]);
   
   // Delivery address form - directly entered, not saved separately
   const [deliveryAddress, setDeliveryAddress] = useState({
@@ -79,16 +82,50 @@ export function CheckoutScreen() {
 
   useEffect(() => {
     fetchWalletBalance();
+    fetchActiveSubs();
   }, []);
 
-  const fetchWalletBalance = async () => {
+  const fetchActiveSubs = async () => {
+    try {
+      const response = await api.user.getActiveSubscription();
+      // Handle different possible response structures
+      let subs = [];
+      if (response.subscription) {
+        subs = [response.subscription];
+      } else if (Array.isArray(response)) {
+        subs = response;
+      } else if (response.subscriptions) {
+        subs = response.subscriptions;
+      } else if (response.data) {
+        subs = Array.isArray(response.data) ? response.data : (response.data.subscription ? [response.data.subscription] : []);
+      }
+      
+      // Map backend fields to frontend interface expected by CheckoutScreen
+      const normalizedSubs = subs.map((s: any) => ({
+        ...s,
+        remainingBalance: s.remaining_amount !== undefined ? s.remaining_amount : s.remainingBalance,
+        remainingDays: s.remaining_days !== undefined ? s.remaining_days : s.remainingDays,
+        homeChef: s.seller_id ? {
+          _id: s.seller_id._id || s.seller_id,
+          shopName: s.seller_id.businessName || s.seller_name,
+          name: s.seller_id.name
+        } : s.homeChef
+      }));
+      
+      setActiveSubs(normalizedSubs);
+    } catch (error) {
+      console.error('Error fetching active subs:', error);
+    }
+  };
+
+  const fetchWalletBalance = React.useCallback(async () => {
     try {
       const response = await api.user.getWalletTransactions();
       setWalletBalance(response.data?.balance || 0);
     } catch (error) {
       console.error('Error fetching wallet balance:', error);
     }
-  };
+  }, []);
 
   const validateAddress = () => {
     if (!deliveryAddress.street || !deliveryAddress.city || !deliveryAddress.pincode) {
@@ -98,12 +135,147 @@ export function CheckoutScreen() {
     return true;
   };
 
-  const handlePlaceOrder = async () => {
+  const processWalletPayment = React.useCallback(async (orderId: string) => {
+    try {
+      await api.payment.processWalletPayment({
+        orderId,
+        amount: total,
+      });
+      
+      await refreshProfile();
+      clearCart();
+      Alert.alert('Success', 'Order placed successfully using wallet!', [
+        { text: 'OK', onPress: () => navigation.navigate('MainTabs' as any, { screen: 'Orders' }) }
+      ]);
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Wallet payment failed');
+    }
+  }, [total, clearCart, navigation]);
+
+  const processPaymentSuccess = React.useCallback(async (orderId: string, paymentId: string, razorpayOrderId?: string, razorpaySignature?: string) => {
+    try {
+      await api.payment.verifyPayment({
+        orderId, // This is our system's orderId
+        razorpayPaymentId: paymentId,
+        razorpayOrderId, // Real razorpay order id from response
+        razorpaySignature, // Real signature from response
+      });
+      
+      await refreshProfile();
+      clearCart();
+      Alert.alert('Success', 'Order placed successfully!', [
+        { text: 'OK', onPress: () => navigation.navigate('MainTabs' as any, { screen: 'Orders' }) }
+      ]);
+    } catch (error: any) {
+      Alert.alert('Error', 'Payment verification failed: ' + (error.message || 'Unknown error'));
+    }
+  }, [clearCart, navigation]);
+
+  const handleRazorpayPayment = React.useCallback(async (order: any, amount: number) => {
+    try {
+      if (Platform.OS === 'web') {
+        setRazorpayModal(true);
+        return;
+      }
+
+      setLoading(true);
+      
+      // Create Razorpay order on backend - send rupees, backend handles paise conversion
+      const razorpayResponse = await api.payment.createRazorpayOrder({
+        amount: amount, // Send in rupees - backend multiplies by 100
+        orderId: order._id,
+      });
+
+      setLoading(false);
+      setPendingOrderId(order._id);
+
+      // Build Razorpay checkout HTML to embed in WebView
+      const html = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body>
+<script>
+  var options = {
+    key: '${razorpayResponse.key}',
+    amount: ${razorpayResponse.amount},
+    currency: '${razorpayResponse.currency || 'INR'}',
+    order_id: '${razorpayResponse.orderId}',
+    name: 'Dabba Nation',
+    description: 'Order #${order.orderNumber || ''}',
+    prefill: {
+      name: '${user?.name || ''}',
+      email: '${user?.email || ''}',
+      contact: '${user?.phone || ''}'
+    },
+    theme: { color: '#FF6B00' },
+    handler: function(response) {
+      window.ReactNativeWebView.postMessage(JSON.stringify({ 
+        success: true, 
+        paymentId: response.razorpay_payment_id,
+        orderId: response.razorpay_order_id,
+        signature: response.razorpay_signature
+      }));
+    },
+    modal: {
+      ondismiss: function() {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ success: false, cancelled: true }));
+      }
+    }
+  };
+  var rzp = new Razorpay(options);
+  rzp.on('payment.failed', function(resp) {
+    window.ReactNativeWebView.postMessage(JSON.stringify({ success: false, error: resp.error.description }));
+  });
+  window.onload = function() { rzp.open(); };
+</script>
+</body>
+</html>`;
+
+      setRazorpayHtml(html);
+      setRazorpayModal(true);
+    } catch (error: any) {
+      setLoading(false);
+      Alert.alert('Payment Error', error.message || 'Payment initialization failed');
+    }
+  }, [user]);
+
+  const handleWebViewMessage = React.useCallback(async (event: any) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      setRazorpayModal(false);
+      setRazorpayHtml('');
+      if (data.success && data.paymentId && pendingOrderId) {
+        await processPaymentSuccess(pendingOrderId, data.paymentId, data.orderId, data.signature);
+      } else if (data.cancelled) {
+        Alert.alert('Cancelled', 'Payment was cancelled. Your order has been saved.');
+      } else {
+        Alert.alert('Payment Failed', data.error || 'Payment failed. Please try again.');
+      }
+    } catch (e) {
+      console.error('WebView message error:', e);
+    } finally {
+      setPendingOrderId(null);
+    }
+  }, [pendingOrderId, processPaymentSuccess]);
+
+  const handlePlaceOrder = React.useCallback(async () => {
     if (!validateAddress()) return;
 
     if (!selectedPayment) {
       Alert.alert('Payment Method Required', 'Please select a payment method');
       return;
+    }
+
+    if (selectedPayment.type === 'subscription') {
+      const currentSub = activeSubs.find(s => s.homeChef?._id === cartItems[0]?.sellerId || s.homeChef === cartItems[0]?.sellerId);
+      if (!currentSub || currentSub.remainingBalance <= 0) {
+        Alert.alert('Insufficient Plan Balance', 'You do not have enough meals left in your plan with this chef.');
+        return;
+      }
     }
 
     if (cartItems.length === 0) {
@@ -147,13 +319,21 @@ export function CheckoutScreen() {
       } else if (selectedPayment.type === 'wallet' && walletBalance >= total) {
         // Wallet payment
         await processWalletPayment(orderResponse.order._id);
+      } else if (selectedPayment.type === 'subscription') {
+        // Subscription payment
+        clearCart();
+        Alert.alert(
+          '🎉 Order Placed!',
+          `Your order #${orderResponse.order?.orderNumber || ''} has been placed successfully! 1 meal has been deducted from your plan.`,
+          [{ text: 'View Orders', onPress: () => navigation.navigate('MainTabs' as any, { screen: 'Orders' }) }]
+        );
       } else {
         // COD placed successfully - show success directly
         clearCart();
         Alert.alert(
           '🎉 Order Placed!',
           `Your order #${orderResponse.order?.orderNumber || ''} has been placed successfully! You will pay ₹${total} on delivery.`,
-          [{ text: 'View Orders', onPress: () => navigation.navigate('Orders' as never) }]
+          [{ text: 'View Orders', onPress: () => navigation.navigate('MainTabs' as any, { screen: 'Orders' }) }]
         );
       }
     } catch (error: any) {
@@ -161,121 +341,7 @@ export function CheckoutScreen() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleRazorpayPayment = async (order: any, amount: number) => {
-    try {
-      setLoading(true);
-      
-      // Create Razorpay order on backend - send rupees, backend handles paise conversion
-      const razorpayResponse = await api.payment.createRazorpayOrder({
-        amount: amount, // Send in rupees - backend multiplies by 100
-        orderId: order._id,
-      });
-
-      setLoading(false);
-      setPendingOrderId(order._id);
-
-      // Build Razorpay checkout HTML to embed in WebView
-      const html = `
-<!DOCTYPE html>
-<html>
-<head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-</head>
-<body>
-<script>
-  var options = {
-    key: '${razorpayResponse.key}',
-    amount: ${razorpayResponse.amount},
-    currency: '${razorpayResponse.currency || 'INR'}',
-    order_id: '${razorpayResponse.orderId}',
-    name: 'Dabba Nation',
-    description: 'Order #${order.orderNumber || ''}',
-    prefill: {
-      name: '${user?.name || ''}',
-      email: '${user?.email || ''}',
-      contact: '${user?.phone || ''}'
-    },
-    theme: { color: '#FF6B00' },
-    handler: function(response) {
-      window.ReactNativeWebView.postMessage(JSON.stringify({ success: true, paymentId: response.razorpay_payment_id }));
-    },
-    modal: {
-      ondismiss: function() {
-        window.ReactNativeWebView.postMessage(JSON.stringify({ success: false, cancelled: true }));
-      }
-    }
-  };
-  var rzp = new Razorpay(options);
-  rzp.on('payment.failed', function(resp) {
-    window.ReactNativeWebView.postMessage(JSON.stringify({ success: false, error: resp.error.description }));
-  });
-  window.onload = function() { rzp.open(); };
-</script>
-</body>
-</html>`;
-
-      setRazorpayHtml(html);
-      setRazorpayModal(true);
-    } catch (error: any) {
-      setLoading(false);
-      Alert.alert('Payment Error', error.message || 'Payment initialization failed');
-    }
-  };
-
-  const handleWebViewMessage = async (event: any) => {
-    try {
-      const data = JSON.parse(event.nativeEvent.data);
-      setRazorpayModal(false);
-      setRazorpayHtml('');
-      if (data.success && data.paymentId && pendingOrderId) {
-        await processPaymentSuccess(pendingOrderId, data.paymentId);
-      } else if (data.cancelled) {
-        Alert.alert('Cancelled', 'Payment was cancelled. Your order has been saved.');
-      } else {
-        Alert.alert('Payment Failed', data.error || 'Payment failed. Please try again.');
-      }
-    } catch (e) {
-      console.error('WebView message error:', e);
-    } finally {
-      setPendingOrderId(null);
-    }
-  };
-
-  const processWalletPayment = async (orderId: string) => {
-    try {
-      await api.payment.processWalletPayment({
-        orderId,
-        amount: total,
-      });
-      
-      clearCart();
-      Alert.alert('Success', 'Order placed successfully using wallet!', [
-        { text: 'OK', onPress: () => navigation.navigate('Orders' as never) }
-      ]);
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Wallet payment failed');
-    }
-  };
-
-  const processPaymentSuccess = async (orderId: string, paymentId: string) => {
-    try {
-      await api.payment.verifyPayment({
-        orderId,
-        paymentId,
-        razorpaySignature: 'simulated_signature',
-      });
-      
-      clearCart();
-      Alert.alert('Success', 'Order placed successfully!', [
-        { text: 'OK', onPress: () => navigation.navigate('Orders' as never) }
-      ]);
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Payment verification failed');
-    }
-  };
+  }, [cartItems, deliveryAddress, selectedPayment, total, totalAmount, payableAmount, walletBalance, clearCart, navigation, handleRazorpayPayment, processWalletPayment]);
 
   const processPaymentFailure = (orderId: string) => {
     Alert.alert('Payment Failed', 'Your payment was not successful. Please try again.');
@@ -285,43 +351,67 @@ export function CheckoutScreen() {
     // This function is kept for backward compatibility but COD now shows success directly
     clearCart();
     Alert.alert('Order Placed!', 'Your order has been placed successfully!', [
-      { text: 'View Orders', onPress: () => navigation.navigate('Orders' as never) }
+      { text: 'View Orders', onPress: () => navigation.navigate('MainTabs' as any, { screen: 'Orders' }) }
     ]);
   };
 
   // Handle location detection
   const handleDetectLocation = async () => {
     try {
+      setLoading(true);
       // Request location permission
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
+        setLoading(false);
         Alert.alert('Permission Denied', 'Please allow location access to use this feature.');
         return;
       }
 
-      // Get current location
-      const location = await Location.getCurrentPositionAsync({});
+      // Get current location with high accuracy
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
       const { latitude, longitude } = location.coords;
+      setUserLocation([longitude, latitude]);
 
-      // Reverse geocoding
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`
-      );
-      const data = await response.json();
+      // Use expo-location's built-in reverse geocoding (faster and more reliable)
+      const addressResult = await Location.reverseGeocodeAsync({
+        latitude,
+        longitude
+      });
 
-      if (data && data.address) {
+      if (addressResult && addressResult.length > 0) {
+        const addr = addressResult[0];
         setDeliveryAddress(prev => ({
           ...prev,
-          street: data.address.road || data.address.house_number || '',
-          city: data.address.city || data.address.town || data.address.village || '',
-          state: data.address.state || '',
-          pincode: data.address.postcode || '',
+          street: addr.name || addr.street || addr.district || '',
+          city: addr.city || addr.subregion || '',
+          state: addr.region || '',
+          pincode: addr.postalCode || '',
         }));
-        Alert.alert('📍 Location Detected', `Address auto-filled: ${data.address.city || 'Unknown'}`);
+        Alert.alert('📍 Location Detected', `Address auto-filled: ${addr.city || 'Success'}`);
+      } else {
+        // Fallback to nominatim if expo fails
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`
+        );
+        const data = await response.json();
+        if (data && data.address) {
+          setDeliveryAddress(prev => ({
+            ...prev,
+            street: data.address.road || data.address.house_number || '',
+            city: data.address.city || data.address.town || data.address.village || '',
+            state: data.address.state || '',
+            pincode: data.address.postcode || '',
+          }));
+          Alert.alert('📍 Location Detected', `Address auto-filled: ${data.address.city || 'Success'}`);
+        }
       }
     } catch (error) {
       console.error('Location detection failed:', error);
       Alert.alert('Error', 'Could not detect location. Please enter manually.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -336,7 +426,11 @@ export function CheckoutScreen() {
         <Text style={styles.pageTitle}>Checkout</Text>
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.scrollView} 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 100 }}
+      >
         {/* Delivery Address Section */}
         <View style={styles.section}>
           <View style={styles.sectionTitleRow}>
@@ -350,6 +444,10 @@ export function CheckoutScreen() {
             <Text style={styles.locationButtonText}>📍 Detect My Current Location</Text>
           </TouchableOpacity>
           <Text style={styles.locationHint}>Click to auto-fill your address using GPS location</Text>
+          
+          {userLocation && (
+            <DeliveryMap userCoords={userLocation} height={180} />
+          )}
           
           {/* Address Form Inputs - Direct entry like website */}
           <View style={styles.addressForm}>
@@ -417,18 +515,20 @@ export function CheckoutScreen() {
             <Text style={styles.sectionTitle}>Payment Method</Text>
           </View>
           
-          {/* Subscription - Show first if available */}
-          {walletBalance > 0 && (
+          {/* Subscription - Show if user has a plan with this seller */}
+          {activeSubs.some(s => s.homeChef?._id === cartItems[0]?.sellerId || s.homeChef === cartItems[0]?.sellerId) && (
             <TouchableOpacity
               style={[styles.paymentMethod, selectedPayment?.type === 'subscription' && styles.selectedPayment]}
               onPress={() => setSelectedPayment({ id: 'subscription', name: 'Pay from My Plan', icon: 'star', type: 'subscription' })}
             >
-              <View style={styles.paymentIconContainer}>
+              <View style={[styles.paymentIconContainer, { backgroundColor: '#6366f1' }]}>
                 <Ionicons name="star" size={20} color="#fff" />
               </View>
               <View style={styles.paymentDetails}>
                 <Text style={styles.paymentName}>Pay from My Plan</Text>
-                <Text style={styles.paymentDescription}>Using subscription balance</Text>
+                <Text style={styles.paymentDescription}>
+                  Balance: {activeSubs.find(s => s.homeChef?._id === cartItems[0]?.sellerId || s.homeChef === cartItems[0]?.sellerId)?.remainingBalance || 0} meals left
+                </Text>
               </View>
               {selectedPayment?.type === 'subscription' && (
                 <Ionicons name="checkmark-circle" size={20} color="#FF6B00" />

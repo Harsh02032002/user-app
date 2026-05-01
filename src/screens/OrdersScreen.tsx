@@ -13,15 +13,22 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import api, { API_ENDPOINTS } from '../config/api';
 import { RootStackParamList } from '../navigation/RootNavigator';
+import { DeliveryMap } from '../components/common/DeliveryMap';
+import { extractCoordinates } from '../utils/location';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 interface Order {
   _id: string;
   orderNumber: string;
-  seller: {
+  sellerId: {
     name: string;
-    shopName: string;
+    businessName: string;
+    address?: {
+      location?: {
+        coordinates: [number, number];
+      };
+    };
   };
   items: Array<{
     name: string;
@@ -33,6 +40,7 @@ interface Order {
   onlineAmountPaid: number;
   status: string;
   paymentStatus: string;
+  deliveryAddress: any;
   createdAt: string;
 }
 
@@ -50,7 +58,8 @@ export default function OrdersScreen() {
   const fetchOrders = async () => {
     try {
       const response = await api.get(API_ENDPOINTS.MY_ORDERS);
-      setOrders(response.data.data || []);
+      const ordersData = response.data.orders || response.data.data || [];
+      setOrders(ordersData);
     } catch (error) {
       console.error('Error fetching orders:', error);
     } finally {
@@ -114,35 +123,59 @@ export default function OrdersScreen() {
 
   const displayOrders = activeTab === 'active' ? activeOrders : pastOrders;
 
-  const renderOrderItem = ({ item }: { item: Order }) => (
-    <TouchableOpacity
-      style={styles.orderCard}
-      onPress={() => navigation.navigate('OrderDetails', { orderId: item._id })}
-    >
-      <View style={styles.orderHeader}>
-        <View>
-          <Text style={styles.orderNumber}>#{item.orderNumber}</Text>
-          <Text style={styles.sellerName}>{item.seller?.shopName || item.seller?.name}</Text>
-        </View>
-        <View
-          style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}
-        >
-          <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-            {getStatusText(item.status)}
-          </Text>
-        </View>
-      </View>
+  const renderOrderItem = ({ item }: { item: Order }) => {
+    const seller = item.sellerId;
+    const sellerName = seller?.businessName || seller?.name || 'Seller';
+    const sellerCoords = seller?.address?.location?.coordinates;
 
-      <View style={styles.itemsList}>
-        {item.items.slice(0, 2).map((orderItem, index) => (
-          <Text key={index} style={styles.itemText}>
-            {orderItem.quantity}x {orderItem.name}
-          </Text>
-        ))}
-        {item.items.length > 2 && (
-          <Text style={styles.moreItems}>+{item.items.length - 2} more items</Text>
+    return (
+      <TouchableOpacity
+        style={styles.orderCard}
+        onPress={() => navigation.navigate('OrderDetails', { orderId: item._id })}
+      >
+        <View style={styles.orderHeader}>
+          <View>
+            <Text style={styles.orderNumber}>#{item.orderNumber}</Text>
+            <Text style={styles.sellerName}>{sellerName}</Text>
+          </View>
+          <View
+            style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}
+          >
+            <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
+              {getStatusText(item.status)}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.itemsList}>
+          {item.items.slice(0, 2).map((orderItem, index) => (
+            <Text key={index} style={styles.itemText}>
+              {orderItem.quantity}x {orderItem.name}
+            </Text>
+          ))}
+          {item.items.length > 2 && (
+            <Text style={styles.moreItems}>+{item.items.length - 2} more items</Text>
+          )}
+        </View>
+
+        {/* Live Map for Active Orders */}
+        {['confirmed', 'preparing', 'out_for_delivery'].includes(item.status) && (
+          <View style={styles.mapPreviewContainer}>
+            <Text style={styles.mapTitle}>
+              <Ionicons name="location" size={12} color="#FF6B00" /> Live Tracking
+            </Text>
+            <DeliveryMap
+              pickupCoords={
+                sellerCoords ? [sellerCoords[0], sellerCoords[1]] : undefined
+              }
+              dropCoords={(() => {
+                const coords = extractCoordinates(item.deliveryAddress);
+                return coords ? [coords.longitude, coords.latitude] : undefined;
+              })()}
+              height={130}
+            />
+          </View>
         )}
-      </View>
 
       <View style={styles.orderFooter}>
         <View style={styles.paymentInfo}>
@@ -321,6 +354,18 @@ const styles = StyleSheet.create({
     color: '#FF6B00',
     marginTop: 4,
   },
+  mapPreviewContainer: {
+    marginBottom: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  mapTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FF6B00',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
   orderFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -354,11 +399,6 @@ const styles = StyleSheet.create({
   emptyIcon: {
     width: 80,
     height: 80,
-    borderRadius: 40,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
   },
   emptyTitle: {
     fontSize: 18,
@@ -372,3 +412,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+}

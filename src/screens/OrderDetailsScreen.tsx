@@ -15,22 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../services/api';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { extractCoordinates, getCurrentCoordinates } from '../utils/location';
-
-// Dynamic import for react-native-maps to avoid web bundling issues
-let MapView: any = null;
-let Marker: any = null;
-let PROVIDER_GOOGLE: any = null;
-
-if (Platform.OS !== 'web') {
-  try {
-    const maps = require('react-native-maps');
-    MapView = maps.default;
-    Marker = maps.Marker;
-    PROVIDER_GOOGLE = maps.PROVIDER_GOOGLE;
-  } catch (e) {
-    console.warn('react-native-maps not available');
-  }
-}
+import { DeliveryMap } from '../components/common/DeliveryMap';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteType = RouteProp<RootStackParamList, 'OrderDetails'>;
@@ -38,10 +23,16 @@ type RouteType = RouteProp<RootStackParamList, 'OrderDetails'>;
 interface OrderDetails {
   _id: string;
   orderNumber: string;
-  seller: {
+  sellerId: {
     name: string;
-    shopName: string;
+    businessName: string;
+    shopName?: string;
     phone: string;
+    address?: {
+      location?: {
+        coordinates: [number, number];
+      };
+    };
   };
   items: Array<{
     name: string;
@@ -175,91 +166,6 @@ export default function OrderDetailsScreen() {
 
   const deliveryCoordinates = extractCoordinates(order.deliveryAddress);
   const mapRegion = deliveryCoordinates || userLocation;
-  const deliveryAddressText =
-    order.deliveryAddress?.fullAddress ||
-    order.deliveryAddress?.address ||
-    order.deliveryAddress?.street ||
-    [order.deliveryAddress?.area, order.deliveryAddress?.city].filter(Boolean).join(', ');
-  const openStreetMapUrl = mapRegion
-    ? `https://www.openstreetmap.org/?mlat=${mapRegion.latitude}&mlon=${mapRegion.longitude}#map=16/${mapRegion.latitude}/${mapRegion.longitude}`
-    : null;
-
-  const renderMapContent = () => {
-    if (!mapRegion) {
-      return null;
-    }
-
-    if (Platform.OS === 'web') {
-      const src = `https://www.openstreetmap.org/export/embed.html?bbox=${mapRegion.longitude - 0.01},${mapRegion.latitude - 0.01},${mapRegion.longitude + 0.01},${mapRegion.latitude + 0.01}&layer=mapnik&marker=${mapRegion.latitude},${mapRegion.longitude}`;
-
-      return (
-        <View style={styles.webMapWrapper}>
-          {React.createElement('iframe', {
-            src,
-            style: {
-              width: '100%',
-              height: '100%',
-              border: '0',
-            } as React.CSSProperties,
-          })}
-          {openStreetMapUrl && (
-            <TouchableOpacity
-              style={styles.webMapButton}
-              onPress={() => Linking.openURL(openStreetMapUrl)}
-            >
-              <Ionicons name="open-outline" size={16} color="#FF6B00" />
-              <Text style={styles.webMapButtonText}>Open full map</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      );
-    }
-
-    // Use dynamically imported map components
-    if (!MapView) {
-      return (
-        <View style={[styles.map, styles.mapFallback]}>
-          <Ionicons name="map-outline" size={48} color="#ccc" />
-          <Text style={styles.mapFallbackText}>Map not available</Text>
-        </View>
-      );
-    }
-
-    const googleProvider = Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined;
-
-    return (
-      <MapView
-        provider={googleProvider}
-        style={styles.map}
-        initialRegion={{
-          latitude: mapRegion.latitude,
-          longitude: mapRegion.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        }}
-        region={{
-          latitude: mapRegion.latitude,
-          longitude: mapRegion.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        }}
-        showsUserLocation={true}
-        showsMyLocationButton={true}
-      >
-        {deliveryCoordinates && Marker && (
-          <Marker
-            coordinate={deliveryCoordinates}
-            title="Delivery Location"
-            description={deliveryAddressText}
-          >
-            <View style={styles.markerContainer}>
-              <Ionicons name="location" size={32} color="#FF6B00" />
-            </View>
-          </Marker>
-        )}
-      </MapView>
-    );
-  };
 
   return (
     <View style={styles.container}>
@@ -294,8 +200,8 @@ export default function OrderDetailsScreen() {
               <Ionicons name="restaurant" size={24} color="#FF6B00" />
             </View>
             <View style={styles.sellerInfo}>
-              <Text style={styles.sellerName}>{order.seller?.shopName || order.seller?.name}</Text>
-              <Text style={styles.sellerPhone}>{order.seller?.phone}</Text>
+              <Text style={styles.sellerName}>{order.sellerId?.shopName || order.sellerId?.businessName || order.sellerId?.name}</Text>
+              <Text style={styles.sellerPhone}>{order.sellerId?.phone}</Text>
             </View>
             <TouchableOpacity style={styles.callBtn}>
               <Ionicons name="call" size={20} color="#FF6B00" />
@@ -385,7 +291,19 @@ export default function OrderDetailsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Delivery Location</Text>
             <View style={styles.mapContainer}>
-              {renderMapContent()}
+              <DeliveryMap
+                pickupCoords={
+                  order.sellerId?.address?.location?.coordinates 
+                    ? [order.sellerId.address.location.coordinates[0], order.sellerId.address.location.coordinates[1]] 
+                    : undefined
+                }
+                dropCoords={(() => {
+                  const coords = extractCoordinates(order.deliveryAddress);
+                  return coords ? [coords.longitude, coords.latitude] : undefined;
+                })()}
+                userCoords={userLocation ? [userLocation.longitude, userLocation.latitude] : undefined}
+                height={250}
+              />
             </View>
             {locationPermissionDenied && !deliveryCoordinates && (
               <Text style={styles.mapHint}>

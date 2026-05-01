@@ -50,7 +50,7 @@ export default function SimpleLoginScreen() {
   };
 
   const handleSignUp = () => {
-    navigation.navigate('Register');
+    navigation.navigate('Register' as never);
   };
 
   return (
@@ -188,11 +188,20 @@ const styles = StyleSheet.create({
     borderRadius: 48,
     borderWidth: 4,
     borderColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.25,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 8,
+      },
+      web: {
+        boxShadow: '0px 8px 16px rgba(0, 0, 0, 0.25)',
+      },
+    }),
   },
   welcomeSection: {
     alignItems: 'center',

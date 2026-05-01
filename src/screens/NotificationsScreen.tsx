@@ -25,71 +25,87 @@ interface NotificationSetting {
   icon: string;
 }
 
+import api from '../services/api';
+
 export default function NotificationsScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { token } = useAuth();
-  const [settings, setSettings] = useState<NotificationSetting[]>([
-    {
-      id: 'order_updates',
-      title: 'Order Updates',
-      description: 'Get notified about your order status',
-      enabled: true,
-      icon: 'receipt-outline',
-    },
-    {
-      id: 'subscription_reminders',
-      title: 'Subscription Reminders',
-      description: 'Daily meal delivery notifications',
-      enabled: true,
-      icon: 'calendar-outline',
-    },
-    {
-      id: 'promotions',
-      title: 'Promotions & Offers',
-      description: 'Exclusive deals and discounts',
-      enabled: false,
-      icon: 'pricetag-outline',
-    },
-    {
-      id: 'wallet_updates',
-      title: 'Wallet Updates',
-      description: 'Recharge confirmations and low balance alerts',
-      enabled: true,
-      icon: 'wallet-outline',
-    },
-    {
-      id: 'new_chefs',
-      title: 'New Home Chefs',
-      description: 'Discover new chefs in your area',
-      enabled: false,
-      icon: 'restaurant-outline',
-    },
-  ]);
-  const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const toggleSetting = async (id: string) => {
-    setSettings(settings.map(s => 
-      s.id === id ? { ...s, enabled: !s.enabled } : s
-    ));
-    // TODO: Save to backend
+  const fetchNotifications = async () => {
+    try {
+      setLoading(true);
+      const response = await api.user.getNotifications();
+      setNotifications(Array.isArray(response) ? response : response.notifications || []);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
 
-  if (loading) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Notifications</Text>
-          <View style={{ width: 40 }} />
-        </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF6B00" />
-        </View>
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  const markAsRead = async (id: string) => {
+    try {
+      await api.user.markNotificationRead(id);
+      setNotifications(notifications.map(n => n._id === id ? { ...n, isRead: true } : n));
+    } catch (error) {
+      console.error('Error marking as read:', error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      await api.user.markAllNotificationsRead();
+      setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+    } catch (error) {
+      console.error('Error marking all as read:', error);
+    }
+  };
+
+  const deleteNotification = async (id: string) => {
+    try {
+      await api.user.deleteNotification(id);
+      setNotifications(notifications.filter(n => n._id !== id));
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+    }
+  };
+
+  const renderNotification = ({ item }: { item: any }) => (
+    <TouchableOpacity 
+      style={[styles.notificationItem, !item.isRead && styles.unreadNotification]}
+      onPress={() => markAsRead(item._id)}
+    >
+      <View style={[styles.iconContainer, { backgroundColor: item.isRead ? '#F3F4F6' : '#FFF5ED' }]}>
+        <Ionicons 
+          name={item.type === 'order' ? 'receipt-outline' : 'notifications-outline'} 
+          size={20} 
+          color="#FF6B00" 
+        />
       </View>
-    );
-  }
+      <View style={styles.textContainer}>
+        <View style={styles.notificationHeader}>
+          <Text style={[styles.notificationTitle, !item.isRead && styles.unreadText]}>
+            {item.title}
+          </Text>
+          <Text style={styles.timeText}>
+            {new Date(item.createdAt).toLocaleDateString()}
+          </Text>
+        </View>
+        <Text style={styles.notificationMessage}>{item.message}</Text>
+      </View>
+      <TouchableOpacity onPress={() => deleteNotification(item._id)} style={styles.deleteButton}>
+        <Ionicons name="trash-outline" size={18} color="#999" />
+      </TouchableOpacity>
+    </TouchableOpacity>
+  );
 
   return (
     <View style={styles.container}>
@@ -98,45 +114,35 @@ export default function NotificationsScreen() {
           <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Notifications</Text>
-        <View style={{ width: 40 }} />
+        {notifications.length > 0 && (
+          <TouchableOpacity onPress={markAllAsRead}>
+            <Text style={styles.markAllRead}>Mark all read</Text>
+          </TouchableOpacity>
+        )}
+        {!notifications.length && <View style={{ width: 40 }} />}
       </View>
 
-      <View style={styles.content}>
-        <Text style={styles.sectionTitle}>Notification Preferences</Text>
-        <Text style={styles.sectionSubtitle}>
-          Choose what notifications you want to receive
-        </Text>
-
-        <View style={styles.settingsCard}>
-          {settings.map((setting, index) => (
-            <View key={setting.id}>
-              <View style={styles.settingItem}>
-                <View style={styles.iconContainer}>
-                  <Ionicons name={setting.icon as any} size={22} color="#FF6B00" />
-                </View>
-                <View style={styles.textContainer}>
-                  <Text style={styles.settingTitle}>{setting.title}</Text>
-                  <Text style={styles.settingDescription}>{setting.description}</Text>
-                </View>
-                <Switch
-                  value={setting.enabled}
-                  onValueChange={() => toggleSetting(setting.id)}
-                  trackColor={{ false: '#d1d5db', true: '#FF6B00' }}
-                  thumbColor="#fff"
-                />
-              </View>
-              {index < settings.length - 1 && <View style={styles.divider} />}
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#FF6B00" />
+        </View>
+      ) : (
+        <FlatList
+          data={notifications}
+          renderItem={renderNotification}
+          keyExtractor={(item) => item._id}
+          contentContainerStyle={styles.listContent}
+          onRefresh={fetchNotifications}
+          refreshing={refreshing}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Ionicons name="notifications-off-outline" size={64} color="#ccc" />
+              <Text style={styles.emptyTitle}>No notifications</Text>
+              <Text style={styles.emptySubtitle}>We'll notify you when something important happens</Text>
             </View>
-          ))}
-        </View>
-
-        <View style={styles.infoCard}>
-          <Ionicons name="information-circle-outline" size={24} color="#666" />
-          <Text style={styles.infoText}>
-            You can also manage notifications from your device settings
-          </Text>
-        </View>
-      </View>
+          }
+        />
+      )}
     </View>
   );
 }
@@ -168,44 +174,42 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1a1a1a',
   },
+  markAllRead: {
+    fontSize: 14,
+    color: '#FF6B00',
+    fontWeight: '500',
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  content: {
+  listContent: {
     padding: 16,
+    paddingBottom: 100,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1a1a1a',
-    marginBottom: 4,
-  },
-  sectionSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 20,
-  },
-  settingsCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  settingItem: {
+  notificationItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
     padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  unreadNotification: {
+    backgroundColor: '#FFF9F5',
+    borderLeftWidth: 4,
+    borderLeftColor: '#FF6B00',
   },
   iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFF5ED',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -213,33 +217,51 @@ const styles = StyleSheet.create({
   textContainer: {
     flex: 1,
   },
-  settingTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#1a1a1a',
-    marginBottom: 2,
+  notificationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
   },
-  settingDescription: {
+  notificationTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    flex: 1,
+  },
+  unreadText: {
+    color: '#000',
+  },
+  timeText: {
+    fontSize: 11,
+    color: '#999',
+  },
+  notificationMessage: {
     fontSize: 13,
     color: '#666',
+    lineHeight: 18,
   },
-  divider: {
-    height: 1,
-    backgroundColor: '#f0f0f0',
-    marginLeft: 68,
+  deleteButton: {
+    padding: 8,
+    marginLeft: 4,
   },
-  infoCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 16,
-    gap: 12,
-  },
-  infoText: {
+  emptyContainer: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 100,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: '#999',
+    textAlign: 'center',
+    paddingHorizontal: 40,
   },
 });

@@ -8,6 +8,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -32,6 +33,14 @@ export default function WalletScreen() {
   const [rechargeAmount, setRechargeAmount] = useState('');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [topupModalVisible, setTopupModalVisible] = useState(false);
+  const [topupAmount, setTopupAmount] = useState('');
+  const [razorpayModal, setRazorpayModal] = useState(false);
+  const [razorpayHtml, setRazorpayHtml] = useState('');
+  const [pendingTopupAmount, setPendingTopupAmount] = useState<number | null>(null);
+
+  const WebViewComponent = Platform.OS !== 'web' ? require('react-native-webview').WebView : null;
 
   useEffect(() => {
     fetchWalletData();

@@ -41,10 +41,15 @@ function toQuery(params?: Record<string, unknown>) {
   return qs ? `?${qs}` : "";
 }
 
+// In-memory token cache for performance
+let cachedToken: string | null = null;
+
 // Get auth token
-const getAuthToken = async () => {
+export const getAuthToken = async () => {
+  if (cachedToken) return cachedToken;
   try {
     const token = await AsyncStorage.getItem('token');
+    cachedToken = token;
     return token;
   } catch (error) {
     console.error('Error getting auth token:', error);
@@ -52,14 +57,22 @@ const getAuthToken = async () => {
   }
 };
 
+// Clear token cache (call on logout)
+export const clearTokenCache = () => {
+  cachedToken = null;
+};
+
 // Generic API request function with timeout and better error handling
 const apiRequest = async (endpoint: string, options: RequestInit = {}, requireAuth = true) => {
   try {
     const url = `${API_BASE_URL}${endpoint}`;
     
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
+    const headers: Record<string, string> = {};
+    
+    // Don't set Content-Type for FormData (let fetch handle it)
+    if (!(options.body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+    }
     
     // Only add auth token for protected endpoints
     let token = null;
@@ -136,6 +149,27 @@ export const api = {
     getProfile: async () => {
       return apiRequest('/auth/me');
     },
+
+    updateProfile: async (data: any) => {
+      return apiRequest('/auth/profile', {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+    },
+
+    uploadAvatar: async (formData: FormData) => {
+      return apiRequest('/auth/profile/avatar', {
+        method: 'POST',
+        body: formData,
+      });
+    },
+
+    uploadBanner: async (formData: FormData) => {
+      return apiRequest('/auth/profile/banner', {
+        method: 'POST',
+        body: formData,
+      });
+    },
   },
 
   // User APIs (matching Dabba Delights userAPI exactly)
@@ -150,7 +184,7 @@ export const api = {
     getHomeChefs: async (params?: Record<string, unknown>) => {
       const res = await apiRequest(`/user/sellers${toQuery(params)}`);
       const sellers = Array.isArray(res) ? res : Array.isArray(res?.sellers) ? res.sellers : Array.isArray(res?.data) ? res.data : [];
-      const homeChefs = sellers.filter((s: any) => s.type === 'home-chef');
+      const homeChefs = sellers.filter((s: any) => s.type === 'home_chef' || s.type === 'home-chef');
       return { sellers: homeChefs, total: homeChefs.length, success: true };
     },
     
@@ -218,6 +252,12 @@ export const api = {
         method: 'DELETE',
       });
     },
+
+    cancelOrder: async (id: string) => {
+      return apiRequest(`/user/orders/${id}/cancel`, {
+        method: 'POST',
+      });
+    },
     
     rateOrder: async (id: string, rating: number, review?: string) => {
       return apiRequest(`/user/orders/${id}/rate`, {
@@ -261,22 +301,26 @@ export const api = {
     
     // Subscriptions
     getActiveSubscription: async () => {
-      return apiRequest('/user/subscriptions/active');
+      return apiRequest('/subscriptions/active');
+    },
+    
+    getSubscriptionHistory: async () => {
+      return apiRequest('/subscriptions/my-subscriptions');
     },
     
     getSubscriptionPlans: async () => {
       return apiRequest('/subscriptions/plans');
     },
     
-    purchaseSubscription: async (totalAmount: number, totalDays: number) => {
-      return apiRequest('/user/subscriptions/purchase', {
+    purchaseSubscription: async (data: any) => {
+      return apiRequest('/subscriptions/purchase', {
         method: 'POST',
-        body: JSON.stringify({ totalAmount, totalDays }),
+        body: JSON.stringify(data),
       });
     },
     
     verifySubscriptionPayment: async (paymentData: any) => {
-      return apiRequest('/user/subscriptions/verify-payment', {
+      return apiRequest('/payment/razorpay/verify', {
         method: 'POST',
         body: JSON.stringify(paymentData),
       });

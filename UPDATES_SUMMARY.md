@@ -36,7 +36,7 @@ Updated Dabba Expo App screens to match Dabba Delights website's user panel UI s
 
 ### 3. WalletScreen.tsx ✅
 **Updated Features:**
-- Added Dabba Express subscription section
+- Added Dabba Nation subscription section
 - Display active subscription details (remaining balance, days left, per-day value)
 - Enhanced wallet balance card with gradient
 - Quick add amounts for easy top-up

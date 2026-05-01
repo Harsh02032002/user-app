@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "DabbaExpoApp",
-    "slug": "DabbaExpoApp",
+    "name": "DabbaNation",
+    "slug": "DabbaNation",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "dabbaexpoapp",
+    "scheme": "dabbanation",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -23,11 +23,13 @@
       },
       "permissions": [
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
+        "ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.harsh02032002.DabbaExpoApp"
+      "package": "com.harsh02032002.DabbaNation"
     },
     "web": {
       "output": "single",
@@ -54,7 +56,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "6e6a5b38-6ea8-4d76-87d0-203c617592db"
+        "projectId": "34c550f6-e2fc-461b-8242-7d527e698f68"
       }
     }
   }

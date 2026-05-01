@@ -5,16 +5,20 @@ import { AuthProvider } from './src/context/AuthContext';
 import { CartProvider } from './src/context/CartContext';
 import RootNavigator from './src/navigation/RootNavigator';
 
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
 export default function App() {
   console.log('App rendering');
   return (
-    <AuthProvider>
-      <CartProvider>
-        <NavigationContainer>
-          <StatusBar style="dark" />
-          <RootNavigator />
-        </NavigationContainer>
-      </CartProvider>
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <CartProvider>
+          <NavigationContainer>
+            <StatusBar style="dark" />
+            <RootNavigator />
+          </NavigationContainer>
+        </CartProvider>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
