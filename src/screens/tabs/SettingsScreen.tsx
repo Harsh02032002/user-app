@@ -19,6 +19,7 @@ import { AppFooter } from '../../components/common/AppFooter';
 
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
+import { getImageUrl } from '../../services/api';
 
 interface UserProfile {
   name: string;
@@ -140,10 +141,19 @@ export function SettingsScreen() {
 
   const handleImageUpload = async (type: 'profileImage' | 'banner', asset: any) => {
     setLoading(true);
+    // Set local preview immediately
+    setProfile(prev => ({
+      ...prev,
+      [type]: asset.uri
+    }));
+
     try {
       const formData = new FormData();
       const fileName = asset.uri.split('/').pop() || (type === 'profileImage' ? 'avatar.jpg' : 'banner.jpg');
-      const fileType = asset.mimeType || 'image/jpeg';
+      
+      // Extract file extension for mime type
+      const ext = fileName.split('.').pop()?.toLowerCase() || 'jpg';
+      const fileType = `image/${ext === 'png' ? 'png' : 'jpeg'}`;
       
       formData.append(type === 'profileImage' ? 'avatar' : 'banner', {
         uri: asset.uri,
@@ -157,10 +167,18 @@ export function SettingsScreen() {
         await uploadBanner(formData);
       }
       
+      // The update is handled by the AuthContext, which updates the 'user' object.
+      // Our useEffect will then sync the 'profile' state.
+      
       Alert.alert('Success', `${type === 'profileImage' ? 'Profile photo' : 'Banner'} updated successfully`);
     } catch (error: any) {
       console.error('Image upload error:', error);
       Alert.alert('Error', error.message || 'Failed to upload image');
+      // Revert to original user data on error
+      setProfile(prev => ({
+        ...prev,
+        [type]: type === 'profileImage' ? user?.profileImage || user?.avatar : user?.banner
+      }));
     } finally {
       setLoading(false);
     }
@@ -181,8 +199,11 @@ export function SettingsScreen() {
           {/* Profile Picture */}
           <View style={styles.profileSection}>
             <TouchableOpacity onPress={() => pickImage('profileImage')} style={styles.avatarContainer}>
-              {profile.profileImage ? (
-                <Image source={{ uri: profile.profileImage }} style={styles.avatar} />
+              {profile.profileImage || user?.avatar || user?.profileImage ? (
+                <Image 
+                  source={{ uri: getImageUrl(profile.profileImage || user?.avatar || user?.profileImage) || undefined }} 
+                  style={styles.avatar} 
+                />
               ) : (
                 <View style={styles.avatarPlaceholder}>
                   <Ionicons name="person" size={40} color="#999" />
@@ -202,8 +223,11 @@ export function SettingsScreen() {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Banner Image</Text>
             <TouchableOpacity onPress={() => pickImage('banner')} style={styles.bannerContainer}>
-              {profile.banner ? (
-                <Image source={{ uri: profile.banner }} style={styles.bannerImage} />
+              {profile.banner || user?.banner ? (
+                <Image 
+                  source={{ uri: getImageUrl(profile.banner || user?.banner) || undefined }} 
+                  style={styles.bannerImage} 
+                />
               ) : (
                 <View style={styles.bannerPlaceholder}>
                   <Ionicons name="camera-outline" size={24} color="#999" />

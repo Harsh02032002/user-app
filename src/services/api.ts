@@ -5,6 +5,19 @@ import Toast from 'react-native-toast-message';
 // API Configuration
 const API_BASE_URL = 'https://dabbanation.in/api'; // Updated to match Dabba Delights backend
 
+// Helper to normalize image URLs (matching website logic)
+export const getImageUrl = (path: string | undefined | null) => {
+  if (!path) return null;
+  if (path.startsWith('http') || path.startsWith('data:') || path.startsWith('blob:') || path.startsWith('file:')) {
+    return path;
+  }
+  
+  // Clean path: remove leading / and handle potential full paths
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  const baseUrl = API_BASE_URL.replace('/api', '');
+  return `${baseUrl}${cleanPath}`;
+};
+
 // Request timeout
 const REQUEST_TIMEOUT = 10000;
 
