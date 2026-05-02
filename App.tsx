@@ -4,6 +4,7 @@ import React from 'react';
 import { AuthProvider } from './src/context/AuthContext';
 import { CartProvider } from './src/context/CartContext';
 import RootNavigator from './src/navigation/RootNavigator';
+import Toast from 'react-native-toast-message';
 
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -16,6 +17,7 @@ export default function App() {
           <NavigationContainer>
             <StatusBar style="dark" />
             <RootNavigator />
+            <Toast />
           </NavigationContainer>
         </CartProvider>
       </AuthProvider>

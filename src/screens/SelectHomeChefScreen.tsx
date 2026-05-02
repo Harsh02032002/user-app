@@ -5,15 +5,16 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { AppHeader } from '../components/common/AppHeader';
-import api, { API_ENDPOINTS } from '../config/api';
+import api, { API_ENDPOINTS, getImageUrl } from '../config/api';
 import { RootStackParamList } from '../navigation/RootNavigator';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -130,11 +131,7 @@ export default function SelectHomeChefScreen() {
       <AppHeader 
         showSearch={false} 
         showBack={true}
-        sellerInfo={{
-          name: "Home Chefs Near You",
-          type: 'home_chef',
-          rating: 4.8
-        }}
+        title="Select Home Chef"
       />
 
       {/* Plan Info */}
@@ -167,9 +164,17 @@ export default function SelectHomeChefScreen() {
             >
               <View style={styles.chefImageContainer}>
                 {chef.logo ? (
-                  <Image source={{ uri: chef.logo }} style={styles.chefImage} />
+                  <Image 
+                    source={{ uri: getImageUrl(chef.logo) || 'https://images.unsplash.com/photo-1495195129352-aec325b55b65?w=200&h=200&fit=crop&q=80' }} 
+                    style={styles.chefImage} 
+                    contentFit="cover"
+                  />
                 ) : chef.coverImage ? (
-                  <Image source={{ uri: chef.coverImage }} style={styles.chefImage} />
+                  <Image 
+                    source={{ uri: getImageUrl(chef.coverImage) || 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1000&h=400&fit=crop&q=80' }} 
+                    style={styles.chefImage} 
+                    contentFit="cover"
+                  />
                 ) : (
                   <View style={[styles.chefImage, styles.placeholderImage]}>
                     <Ionicons name="person" size={32} color="#ccc" />
@@ -386,7 +391,7 @@ const styles = StyleSheet.create({
   },
   bottomContainer: {
     position: 'absolute',
-    bottom: 0,
+    bottom: Platform.OS === 'web' ? 70 : 80, // Lift above MobileNavBar
     left: 0,
     right: 0,
     backgroundColor: '#fff',

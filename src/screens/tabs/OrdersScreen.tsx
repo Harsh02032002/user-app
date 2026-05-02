@@ -9,9 +9,11 @@ import {
   Modal,
   Linking,
   Alert,
+  Platform,
   Image,
   Dimensions,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -150,26 +152,45 @@ export function OrdersScreen() {
   };
 
   const handleCancelOrder = async (order: Order) => {
-    Alert.alert(
-      'Cancel Order',
-      'Are you sure you want to cancel this order?',
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Yes',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await api.user.cancelOrder(order._id);
-              Alert.alert('Success', 'Order cancelled successfully');
-              fetchOrders();
-            } catch (error: any) {
-              Alert.alert('Error', error.message || 'Failed to cancel order');
-            }
+    console.log(`[UI Debug] handleCancelOrder called for order: ${order._id}`);
+    
+    const cancelAction = async () => {
+      console.log(`[UI Debug] Cancel confirmed for order: ${order._id}`);
+      try {
+        await api.user.cancelOrder(order._id);
+        Toast.show({
+          type: 'success',
+          text1: 'Order Cancelled',
+          text2: 'Your order has been cancelled successfully.',
+        });
+        fetchOrders();
+      } catch (error: any) {
+        Toast.show({
+          type: 'error',
+          text1: 'Error',
+          text2: error.message || 'Failed to cancel order',
+        });
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to cancel this order?')) {
+        cancelAction();
+      }
+    } else {
+      Alert.alert(
+        'Cancel Order',
+        'Are you sure you want to cancel this order?',
+        [
+          { text: 'No', style: 'cancel' },
+          {
+            text: 'Yes',
+            style: 'destructive',
+            onPress: cancelAction
           }
-        }
-      ]
-    );
+        ]
+      );
+    }
   };
 
   const handleRateOrder = (order: Order) => {

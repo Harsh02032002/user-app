@@ -5,16 +5,18 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   ActivityIndicator,
   FlatList,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import { AppHeader } from '../components/common/AppHeader';
 import { useCart } from '../context/CartContext';
-import api, { API_ENDPOINTS } from '../config/api';
+import { api } from '../services/api';
+import { getImageUrl } from '../config/api';
 import { RootStackParamList } from '../navigation/RootNavigator';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -73,13 +75,17 @@ export default function RestaurantScreen() {
       setLoading(true);
       console.log('Fetching data for seller:', sellerId);
       const [sellerRes, menuRes] = await Promise.all([
-        api.get(`${API_ENDPOINTS.SELLER_DETAILS}/${sellerId}`),
-        api.get(`${API_ENDPOINTS.SELLER_MENU}/${sellerId}`),
+        api.user.getSellerById(sellerId),
+        api.user.getMenuItems(sellerId),
       ]);
-      console.log('Seller data:', sellerRes.data.data);
-      console.log('Menu data:', menuRes.data.data);
-      setSeller(sellerRes.data.data);
-      setMenu(menuRes.data.data || []);
+      console.log('Seller data:', sellerRes);
+      console.log('Menu data:', menuRes);
+      
+      const sellerData = sellerRes.seller || sellerRes;
+      const menuItems = Array.isArray(menuRes) ? menuRes : menuRes.products || menuRes.data || menuRes.menu || [];
+      
+      setSeller(sellerData);
+      setMenu(menuItems);
     } catch (error) {
       console.error('Error fetching restaurant data:', error);
     } finally {
@@ -116,6 +122,12 @@ export default function RestaurantScreen() {
     };
     console.log('Cart item:', cartItem);
     addToCart(cartItem);
+    Toast.show({
+      type: 'success',
+      text1: 'Added to Cart',
+      text2: `${item.name} added successfully!`,
+      position: 'bottom',
+    });
     console.log('Cart items after add:', items);
   };
 
@@ -134,20 +146,68 @@ export default function RestaurantScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader 
-        showSearch={false} 
-        sellerInfo={seller ? {
-          name: seller.shopName || sellerName,
-          type: seller.type || 'restaurant',
-          image: seller.image,
-          rating: seller.rating
-        } : undefined}
-      />
+      {/* Header - Transparent overlay on banner */}
+      <View style={styles.headerOverlay}>
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
+        </TouchableOpacity>
+      </View>
 
       <ScrollView 
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 150 }}
+        contentContainerStyle={{ paddingBottom: 100 }}
       >
+        {/* Banner Section */}
+        <View style={styles.bannerContainer}>
+          <Image 
+            source={{ uri: getImageUrl(seller?.image) || 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1000&h=400&fit=crop&q=80' }} 
+            style={styles.bannerImage} 
+            contentFit="cover"
+          />
+          <View style={styles.bannerGradient} />
+        </View>
+
+        {/* Info Section - Overlapping Banner */}
+        <View style={styles.infoSection}>
+          <View style={styles.profileRow}>
+            <View style={styles.logoWrapper}>
+              <Image 
+                source={{ uri: getImageUrl(seller?.logo || seller?.image) || 'https://images.unsplash.com/photo-1495195129352-aec325b55b65?w=200&h=200&fit=crop&q=80' }} 
+                style={styles.profileLogo} 
+                contentFit="cover"
+              />
+            </View>
+            <View style={styles.nameBadgeContainer}>
+              <Text style={styles.businessName}>{seller?.shopName || seller?.businessName || sellerName}</Text>
+              <View style={[styles.typeBadge, seller?.type === 'home_chef' ? styles.homeChefBadge : styles.restaurantBadge]}>
+                <Ionicons 
+                  name={seller?.type === 'home_chef' ? 'home' : 'restaurant'} 
+                  size={14} 
+                  color={seller?.type === 'home_chef' ? '#059669' : '#C2410C'} 
+                />
+                <Text style={[styles.typeBadgeText, seller?.type === 'home_chef' ? styles.typeBadgeTextHome : styles.typeBadgeTextRest]}>
+                  {seller?.type === 'home_chef' ? 'Home-Cooked' : 'Restaurant'}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.metaRow}>
+            <View style={styles.ratingBox}>
+              <Ionicons name="star" size={14} color="#FFD700" />
+              <Text style={styles.ratingValue}>{seller?.rating?.toFixed(1) || '4.0'}</Text>
+            </View>
+            <View style={styles.locationBox}>
+              <Ionicons name="location" size={14} color="#666" />
+              <Text style={styles.locationValue}>
+                {seller?.address?.city || 'Chandigarh'}
+              </Text>
+            </View>
+          </View>
+        </View>
         {/* Categories */}
         <ScrollView
           horizontal
@@ -176,9 +236,12 @@ export default function RestaurantScreen() {
           ))}
         </ScrollView>
 
-        {/* Menu Items */}
+        {/* Menu Title */}
+        <View style={styles.menuHeader}>
+          <Text style={styles.menuTitle}>Menu</Text>
+          <View style={styles.menuUnderline} />
+        </View>
         <View style={styles.menuSection}>
-          <Text style={styles.menuTitle}>Menu ({filteredMenu.length} items)</Text>
           {filteredMenu.length === 0 ? (
             <Text style={styles.emptyText}>No menu items available</Text>
           ) : (
@@ -207,7 +270,11 @@ export default function RestaurantScreen() {
                 </View>
                 <View style={styles.menuItemRight}>
                   {item.image && (
-                    <Image source={{ uri: item.image }} style={styles.menuItemImage} />
+                    <Image 
+                      source={{ uri: getImageUrl(item.image) || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&fit=crop' }} 
+                      style={styles.menuItemImage} 
+                      contentFit="cover"
+                    />
                   )}
                   {item.isAvailable !== false ? (
                     qty > 0 ? (
@@ -230,7 +297,6 @@ export default function RestaurantScreen() {
                       <TouchableOpacity
                         style={styles.addBtn}
                         onPress={() => {
-                          alert('Button clicked: ' + item.name);
                           console.log('ADD button clicked for:', item.name);
                           handleAddToCart(item);
                         }}
@@ -274,39 +340,156 @@ export default function RestaurantScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F2E8',
+    backgroundColor: '#FAF8F0',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#FAF8F0',
   },
-
-  categoriesContainer: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginVertical: 8,
-    borderRadius: 12,
+  headerOverlay: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    zIndex: 10,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
+  bannerContainer: {
+    width: '100%',
+    height: 180,
+    backgroundColor: '#ddd',
+  },
+  bannerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  bannerGradient: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+  },
+  infoSection: {
+    backgroundColor: 'transparent',
+    paddingHorizontal: 20,
+    marginTop: -30,
+    marginBottom: 20,
+  },
+  profileRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    marginBottom: 10,
+  },
+  logoWrapper: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    padding: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  profileLogo: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 10,
+  },
+  nameBadgeContainer: {
+    marginLeft: 15,
+    paddingBottom: 5,
+    flex: 1,
+  },
+  businessName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+    marginBottom: 6,
+  },
+  typeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 6,
+    borderWidth: 1,
+  },
+  homeChefBadge: {
+    backgroundColor: '#ECFDF5', // Emerald-50
+    borderColor: '#D1FAE5', // Emerald-100
+  },
+  restaurantBadge: {
+    backgroundColor: '#FFF7ED', // Orange-50
+    borderColor: '#FFEDD5', // Orange-100
+  },
+  typeBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  typeBadgeTextHome: {
+    color: '#059669', // Emerald-600
+  },
+  typeBadgeTextRest: {
+    color: '#C2410C', // Orange-700
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 5,
+    gap: 15,
+  },
+  ratingBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  ratingValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1a1a1a',
+  },
+  locationBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  locationValue: {
+    fontSize: 14,
+    color: '#666',
+  },
+  categoriesContainer: {
+    marginBottom: 15,
+  },
   categoriesContent: {
     paddingHorizontal: 20,
-    paddingVertical: 16,
   },
   categoryChip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#fff',
     borderRadius: 20,
     marginRight: 10,
+    borderWidth: 1,
+    borderColor: '#eee',
   },
   categoryChipActive: {
     backgroundColor: '#FF6B00',
+    borderColor: '#FF6B00',
   },
   categoryText: {
     fontSize: 14,
@@ -315,140 +498,165 @@ const styles = StyleSheet.create({
   },
   categoryTextActive: {
     color: '#fff',
+    fontWeight: '600',
+  },
+  menuHeader: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  menuTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+  },
+  menuUnderline: {
+    width: 40,
+    height: 3,
+    backgroundColor: '#FF6B00',
+    marginTop: 4,
+    borderRadius: 2,
   },
   menuSection: {
+    paddingHorizontal: 20,
+  },
+  menuItem: {
+    flexDirection: 'row',
     backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginVertical: 8,
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  menuItemInfo: {
+    flex: 1,
+  },
+  vegIndicator: {
+    width: 14,
+    height: 14,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  vegDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  menuItemDetails: {},
+  menuItemName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginBottom: 4,
+  },
+  menuItemDesc: {
+    fontSize: 12,
+    color: '#888',
+    lineHeight: 18,
+    marginBottom: 10,
+  },
+  menuItemPrice: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+  },
+  menuItemRight: {
+    alignItems: 'center',
+    width: 100,
+    marginLeft: 10,
+  },
+  menuItemImage: {
+    width: 90,
+    height: 90,
     borderRadius: 12,
-    padding: 20,
+    marginBottom: -15,
+    zIndex: 1,
+  },
+  addBtn: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#FF6B00',
+    paddingHorizontal: 20,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginTop: 5,
+    zIndex: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
-  menuTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-    marginBottom: 16,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  menuItemInfo: {
-    flex: 1,
-    flexDirection: 'row',
-  },
-  vegIndicator: {
-    width: 16,
-    height: 16,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 3,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-    marginTop: 2,
-  },
-  vegDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  menuItemDetails: {
-    flex: 1,
-    paddingRight: 12,
-  },
-  menuItemName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1a1a1a',
-    marginBottom: 4,
-  },
-  menuItemDesc: {
-    fontSize: 13,
-    color: '#888',
-    lineHeight: 18,
-    marginBottom: 6,
-  },
-  menuItemPrice: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1a1a1a',
-  },
-  menuItemRight: {
-    alignItems: 'center',
-    width: 100,
-  },
-  menuItemImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  addBtn: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#FF6B00',
-    paddingHorizontal: 24,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
   addBtnText: {
     color: '#FF6B00',
-    fontWeight: '600',
-    fontSize: 14,
+    fontWeight: '700',
+    fontSize: 12,
   },
   qtyControl: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF5F0',
+    backgroundColor: '#fff',
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#FF6B00',
+    marginTop: 5,
+    zIndex: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   qtyBtn: {
-    padding: 8,
+    padding: 6,
   },
   qtyText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: 'bold',
     color: '#FF6B00',
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
   },
   unavailableText: {
     fontSize: 12,
     color: '#EF4444',
-    fontWeight: '500',
+    fontWeight: '600',
+    marginTop: 10,
   },
   emptyText: {
     fontSize: 14,
     color: '#999',
     textAlign: 'center',
-    paddingVertical: 20,
+    marginTop: 40,
   },
   cartButton: {
     position: 'absolute',
-    bottom: 90,
+    bottom: 30,
     left: 20,
     right: 20,
     backgroundColor: '#FF6B00',
-    borderRadius: 12,
+    borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
+    shadowColor: '#FF6B00',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
   cartInfo: {},
   cartItems: {
-    color: '#fff',
+    color: 'rgba(255,255,255,0.8)',
     fontSize: 12,
+    fontWeight: '500',
   },
   cartTotal: {
     color: '#fff',
@@ -458,10 +666,14 @@ const styles = StyleSheet.create({
   cartAction: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
   },
   cartActionText: {
     color: '#fff',
-    fontWeight: '600',
+    fontWeight: '700',
     marginRight: 4,
   },
 });

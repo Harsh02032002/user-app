@@ -15,22 +15,28 @@ import { useNavigation, useRoute, RouteProp, useIsFocused } from '@react-navigat
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import api, { API_ENDPOINTS } from '../config/api';
+import api, { API_ENDPOINTS, getImageUrl } from '../config/api';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { AppHeader } from '../components/common/AppHeader';
 
 const { width } = Dimensions.get('window');
 
-const WEEKLY_BANNER = require('../../assets/images/weekly_plan.png');
-const FORTNIGHTLY_BANNER = require('../../assets/images/fortnightly_plan.png');
-const MONTHLY_BANNER = require('../../assets/images/monthly_plan.png');
+const BASE_IMAGE_URL = 'https://dabbanation.in';
 
-const getBannerSource = (planName: string, days: number) => {
-  const name = (planName || '').toLowerCase();
-  if (name.includes('weekly') || name.includes('7 day') || days <= 7) return WEEKLY_BANNER;
-  if (name.includes('fortnightly') || name.includes('15 day') || name.includes('14 day') || days <= 15) return FORTNIGHTLY_BANNER;
-  if (name.includes('monthly') || name.includes('30 day') || days > 15) return MONTHLY_BANNER;
-  return WEEKLY_BANNER;
+const getBannerSource = (item: any) => {
+  let imgPath = item.banner_image || item.image || item.plan_image;
+  
+  if (!imgPath) {
+    const name = (item.plan_name || '').toLowerCase();
+    const days = item.total_days;
+    let path = 'weekly.png';
+    if (name.includes('weekly') || name.includes('7 day') || days <= 7) path = 'weekly.png';
+    else if (name.includes('fortnightly') || name.includes('15 day') || name.includes('14 day') || days <= 15) path = 'fortnightly.png';
+    else if (name.includes('monthly') || name.includes('30 day') || days > 15) path = 'monthly.png';
+    imgPath = `/uploads/subscriptions/${path}`;
+  }
+  
+  return { uri: getImageUrl(imgPath) };
 };
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -68,11 +74,38 @@ export default function SubscriptionPlansScreen() {
   const isFocused = useIsFocused();
   const fetching = React.useRef(false);
 
-  useEffect(() => {
-    if (isFocused && !fetching.current) {
-      loadAllData();
+  const loadAllData = React.useCallback(async () => {
+    if (fetching.current) return;
+    fetching.current = true;
+    setLoading(true);
+    console.log('[SubscriptionPlansScreen] Loading all data...');
+    try {
+      await Promise.all([
+        fetchPlans(),
+        fetchActiveSubs(),
+        fetchHistory()
+      ]);
+    } catch (err) {
+      console.error('[SubscriptionPlansScreen] Error loading data:', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+      fetching.current = false;
+      console.log('[SubscriptionPlansScreen] Data loading complete.');
     }
-  }, [isFocused]);
+  }, []);
+
+  const lastFetchedFocus = React.useRef(false);
+
+  useEffect(() => {
+    if (isFocused && !lastFetchedFocus.current) {
+      loadAllData();
+      lastFetchedFocus.current = true;
+      setMounted(true);
+    } else if (!isFocused) {
+      lastFetchedFocus.current = false;
+    }
+  }, [isFocused, loadAllData]);
 
   // Set active tab based on route params if provided
   useEffect(() => {
@@ -93,28 +126,26 @@ export default function SubscriptionPlansScreen() {
     }
   }, [route.params?.planId, plans, hasAutoOpened]);
 
-  const loadAllData = async () => {
-    if (fetching.current) return;
-    fetching.current = true;
-    setLoading(true);
-    try {
-      await Promise.all([
-        fetchPlans(),
-        fetchActiveSubs(),
-        fetchHistory()
-      ]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-      fetching.current = false;
-    }
-  };
-
   const fetchActiveSubs = async () => {
     try {
       const res = await api.get('/subscriptions/active');
-      const sub = res.data?.subscription || res.data?.data?.subscription;
-      setActiveSubscriptions(sub ? [sub] : []);
+      console.log('[SubscriptionPlansScreen] RAW DATA:', JSON.stringify(res.data));
+      
+      // Handle all possible response structures (res.data.subscriptions or res.data.data.subscriptions or res.data.subscription)
+      let subs = [];
+      if (res.data?.subscriptions) {
+        subs = res.data.subscriptions;
+      } else if (res.data?.data?.subscriptions) {
+        subs = res.data.data.subscriptions;
+      } else if (res.data?.subscription) {
+        // Fallback for single object
+        subs = [res.data.subscription];
+      } else if (res.data?.data?.subscription) {
+        subs = [res.data.data.subscription];
+      }
+
+      console.log('[SubscriptionPlansScreen] Final subscriptions array:', subs.length);
+      setActiveSubscriptions(Array.isArray(subs) ? subs : []);
     } catch (e) {
       console.error('Error fetching active subs:', e);
     }
@@ -124,7 +155,7 @@ export default function SubscriptionPlansScreen() {
     try {
       const res = await api.get('/subscriptions/my-subscriptions');
       const subs = res.data?.subscriptions || res.data?.data?.subscriptions || [];
-      setHistory(subs.filter((s: any) => s.status !== 'active'));
+      setHistory(subs);
     } catch (e) {
       console.error('Error fetching history:', e);
     }
@@ -214,7 +245,7 @@ export default function SubscriptionPlansScreen() {
               const perDay = plan.per_day_value || Math.round(plan.total_amount / plan.total_days);
               
               // Resolve banner image reliably using local assets (backend URLs are currently broken)
-              const bannerSource = getBannerSource(plan.plan_name, plan.total_days);
+              const bannerSource = getBannerSource(plan);
 
 
               return (
@@ -346,8 +377,16 @@ export default function SubscriptionPlansScreen() {
                 <View key={sub._id} style={styles.historyCard}>
                   <Text style={styles.historyPlanName}>{sub.plan_id?.plan_name || 'Past Plan'}</Text>
                   <Text style={styles.historyDate}>Started: {new Date(sub.createdAt).toLocaleDateString()}</Text>
-                  <View style={styles.historyStatus}>
-                    <Text style={styles.historyStatusText}>{sub.status}</Text>
+                  <View style={[
+                    styles.historyStatus, 
+                    { backgroundColor: sub.status === 'active' ? '#dcfce7' : '#f1f5f9' }
+                  ]}>
+                    <Text style={[
+                      styles.historyStatusText,
+                      { color: sub.status === 'active' ? '#16a34a' : '#64748b' }
+                    ]}>
+                      {sub.status.toUpperCase()}
+                    </Text>
                   </View>
                 </View>
               ))

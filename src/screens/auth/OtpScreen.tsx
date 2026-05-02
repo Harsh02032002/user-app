@@ -22,13 +22,15 @@ type RouteType = RouteProp<RootStackParamList, 'Otp'>;
 export default function OtpScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteType>();
-  const { phone } = route.params;
-  const { login, sendOtp } = useAuth();
+  const { phone, email } = route.params;
+  const { verifyEmail } = useAuth();
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(30);
   const inputRefs = useRef<(TextInput | null)[]>([]);
+
+  const isEmailFlow = !!email;
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -42,12 +44,10 @@ export default function OtpScreen() {
     newOtp[index] = value;
     setOtp(newOtp);
 
-    // Auto focus next input
     if (value && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
 
-    // Auto verify when complete
     if (index === 5 && value) {
       const fullOtp = newOtp.join('');
       if (fullOtp.length === 6) {
@@ -65,16 +65,15 @@ export default function OtpScreen() {
   const handleVerify = async (otpCode: string) => {
     setLoading(true);
     try {
-      await login(phone, otpCode);
-      // Navigation will happen automatically due to auth state change
-    } catch (error: any) {
-      if (error.message.includes('not registered') || error.message.includes('register')) {
-        navigation.navigate('Register', { phone });
-      } else {
-        Alert.alert('Error', error.message);
-        setOtp(['', '', '', '', '', '']);
-        inputRefs.current[0]?.focus();
+      if (isEmailFlow && email) {
+        await verifyEmail(email, otpCode);
+        Alert.alert('Success', 'Email verified successfully! You can now sign in.');
+        navigation.navigate('Login');
       }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Verification failed');
+      setOtp(['', '', '', '', '', '']);
+      inputRefs.current[0]?.focus();
     } finally {
       setLoading(false);
     }
@@ -82,14 +81,8 @@ export default function OtpScreen() {
 
   const handleResend = async () => {
     if (resendTimer > 0) return;
-    
-    try {
-      await sendOtp(phone);
-      setResendTimer(30);
-      Alert.alert('Success', 'OTP sent successfully');
-    } catch (error: any) {
-      Alert.alert('Error', error.message);
-    }
+    Alert.alert('Note', 'Verification code has been resent to your ' + (isEmailFlow ? 'email' : 'phone'));
+    setResendTimer(30);
   };
 
   return (
@@ -102,11 +95,9 @@ export default function OtpScreen() {
           <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
         </TouchableOpacity>
 
-        <Text style={styles.title}>Verify Phone</Text>
-        <Text style={styles.subtitle}>
-          Enter the 6-digit code sent to{'\n'}
-          <Text style={styles.phone}>+91 {phone}</Text>
-        </Text>
+        <Text style={styles.title}>{isEmailFlow ? 'Verify Email' : 'Verify Phone'}</Text>
+        <Text style={styles.subtitle}>Enter the 6-digit code sent to</Text>
+        <Text style={[styles.subtitle, styles.phone, { marginTop: -20 }]}>{isEmailFlow ? email : `+91 ${phone}`}</Text>
 
         <View style={styles.otpContainer}>
           {otp.map((digit, index) => (
@@ -132,15 +123,15 @@ export default function OtpScreen() {
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.buttonText}>Verify OTP</Text>
+            <Text style={styles.buttonText}>Verify</Text>
           )}
         </TouchableOpacity>
 
         <View style={styles.resendContainer}>
-          <Text style={styles.resendText}>Didn't receive OTP? </Text>
+          <Text style={styles.resendText}>Didn't receive code?</Text>
           <TouchableOpacity onPress={handleResend} disabled={resendTimer > 0}>
             <Text style={[styles.resendLink, resendTimer > 0 && styles.resendDisabled]}>
-              {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend OTP'}
+              {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend Code'}
             </Text>
           </TouchableOpacity>
         </View>

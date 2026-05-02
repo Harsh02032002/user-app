@@ -12,7 +12,6 @@ import { OrdersScreen } from '../screens/tabs/OrdersScreen';
 import SubscriptionPlansScreen from '../screens/SubscriptionPlansScreen';
 import { WalletScreen } from '../screens/tabs/WalletScreen';
 import { SettingsScreen } from '../screens/tabs/SettingsScreen';
-import StaticPageScreen from '../screens/static/StaticPageScreen';
 
 export type MainTabParamList = {
   Home: undefined;
@@ -20,7 +19,6 @@ export type MainTabParamList = {
   MyPlans: undefined;
   Wallet: undefined;
   Settings: undefined;
-  StaticPage: { type: 'about' | 'help' | 'privacy' | 'terms' | 'contact' | 'refund' };
 };
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -88,7 +86,7 @@ export default function MainTabNavigator() {
         },
         tabBarActiveTintColor: '#FF6B00',
         tabBarInactiveTintColor: '#999',
-        tabBarStyle: { display: 'none' },
+        tabBarStyle: { display: 'none' }, // Using custom MobileNavBar instead
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',
@@ -98,92 +96,39 @@ export default function MainTabNavigator() {
       <Tab.Screen
         name="Home"
         component={HomeScreen}
-        options={{ 
-          title: 'Home',
-          tabBarIcon: ({ focused, color }) => (
-            <View>
-              <Ionicons name={focused ? 'home' : 'home-outline'} size={24} color={color} />
-              {totalItems > 0 && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{totalItems}</Text>
-                </View>
-              )}
-            </View>
-          )
-        }}
+        options={{ title: 'Home' }}
       />
       <Tab.Screen
         name="Orders"
         component={OrdersScreen}
-        options={{ 
-          title: 'Orders',
-          tabBarIcon: ({ focused, color }) => (
-            <View>
-              <Ionicons name={focused ? 'bag' : 'bag-outline'} size={24} color={color} />
-              {orderCount > 0 && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{orderCount}</Text>
-                </View>
-              )}
-            </View>
-          )
-        }}
+        options={{ title: 'Orders' }}
       />
       <Tab.Screen
         name="MyPlans"
         component={SubscriptionPlansScreen}
-        initialParams={{ activeTab: 'my-plan' }}
-        options={{
-          tabBarLabel: 'My Plans',
-          tabBarIcon: ({ focused, color }) => (
-            <Ionicons name={focused ? 'star' : 'star-outline'} size={24} color={color} />
-          )
-        }}
+        options={{ title: 'My Plans' }}
       />
       <Tab.Screen
         name="Wallet"
         component={WalletScreen}
-        options={{ 
-          title: 'Wallet',
-          tabBarIcon: ({ focused, color }) => (
-            <Ionicons name={focused ? 'wallet' : 'wallet-outline'} size={24} color={color} />
-          )
-        }}
+        options={{ title: 'Wallet' }}
       />
       <Tab.Screen
         name="Settings"
         component={SettingsScreen}
-        options={{ 
-          title: 'Settings',
-          tabBarIcon: ({ focused, color }) => (
-            <Ionicons name={focused ? 'settings' : 'settings-outline'} size={24} color={color} />
-          )
-        }}
-      />
-      <Tab.Screen
-        name="StaticPage"
-        component={StaticPageScreen}
-        options={{ 
-          tabBarButton: () => null,
-          title: 'Information'
-        }}
+        options={{ title: 'Settings' }}
       />
     </Tab.Navigator>
   );
 }
 
 const styles = StyleSheet.create({
-  tabBarLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    marginTop: 2,
-  },
   badge: {
     position: 'absolute',
-    top: -4,
-    right: -8,
+    top: -5,
+    right: -10,
     backgroundColor: '#FF6B00',
-    borderRadius: 9,
+    borderRadius: 10,
     width: 18,
     height: 18,
     justifyContent: 'center',
@@ -191,7 +136,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     color: '#fff',
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: 'bold',
   },
 });

@@ -5,14 +5,15 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   Alert,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { AppHeader } from '../components/common/AppHeader';
 import { useCart } from '../context/CartContext';
+import { getImageUrl } from '../config/api';
 
 export function CartScreen() {
   const navigation = useNavigation();
@@ -78,7 +79,11 @@ export function CartScreen() {
             >
             {cartItems.map(item => (
               <View key={item.id} style={styles.cartItem}>
-                <Image source={{ uri: item.image }} style={styles.itemImage} />
+                <Image 
+                  source={{ uri: getImageUrl(item.image) || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&fit=crop' }} 
+                  style={styles.itemImage} 
+                  contentFit="cover"
+                />
                 <View style={styles.itemDetails}>
                   <Text style={styles.itemName}>{item.name}</Text>
                   <Text style={styles.itemSeller}>{item.sellerName}</Text>

@@ -14,6 +14,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { useNavigation } from '@react-navigation/native';
 import { DEFAULT_LOCATION_LABEL, getReadableLocation } from '../../utils/location';
+import { getImageUrl } from '../../config/api';
 
 interface AppHeaderProps {
   showSearch?: boolean;
@@ -24,9 +25,10 @@ interface AppHeaderProps {
     image?: string;
     rating?: number;
   };
+  title?: string;
 }
 
-export const AppHeader = React.memo(function AppHeader({ showSearch = true, showBack = false, sellerInfo }: AppHeaderProps) {
+export const AppHeader = React.memo(function AppHeader({ showSearch = true, showBack = false, sellerInfo, title }: AppHeaderProps) {
   const { user, logout } = useAuth();
   const { totalItems } = useCart();
   const navigation = useNavigation();
@@ -79,9 +81,12 @@ export const AppHeader = React.memo(function AppHeader({ showSearch = true, show
             <View style={styles.sellerHeader}>
               {sellerInfo.image ? (
                 <Image 
-                  source={{ uri: sellerInfo.image }} 
+                  source={[
+                    { uri: getImageUrl(sellerInfo.image) },
+                    require('../../../assets/images/logo.png')
+                  ]} 
                   style={styles.sellerImage}
-                  resizeMode="cover"
+                  contentFit="cover"
                 />
               ) : (
                 <View style={styles.sellerImagePlaceholder}>
@@ -123,6 +128,12 @@ export const AppHeader = React.memo(function AppHeader({ showSearch = true, show
           )}
         </View>
         
+        {title && !sellerInfo && (
+          <View style={styles.titleContainer}>
+            <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
+          </View>
+        )}
+
         <View style={styles.headerActions}>
           <TouchableOpacity 
             style={styles.iconButton}
@@ -151,7 +162,7 @@ export const AppHeader = React.memo(function AppHeader({ showSearch = true, show
             <TouchableOpacity style={styles.userProfile} onPress={() => setShowUserMenu(!showUserMenu)}>
               {user.profileImage ? (
                 <Image 
-                  source={{ uri: user.profileImage }} 
+                  source={{ uri: getImageUrl(user.profileImage) }} 
                   style={styles.userAvatar}
                 />
               ) : (
@@ -302,6 +313,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#1a1a1a',
     marginBottom: 4,
+  },
+  titleContainer: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
   },
   sellerMeta: {
     flexDirection: 'row',

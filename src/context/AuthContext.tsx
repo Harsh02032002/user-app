@@ -17,10 +17,9 @@ interface AuthContextType {
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (phone: string, otp: string) => Promise<void>;
   loginWithEmail: (email: string, password: string) => Promise<void>;
-  register: (data: RegisterData) => Promise<void>;
-  sendOtp: (phone: string) => Promise<void>;
+  register: (data: RegisterData) => Promise<any>;
+  verifyEmail: (email: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<void>;
   uploadAvatar: (formData: FormData) => Promise<void>;
@@ -32,6 +31,8 @@ interface RegisterData {
   name: string;
   email: string;
   phone: string;
+  password?: string;
+  role?: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -71,34 +72,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  const sendOtp = React.useCallback(async (phone: string) => {
+  const verifyEmail = React.useCallback(async (email: string, code: string) => {
     try {
-      await api.auth.sendOtp(phone);
+      await api.auth.verifyEmail(email, code);
     } catch (error: any) {
-      throw new Error(error.message || 'Failed to send OTP');
+      throw new Error(error.message || 'Failed to verify email');
     }
   }, []);
 
-  const login = React.useCallback(async (phone: string, otp: string) => {
-    try {
-      // Use phone/OTP login API
-      const response = await api.auth.loginWithPhone(phone, otp);
-      
-      if (!response.token) {
-        throw new Error('No token received from server');
-      }
-      
-      const { token: authToken, user: userData } = response;
-      
-      await AsyncStorage.setItem('token', authToken);
-      await AsyncStorage.setItem('user', JSON.stringify(userData));
-      setToken(authToken);
-      setUser(userData);
-    } catch (error: any) {
-      console.error('Login error:', error);
-      throw new Error(error.message || 'Login failed');
-    }
-  }, []);
 
   const loginWithEmail = React.useCallback(async (email: string, password: string) => {
     try {
@@ -191,16 +172,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     token,
     isLoading,
     isAuthenticated: !!token,
-    login,
     loginWithEmail,
     register,
-    sendOtp,
+    verifyEmail,
     logout,
     updateProfile,
     uploadAvatar,
     uploadBanner,
     refreshProfile,
-  }), [user, token, isLoading, login, loginWithEmail, register, sendOtp, logout, updateProfile, uploadAvatar, uploadBanner, refreshProfile]);
+  }), [user, token, isLoading, loginWithEmail, register, verifyEmail, logout, updateProfile, uploadAvatar, uploadBanner, refreshProfile]);
 
   return (
     <AuthContext.Provider value={value}>

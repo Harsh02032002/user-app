@@ -1,4 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Alert, Platform } from 'react-native';
+import Toast from 'react-native-toast-message';
 
 // API Configuration
 const API_BASE_URL = 'https://dabbanation.in/api'; // Updated to match Dabba Delights backend
@@ -66,6 +68,15 @@ export const clearTokenCache = () => {
 const apiRequest = async (endpoint: string, options: RequestInit = {}, requireAuth = true) => {
   try {
     const url = `${API_BASE_URL}${endpoint}`;
+    console.log(`[API Debug] Full URL: ${url} | Method: ${options.method || 'GET'}`);
+    if (endpoint.includes('cancel')) {
+      Toast.show({
+        type: 'info',
+        text1: 'API Debug',
+        text2: `Hitting: ${endpoint}`,
+        position: 'bottom',
+      });
+    }
     
     const headers: Record<string, string> = {};
     
@@ -131,12 +142,12 @@ export const api = {
       }, false); // No auth required
     },
     
-    // Send OTP
-    sendOtp: async (phone: string) => {
-      return apiRequest('/auth/send-otp', {
+    // Verify Email with code
+    verifyEmail: async (email: string, code: string) => {
+      return apiRequest('/auth/verify-email', {
         method: 'POST',
-        body: JSON.stringify({ phone }),
-      }, false); // No auth required
+        body: JSON.stringify({ email, code }),
+      }, false);
     },
     
     register: async (userData: any) => {
@@ -181,6 +192,10 @@ export const api = {
       return { sellers, total: res?.total || sellers.length, success: true };
     },
     
+    getSellerById: async (id: string) => {
+      return apiRequest(`/user/sellers/${id}`);
+    },
+    
     getHomeChefs: async (params?: Record<string, unknown>) => {
       const res = await apiRequest(`/user/sellers${toQuery(params)}`);
       const sellers = Array.isArray(res) ? res : Array.isArray(res?.sellers) ? res.sellers : Array.isArray(res?.data) ? res.data : [];
@@ -196,8 +211,14 @@ export const api = {
     },
     
     // Menu Items
-    getMenuItems: async (params?: Record<string, unknown>) => {
-      const res = await apiRequest(`/user/menu${toQuery(params)}`);
+    getMenuItems: async (params?: Record<string, unknown> | string) => {
+      let query = "";
+      if (typeof params === 'string') {
+        query = `?sellerId=${params}`;
+      } else {
+        query = toQuery(params);
+      }
+      const res = await apiRequest(`/user/menu${query}`);
       const products = Array.isArray(res) ? res : Array.isArray(res?.products) ? res.products : Array.isArray(res?.data) ? res.data : Array.isArray(res?.menu) ? res.menu : [];
       return { products, total: res?.total || products.length, page: res?.page, limit: res?.limit, success: true };
     },
@@ -254,6 +275,11 @@ export const api = {
     },
 
     cancelOrder: async (id: string) => {
+      console.log(`[API Debug] cancelOrder called with id: ${id}`);
+      if (!id) {
+        console.error('[API Debug] cancelOrder: id is missing!');
+        throw new Error('Order ID is required for cancellation');
+      }
       return apiRequest(`/user/orders/${id}/cancel`, {
         method: 'POST',
       });
@@ -440,7 +466,7 @@ export const api = {
     },
     
     getById: async (id: string) => {
-      return apiRequest(`/sellers/${id}`);
+      return api.user.getSellerById(id);
     },
   },
 

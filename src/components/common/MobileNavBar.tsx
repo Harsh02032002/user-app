@@ -22,11 +22,16 @@ export const MobileNavBar = () => {
     };
 
     // Set initial
-    updateScreen(navigation.getState());
+    try {
+      const state = navigation.getState();
+      if (state) updateScreen(state);
+    } catch (e) {}
 
     // Listen for updates
     const unsubscribe = navigation.addListener('state', (e: any) => {
-      updateScreen(e.data.state);
+      if (e.data && e.data.state) {
+        updateScreen(e.data.state);
+      }
     });
 
     return unsubscribe;
@@ -40,12 +45,11 @@ export const MobileNavBar = () => {
     { name: 'Settings', icon: 'settings', outline: 'settings-outline', label: 'Settings', screen: 'Settings' },
   ];
 
-  if (currentScreen === 'Landing') {
+  if (currentScreen === 'Landing' || currentScreen === 'Login' || currentScreen === 'Register' || currentScreen === 'Otp') {
     return null;
   }
 
   const handlePress = (screenName: string) => {
-    // Navigate to MainTabs and then to the specific screen
     navigation.navigate('MainTabs', { screen: screenName });
   };
 
@@ -102,24 +106,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
     maxWidth: Platform.OS === 'web' ? 500 : '100%',
-    paddingHorizontal: 0,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -3 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-      },
-      android: {
-        elevation: 10,
-      },
-    }),
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    zIndex: 1000,
   },
   tab: {
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
-    width: '20%',
     paddingTop: 8,
   },
   label: {

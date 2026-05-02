@@ -17,7 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import api from '../../services/api';
+import { getImageUrl } from '../../config/api';
+import { api } from '../../services/api';
 import { AppHeader } from '../../components/common/AppHeader';
 import { AppFooter } from '../../components/common/AppFooter';
 import { useNavigation } from '@react-navigation/native';
@@ -97,10 +98,21 @@ export function HomeScreen() {
       console.error('Error saving type:', error);
     }
   };
-  const [sellers, setSellers] = useState<Seller[]>([]);
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [allSellers, setAllSellers] = useState<Seller[]>([]);
+  const [allMenuItems, setAllMenuItems] = useState<MenuItem[]>([]);
   const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
   const [promoBanners, setPromoBanners] = useState<PromoBanner[]>([]);
+  
+  // Memoized filtered data
+  const sellers = React.useMemo(() => {
+    if (selectedType === 'all') return allSellers;
+    return allSellers.filter(s => s.type === selectedType);
+  }, [allSellers, selectedType]);
+
+  const menuItems = React.useMemo(() => {
+    if (selectedType === 'all') return allMenuItems;
+    return allMenuItems.filter(item => item.sellerId?.type === selectedType);
+  }, [allMenuItems, selectedType]);
 
   const fetching = React.useRef(false);
 
@@ -111,8 +123,8 @@ export function HomeScreen() {
       const cachedData = await AsyncStorage.getItem(CACHE_KEY);
       if (cachedData) {
         const parsed = JSON.parse(cachedData);
-        setSellers(parsed.sellers || []);
-        setMenuItems(parsed.menuItems || []);
+        setAllSellers(parsed.sellers || []);
+        setAllMenuItems(parsed.menuItems || []);
         setSubscriptionPlans(parsed.subscriptionPlans || []);
         setPromoBanners(parsed.promoBanners || []);
         setLoading(false); // Show cached data immediately
@@ -142,16 +154,12 @@ export function HomeScreen() {
       console.log('[HomeScreen] fetchData ignored, already fetching');
       return;
     }
-    console.log('[HomeScreen] fetchData starting for type:', selectedType, 'loading:', loading, 'refreshing:', refreshing);
+    console.log('[HomeScreen] fetchData starting...');
     fetching.current = true;
     
     try {
-      if (!refreshing && !loading) {
-        setLoading(true);
-      }
+      // Use functional updates to avoid dependency on loading/refreshing state
       setError(null);
-      
-      console.log('[HomeScreen] Fetching data for type:', selectedType);
       
       // Fetch all data in parallel for better performance
       const [sellersResponse, menuResponse, plansData, bannersData] = await Promise.all([
@@ -162,18 +170,12 @@ export function HomeScreen() {
       ]);
 
       // Process Sellers
-      const allSellers = sellersResponse.sellers || [];
-      const filteredSellers = selectedType === 'all' 
-        ? allSellers 
-        : allSellers.filter((seller: Seller) => seller.type === selectedType);
-      setSellers(filteredSellers);
+      const newAllSellers = sellersResponse.sellers || [];
+      setAllSellers(newAllSellers);
 
       // Process Menu Items
-      const allMenuData = menuResponse.products || [];
-      const filteredMenuData = selectedType === 'all' 
-        ? allMenuData
-        : allMenuData.filter((item: MenuItem) => item.sellerId?.type === selectedType);
-      setMenuItems(filteredMenuData);
+      const newAllMenuData = menuResponse.products || [];
+      setAllMenuItems(newAllMenuData);
 
       // Process Plans & Banners
       setSubscriptionPlans(plansData.plans || plansData || []);
@@ -181,8 +183,8 @@ export function HomeScreen() {
       
       // Cache the new data
       await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({
-        sellers: filteredSellers,
-        menuItems: filteredMenuData,
+        sellers: newAllSellers,
+        menuItems: newAllMenuData,
         subscriptionPlans: plansData.plans || plansData || [],
         promoBanners: bannersData.banners || bannersData || [],
         timestamp: Date.now(),
@@ -197,7 +199,7 @@ export function HomeScreen() {
       setLoading(false);
       fetching.current = false;
     }
-  }, [selectedType, loading, refreshing]);
+  }, []); // No dependencies needed anymore as we use functional updates or don't need them for logic
 
   useEffect(() => {
     loadCachedData().then(() => {
@@ -206,11 +208,8 @@ export function HomeScreen() {
   }, []);
 
   useEffect(() => {
-    if (selectedType) {
-      console.log('[HomeScreen] useEffect triggered by selectedType:', selectedType);
-      fetchData();
-    }
-  }, [selectedType]);
+    fetchData();
+  }, [fetchData]);
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
@@ -221,82 +220,56 @@ export function HomeScreen() {
   const typeLabel = selectedType === 'home_chef' ? 'Home Chef' : selectedType === 'restaurant' ? 'Restaurant' : 'All Sellers';
 
   const renderSellerCard = React.useCallback(({ item }: any) => {
-    const defaultLogo = 'https://images.unsplash.com/photo-1495195129352-aec325b55b65?w=200&h=200&fit=crop&q=80';
-    const defaultCover = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1000&h=400&fit=crop&q=80';
-    
     return (
       <TouchableOpacity 
         style={styles.sellerCard} 
         activeOpacity={0.9}
         onPress={() => {
-          console.log('Navigating to seller:', item._id, item.businessName, 'Type:', item.type);
           navigation.navigate('Restaurant', {
             sellerId: item._id,
             sellerName: item.businessName,
           });
         }}
       >
-        {/* Cover Image with Gradient Overlay */}
         <View style={styles.sellerCoverContainer}>
-          <Image source={{ uri: item.coverImage || item.image || defaultCover }} style={styles.sellerCoverImage} />
-          <View style={styles.sellerGradientOverlay} />
-          
-          {/* Type Badge */}
-          <View style={styles.sellerBadgeContainer}>
-            <View style={[styles.typeBadge, item.type === 'home_chef' ? styles.homeChefBadge : styles.restaurantBadge]}>
-              <Ionicons 
-                name={item.type === 'home_chef' ? 'home' : 'restaurant'} 
-                size={10} 
-                color="#fff" 
-              />
-              <Text style={styles.typeBadgeText}>
-                {item.type === 'home_chef' ? 'Home Cooked' : 'Restaurant'}
-              </Text>
-            </View>
+          <Image 
+            source={{ uri: item.coverImage || item.image || 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1000&h=400&fit=crop&q=80' }} 
+            style={styles.sellerCoverImage} 
+            contentFit="cover"
+          />
+          <View style={[styles.typeBadge, item.type === 'home_chef' ? styles.homeChefBadge : styles.restaurantBadge]}>
+            <Ionicons 
+              name={item.type === 'home_chef' ? 'home' : 'restaurant'} 
+              size={10} 
+              color={item.type === 'home_chef' ? '#059669' : '#C2410C'} 
+            />
+            <Text style={[styles.typeBadgeText, item.type === 'home_chef' ? styles.typeBadgeTextHome : styles.typeBadgeTextRest]}>
+              {item.type === 'home_chef' ? 'Home-Cooked' : 'Restaurant'}
+            </Text>
           </View>
         </View>
         
-        {/* Content */}
-        <View style={styles.sellerCardContent}>
-          {/* Logo overlapping cover */}
-          <View style={styles.sellerLogoContainer}>
-            <Image 
-              source={{ uri: item.logo || item.image || defaultLogo }} 
-              style={styles.sellerLogo} 
-            />
-          </View>
-          
-          <View style={styles.sellerInfo}>
-            <Text style={styles.sellerName} numberOfLines={1}>{item.businessName}</Text>
-            <Text style={styles.sellerCuisines} numberOfLines={1}>
-              {(item.cuisines || []).join(' • ') || 'Multi-cuisine'}
-            </Text>
-          </View>
-          
-          {/* Rating & Location */}
-          <View style={styles.sellerMeta}>
-            <View style={styles.ratingContainer}>
-              <Ionicons name="star" size={12} color="#FFD700" />
-              <Text style={styles.ratingText}>{item.rating?.toFixed(1) || '4.0'}</Text>
-            </View>
-            <View style={styles.locationContainer}>
-              <Ionicons name="location" size={12} color="#999" />
-              <Text style={styles.locationText} numberOfLines={1}>
-                {item.address?.city || 'Mumbai'}
-              </Text>
+        <View style={styles.sellerContent}>
+          <Image 
+            source={{ uri: getImageUrl(item.logo || item.image) || 'https://images.unsplash.com/photo-1495195129352-aec325b55b65?w=200&h=200&fit=crop&q=80' }} 
+            style={styles.sellerLogo} 
+            contentFit="cover"
+          />
+          <View style={styles.sellerTextInfo}>
+            <Text style={styles.sellerName}>{item.businessName}</Text>
+            <Text style={styles.sellerCuisines}>Multi-cuisine</Text>
+            <View style={styles.sellerMetaRow}>
+              <View style={styles.ratingRow}>
+                <Ionicons name="star" size={12} color="#FFD700" />
+                <Ionicons name="star" size={12} color="#FFD700" />
+                <Ionicons name="star" size={12} color="#FFD700" />
+                <Ionicons name="star" size={12} color="#FFD700" />
+                <Ionicons name="star" size={12} color="#ccc" />
+                <Text style={styles.ratingText}>1.0</Text>
+              </View>
+              <Text style={styles.locationText}>• Chandigarh</Text>
             </View>
           </View>
-          
-          {/* Tags */}
-          {item.tags && item.tags.length > 0 && (
-            <View style={styles.tagsContainer}>
-              {item.tags.slice(0, 3).map((tag: string, idx: number) => (
-                <View key={idx} style={styles.tag}>
-                  <Text style={styles.tagText}>{tag}</Text>
-                </View>
-              ))}
-            </View>
-          )}
         </View>
       </TouchableOpacity>
     );
@@ -313,18 +286,22 @@ export function HomeScreen() {
       <TouchableOpacity style={styles.foodCard} activeOpacity={0.9}>
         {/* Image Container */}
         <View style={styles.foodImageContainer}>
-          <Image source={{ uri: item.image }} style={styles.foodImage} />
+          <Image 
+            source={{ uri: getImageUrl(item.image) || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&fit=crop' }} 
+            style={styles.foodImage} 
+            contentFit="cover"
+          />
           
           {/* Top Badges */}
           <View style={styles.foodTopBadges}>
-            <View style={[styles.typeBadge, sellerType === 'home_chef' ? styles.homeChefBadge : styles.restaurantBadge]}>
+            <View style={[styles.typeBadge, sellerType === 'home_chef' ? styles.homeChefBadge : styles.restaurantBadge, { position: 'relative', top: 0, left: 0 }]}>
               <Ionicons 
                 name={sellerType === 'home_chef' ? 'home' : 'restaurant'} 
-                size={8} 
-                color="#fff" 
+                size={10} 
+                color={sellerType === 'home_chef' ? '#059669' : '#C2410C'} 
               />
-              <Text style={styles.typeBadgeTextSmall}>
-                {sellerType === 'home_chef' ? 'Home Cooked' : 'Restaurant'}
+              <Text style={[styles.typeBadgeText, sellerType === 'home_chef' ? styles.typeBadgeTextHome : styles.typeBadgeTextRest]}>
+                {sellerType === 'home_chef' ? 'Home-Cooked' : 'Restaurant'}
               </Text>
             </View>
           </View>
@@ -406,26 +383,28 @@ export function HomeScreen() {
         <Text style={styles.promoTitle}>{item.title}</Text>
         <Text style={styles.promoSubtitle}>{item.subtitle}</Text>
       </View>
-      <Image source={{ uri: item.image }} style={styles.promoImage} />
+      <Image 
+        source={{ uri: getImageUrl(item.image) }} 
+        style={styles.promoImage} 
+        contentFit="cover"
+      />
     </TouchableOpacity>
   ), []);
 
   const renderSubscriptionPlan = React.useCallback(({ item }: any) => {
     // Resolve banner image
-    let bannerSource = null;
-    if (item.banner_image || item.image) {
-      const imgPath = item.banner_image || item.image;
-      if (imgPath.startsWith('http')) {
-        bannerSource = { uri: imgPath };
-      } else {
-        const baseUrl = 'https://dabbanation.in';
-        bannerSource = { uri: `${baseUrl}${imgPath.startsWith('/') ? '' : '/'}${imgPath}` };
-      }
-    } else {
-      if (item.total_days <= 7) bannerSource = require('../../../assets/images/weekly_plan.png');
-      else if (item.total_days <= 14) bannerSource = require('../../../assets/images/fortnightly_plan.png');
-      else bannerSource = require('../../../assets/images/monthly_plan.png');
+    let imgPath = item.banner_image || item.image || item.plan_image;
+    
+    if (!imgPath) {
+      // Fallback to a default based on days if no image provided by API
+      let path = 'weekly.png';
+      if (item.total_days <= 7) path = 'weekly.png';
+      else if (item.total_days <= 14) path = 'fortnightly.png';
+      else path = 'monthly.png';
+      imgPath = `/uploads/subscriptions/${path}`;
     }
+
+    const bannerSource = { uri: getImageUrl(imgPath) };
 
     return (
       <TouchableOpacity 
@@ -622,6 +601,37 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
+  typeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 20,
+    gap: 4,
+    borderWidth: 1,
+    zIndex: 10,
+  },
+  homeChefBadge: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#D1FAE5',
+  },
+  restaurantBadge: {
+    backgroundColor: '#FFF7ED',
+    borderColor: '#FFEDD5',
+  },
+  typeBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  typeBadgeTextHome: {
+    color: '#059669',
+  },
+  typeBadgeTextRest: {
+    color: '#C2410C',
+  },
   filterContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -806,137 +816,74 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  // Seller Card Styles
   sellerCard: {
     width: 280,
-    borderRadius: 16,
-    overflow: 'hidden',
     backgroundColor: '#fff',
+    borderRadius: 20,
     marginRight: 16,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   sellerCoverContainer: {
-    height: 120,
+    width: '100%',
+    height: 150,
     position: 'relative',
   },
   sellerCoverImage: {
     width: '100%',
     height: '100%',
   },
-  sellerGradientOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 60,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  sellerBadgeContainer: {
-    position: 'absolute',
-    bottom: 12,
-    left: 12,
-  },
-  typeBadge: {
+  sellerContent: {
+    padding: 12,
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
-  },
-  homeChefBadge: {
-    backgroundColor: '#FF6B00',
-  },
-  restaurantBadge: {
-    backgroundColor: '#2196F3',
-  },
-  typeBadgeText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  typeBadgeTextSmall: {
-    color: '#fff',
-    fontSize: 8,
-    fontWeight: '600',
-  },
-  sellerCardContent: {
-    padding: 16,
-  },
-  sellerLogoContainer: {
-    marginTop: -24,
-    marginBottom: 8,
   },
   sellerLogo: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: 45,
+    height: 45,
+    borderRadius: 8,
+    marginRight: 12,
+    marginTop: -25,
     borderWidth: 2,
     borderColor: '#fff',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.15,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
+    backgroundColor: '#fff',
   },
-  sellerInfo: {
-    marginBottom: 12,
+  sellerTextInfo: {
+    flex: 1,
+    marginTop: -5,
   },
   sellerName: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: 'bold',
     color: '#1a1a1a',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   sellerCuisines: {
     fontSize: 12,
-    color: '#999',
+    color: '#666',
+    marginBottom: 6,
   },
-  sellerMeta: {
+  sellerMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    marginBottom: 12,
+    justifyContent: 'space-between',
   },
-  locationContainer: {
+  ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    flex: 1,
+    gap: 1,
+  },
+  ratingText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+    marginLeft: 4,
   },
   locationText: {
     fontSize: 12,
-    color: '#999',
-  },
-  tagsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  tag: {
-    backgroundColor: '#f5f5f5',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  tagText: {
-    fontSize: 10,
     color: '#666',
   },
   // Food Card Styles

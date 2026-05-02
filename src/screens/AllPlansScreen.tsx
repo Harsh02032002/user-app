@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   ActivityIndicator,
   RefreshControl,
   Dimensions,
@@ -13,7 +12,9 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 import { api } from '../services/api';
+import { getImageUrl } from '../config/api';
 import { AppHeader } from '../components/common/AppHeader';
 import { AppFooter } from '../components/common/AppFooter';
 
@@ -55,11 +56,19 @@ export default function AllPlansScreen() {
   const renderPlan = (plan: any) => {
     const perDay = plan.per_day_value || Math.round(plan.total_amount / plan.total_days);
     
-    // Map local banner images
-    let bannerSource = null;
-    if (plan.total_days <= 7) bannerSource = require('../../assets/images/weekly_plan.png');
-    else if (plan.total_days <= 14) bannerSource = require('../../assets/images/fortnightly_plan.png');
-    else bannerSource = require('../../assets/images/monthly_plan.png');
+    // Priority: 1. banner_image, 2. image, 3. plan_image (per user request), 4. Hardcoded fallback
+    let imgPath = plan.banner_image || plan.image || plan.plan_image;
+    
+    if (!imgPath) {
+      // Hardcoded fallback based on days if no image is provided by API
+      let path = 'weekly.png';
+      if (plan.total_days <= 7) path = 'weekly.png';
+      else if (plan.total_days <= 14) path = 'fortnightly.png';
+      else path = 'monthly.png';
+      imgPath = `/uploads/subscriptions/${path}`;
+    }
+
+    const bannerSource = { uri: getImageUrl(imgPath) };
 
     return (
       <View key={plan._id} style={styles.planCard}>

@@ -56,8 +56,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "34c550f6-e2fc-461b-8242-7d527e698f68"
+        "projectId": "241f2168-e7a4-4491-8734-b760e6c06d93"
       }
-    }
+    },
+    "owner": "harsh_web"
   }
 }

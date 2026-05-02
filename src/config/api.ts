@@ -4,6 +4,23 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Live API Base URL
 export const BASE_URL = 'https://dabbanation.in/api';
 
+// Helper to get full image URL
+export const getImageUrl = (path: string | undefined): string => {
+  if (!path) return '';
+  if (path.startsWith('http') || path.startsWith('data:')) return path;
+  
+  // If it's a local asset path, don't prepend backend URL
+  if (path.startsWith('/src') || path.startsWith('src/') || 
+      path.startsWith('/assets') || path.startsWith('assets/') ||
+      path.startsWith('/images') || path.startsWith('images/')) {
+    return path;
+  }
+
+  const backendBaseUrl = 'https://dabbanation.in'; // Base URL without /api
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${backendBaseUrl}${cleanPath}`;
+};
+
 // Create axios instance
 const api = axios.create({
   baseURL: BASE_URL,
