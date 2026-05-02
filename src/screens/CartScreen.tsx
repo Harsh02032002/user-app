@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
   checkoutSection: {
     backgroundColor: '#fff',
     padding: 20,
-    paddingBottom: 10,
+    paddingBottom: 12,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     shadowColor: '#000',
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
     position: 'absolute',
-    bottom: 65,
+    bottom: 100,
     left: 0,
     right: 0,
   },

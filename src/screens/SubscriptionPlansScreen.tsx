@@ -511,7 +511,7 @@ const styles = StyleSheet.create({
     borderColor: '#f0f0f0',
   },
   cardHeader: {
-    height: 140,
+    height: 200,
     position: 'relative',
   },
   headerGradient: {
@@ -533,7 +533,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: '60%',
+    height: '35%',
     justifyContent: 'flex-end',
     padding: 16,
   },
@@ -541,7 +541,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 22,
     fontWeight: 'bold',
-    // fontFamily: 'serif', // If available
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 10,
   },
   badgeContainer: {
     position: 'absolute',

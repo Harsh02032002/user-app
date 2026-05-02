@@ -57,9 +57,8 @@ export const MobileNavBar = () => {
     <View style={[
       styles.container, 
       { 
-        paddingBottom: Platform.OS === 'android' ? Math.max(insets.bottom, 25) : Math.max(insets.bottom, 15),
-        paddingTop: 10,
-        height: Platform.OS === 'ios' ? 85 : (Platform.OS === 'android' ? 75 : 70),
+        paddingBottom: Platform.OS === 'ios' ? insets.bottom : Math.max(insets.bottom, 25),
+        height: Platform.OS === 'ios' ? Math.max(85, insets.bottom + 50) : 85,
       }
     ]}>
       {tabs.map((tab) => {
@@ -71,19 +70,19 @@ export const MobileNavBar = () => {
             onPress={() => handlePress(tab.screen)}
             activeOpacity={0.7}
           >
-            <View>
+            <View style={styles.iconContainer}>
               <Ionicons 
                 name={(isActive ? tab.icon : tab.outline) as any} 
-                size={24} 
-                color={isActive ? '#FF6B00' : '#999'} 
+                size={22} 
+                color={isActive ? '#FF6B00' : '#64748b'} 
               />
-              {tab.name === 'Home' && totalItems > 0 && (
+              {(tab.name === 'Home' && totalItems > 0) && (
                 <View style={styles.badge}>
                   <Text style={styles.badgeText}>{totalItems}</Text>
                 </View>
               )}
             </View>
-            <Text style={[styles.label, { color: isActive ? '#FF6B00' : '#999' }]}>
+            <Text style={[styles.label, { color: isActive ? '#FF6B00' : '#64748b' }]}>
               {tab.label}
             </Text>
           </TouchableOpacity>
@@ -96,28 +95,36 @@ export const MobileNavBar = () => {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffff',
     borderTopWidth: 1,
-    borderTopColor: '#e5e5e5',
+    borderTopColor: '#f1f5f9',
     position: 'absolute',
     bottom: 0,
-    alignSelf: 'center',
+    left: 0,
+    right: 0,
     justifyContent: 'space-around',
     alignItems: 'center',
     width: '100%',
     maxWidth: Platform.OS === 'web' ? 500 : '100%',
-    elevation: 10,
+    alignSelf: 'center',
+    elevation: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -3 },
+    shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowRadius: 12,
     zIndex: 1000,
   },
   tab: {
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
-    paddingTop: 8,
+    paddingTop: 10,
+  },
+  iconContainer: {
+    position: 'relative',
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   label: {
     fontSize: 10,
@@ -126,18 +133,21 @@ const styles = StyleSheet.create({
   },
   badge: {
     position: 'absolute',
-    top: -5,
-    right: -10,
-    backgroundColor: '#FF6B00',
-    borderRadius: 10,
-    width: 18,
+    top: -8,
+    right: -12,
+    backgroundColor: '#ef4444',
+    borderRadius: 9,
+    minWidth: 18,
     height: 18,
+    paddingHorizontal: 4,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#ffffff',
   },
   badgeText: {
     color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
+    fontSize: 9,
+    fontWeight: '900',
   },
 });

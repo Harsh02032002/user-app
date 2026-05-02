@@ -56,6 +56,7 @@ export function CheckoutScreen() {
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [activeSubs, setActiveSubs] = useState<any[]>([]);
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   
   // Delivery address form - directly entered, not saved separately
   const [deliveryAddress, setDeliveryAddress] = useState({
@@ -358,19 +359,24 @@ export function CheckoutScreen() {
   // Handle location detection
   const handleDetectLocation = async () => {
     try {
-      setLoading(true);
+      setIsDetectingLocation(true);
       // Request location permission
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        setLoading(false);
+        setIsDetectingLocation(false);
         Alert.alert('Permission Denied', 'Please allow location access to use this feature.');
         return;
       }
 
-      // Get current location with high accuracy
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
+      // Get current location - Try last known first for speed
+      let location = await Location.getLastKnownPositionAsync({});
+      
+      if (!location) {
+        location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+      }
+      
       const { latitude, longitude } = location.coords;
       setUserLocation([longitude, latitude]);
 
@@ -382,14 +388,21 @@ export function CheckoutScreen() {
 
       if (addressResult && addressResult.length > 0) {
         const addr = addressResult[0];
+        
+        // Filter out Plus Codes (like FXHR+Q3) from street address
+        let streetName = addr.name || addr.street || addr.district || '';
+        if (streetName.includes('+') && streetName.length <= 8) {
+          streetName = addr.street || addr.district || addr.subregion || '';
+        }
+
         setDeliveryAddress(prev => ({
           ...prev,
-          street: addr.name || addr.street || addr.district || '',
+          street: streetName,
           city: addr.city || addr.subregion || '',
           state: addr.region || '',
           pincode: addr.postalCode || '',
         }));
-        Alert.alert('📍 Location Detected', `Address auto-filled: ${addr.city || 'Success'}`);
+        Alert.alert('📍 Location Detected', `Address auto-filled successfully!`);
       } else {
         // Fallback to nominatim if expo fails
         const response = await fetch(
@@ -397,21 +410,27 @@ export function CheckoutScreen() {
         );
         const data = await response.json();
         if (data && data.address) {
+          let streetName = data.address.road || data.address.house_number || data.address.suburb || '';
+          // Avoid plus codes or very short codes
+          if (streetName.includes('+') && streetName.length <= 8) {
+            streetName = data.address.suburb || data.address.neighbourhood || '';
+          }
+
           setDeliveryAddress(prev => ({
             ...prev,
-            street: data.address.road || data.address.house_number || '',
+            street: streetName,
             city: data.address.city || data.address.town || data.address.village || '',
             state: data.address.state || '',
             pincode: data.address.postcode || '',
           }));
-          Alert.alert('📍 Location Detected', `Address auto-filled: ${data.address.city || 'Success'}`);
+          Alert.alert('📍 Location Detected', `Address auto-filled successfully!`);
         }
       }
     } catch (error) {
       console.error('Location detection failed:', error);
       Alert.alert('Error', 'Could not detect location. Please enter manually.');
     } finally {
-      setLoading(false);
+      setIsDetectingLocation(false);
     }
   };
 
@@ -439,9 +458,19 @@ export function CheckoutScreen() {
           </View>
           
           {/* Location Detection Button */}
-          <TouchableOpacity style={styles.locationButton} onPress={handleDetectLocation}>
-            <Ionicons name="location" size={16} color="#FF6B00" />
-            <Text style={styles.locationButtonText}>📍 Detect My Current Location</Text>
+          <TouchableOpacity 
+            style={[styles.locationButton, isDetectingLocation && styles.locationButtonDisabled]} 
+            onPress={handleDetectLocation}
+            disabled={isDetectingLocation}
+          >
+            {isDetectingLocation ? (
+              <ActivityIndicator size={16} color="#FF6B00" />
+            ) : (
+              <Ionicons name="location" size={16} color="#FF6B00" />
+            )}
+            <Text style={styles.locationButtonText}>
+              {isDetectingLocation ? '📍 Detecting location...' : '📍 Detect My Current Location'}
+            </Text>
           </TouchableOpacity>
           <Text style={styles.locationHint}>Click to auto-fill your address using GPS location</Text>
           
@@ -527,7 +556,7 @@ export function CheckoutScreen() {
               <View style={styles.paymentDetails}>
                 <Text style={styles.paymentName}>Pay from My Plan</Text>
                 <Text style={styles.paymentDescription}>
-                  Balance: {activeSubs.find(s => s.homeChef?._id === cartItems[0]?.sellerId || s.homeChef === cartItems[0]?.sellerId)?.remainingBalance || 0} meals left
+                  Balance: {activeSubs.find(s => s.homeChef?._id === cartItems[0]?.sellerId || s.homeChef === cartItems[0]?.sellerId)?.remainingBalance || 0}
                 </Text>
               </View>
               {selectedPayment?.type === 'subscription' && (
@@ -645,7 +674,6 @@ export function CheckoutScreen() {
             </View>
           )}
           
-          {/* Pay Button */}
           <TouchableOpacity 
             style={[styles.payButton, loading && styles.buttonDisabled]} 
             onPress={handlePlaceOrder}
@@ -1030,10 +1058,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF6B00',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    justifyContent: 'center',
+    padding: 18,
     borderRadius: 12,
+    marginTop: 10,
+    marginBottom: 10,
+    gap: 10,
+  },
+  locationButtonDisabled: {
+    opacity: 0.7,
+    backgroundColor: '#f0f0f0',
   },
   buttonDisabled: {
     backgroundColor: '#FFB380',

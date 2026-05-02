@@ -125,7 +125,7 @@ export function HomeScreen() {
         const parsed = JSON.parse(cachedData);
         setAllSellers(parsed.sellers || []);
         setAllMenuItems(parsed.menuItems || []);
-        setSubscriptionPlans(parsed.subscriptionPlans || []);
+        // setSubscriptionPlans(parsed.subscriptionPlans || []); // Skip cache for now to fix image issues
         setPromoBanners(parsed.promoBanners || []);
         setLoading(false); // Show cached data immediately
       }
@@ -1152,7 +1152,7 @@ const styles = StyleSheet.create({
   },
   planImageContainer: {
     width: '100%',
-    height: 100,
+    height: 140,
     position: 'relative',
   },
   planImage: {

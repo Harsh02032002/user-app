@@ -733,19 +733,20 @@ const styles = StyleSheet.create({
     borderColor: '#f0f0f0',
   },
   planImageContainer: {
-    height: 140,
+    height: 200,
     position: 'relative',
   },
   planImage: {
     width: '100%',
     height: '100%',
+    backgroundColor: '#f5f5f5',
   },
   imageOverlay: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: '60%',
+    height: '40%',
     justifyContent: 'flex-end',
     padding: 16,
     backgroundColor: 'rgba(0,0,0,0.3)',

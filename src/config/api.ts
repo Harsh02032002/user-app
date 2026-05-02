@@ -7,18 +7,37 @@ export const BASE_URL = 'https://dabbanation.in/api';
 // Helper to get full image URL
 export const getImageUrl = (path: string | undefined): string => {
   if (!path) return '';
-  if (path.startsWith('http') || path.startsWith('data:')) return path;
   
-  // If it's a local asset path, don't prepend backend URL
-  if (path.startsWith('/src') || path.startsWith('src/') || 
-      path.startsWith('/assets') || path.startsWith('assets/') ||
-      path.startsWith('/images') || path.startsWith('images/')) {
-    return path;
+  // If it's already a full URL, return it
+  if (path.startsWith('http')) return path;
+  
+  // If it's a data URI, return it
+  if (path.startsWith('data:')) return path;
+
+  const backendBaseUrl = 'https://dabbanation.in';
+  
+  // Clean the path
+  let cleanPath = path.trim();
+  if (!cleanPath.startsWith('/')) {
+    cleanPath = '/' + cleanPath;
+  }
+  
+  // Ensure extension for subscription images if missing
+  if (cleanPath.startsWith('/uploads/subscriptions/') && !cleanPath.includes('.')) {
+    cleanPath = cleanPath + '.png';
   }
 
-  const backendBaseUrl = 'https://dabbanation.in'; // Base URL without /api
-  const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  return `${backendBaseUrl}${cleanPath}`;
+  // FORCE prepend the domain if it's a backend path
+  if (cleanPath.startsWith('/uploads/') || cleanPath.startsWith('/api/')) {
+    return `${backendBaseUrl}${cleanPath}`;
+  }
+
+  // For other paths, try to prepend domain if they look like backend paths
+  if (!cleanPath.startsWith('/assets') && !cleanPath.startsWith('/src')) {
+     return `${backendBaseUrl}${cleanPath}`;
+  }
+  
+  return cleanPath;
 };
 
 // Create axios instance

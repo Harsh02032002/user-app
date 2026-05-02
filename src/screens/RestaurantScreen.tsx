@@ -637,7 +637,7 @@ const styles = StyleSheet.create({
   },
   cartButton: {
     position: 'absolute',
-    bottom: 30,
+    bottom: 100,
     left: 20,
     right: 20,
     backgroundColor: '#FF6B00',
