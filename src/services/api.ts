@@ -340,7 +340,7 @@ export const api = {
     
     // Subscriptions
     getActiveSubscription: async () => {
-      return apiRequest('/subscriptions/active');
+      return apiRequest('/user/subscriptions/active');
     },
     
     getSubscriptionHistory: async () => {
@@ -525,6 +525,13 @@ export const api = {
       return apiRequest('/subscriptions', {
         method: 'POST',
         body: JSON.stringify(subscriptionData),
+      });
+    },
+
+    placeOrderFromSubscription: async (orderData: any) => {
+      return apiRequest('/subscriptions/place-order', {
+        method: 'POST',
+        body: JSON.stringify(orderData),
       });
     },
   },

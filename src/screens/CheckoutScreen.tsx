@@ -57,6 +57,9 @@ export function CheckoutScreen() {
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [activeSubs, setActiveSubs] = useState<any[]>([]);
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+
+  // Combined subscription balance from all active subscriptions
+  const totalSubBalance = activeSubs.reduce((sum, s) => sum + (s.remainingBalance || 0), 0);
   
   // Delivery address form - directly entered, not saved separately
   const [deliveryAddress, setDeliveryAddress] = useState({
@@ -88,34 +91,31 @@ export function CheckoutScreen() {
 
   const fetchActiveSubs = async () => {
     try {
+      console.log('[Checkout] Fetching active subscriptions...');
       const response = await api.user.getActiveSubscription();
-      // Handle different possible response structures
-      let subs = [];
-      if (response.subscription) {
-        subs = [response.subscription];
-      } else if (Array.isArray(response)) {
-        subs = response;
-      } else if (response.subscriptions) {
-        subs = response.subscriptions;
-      } else if (response.data) {
-        subs = Array.isArray(response.data) ? response.data : (response.data.subscription ? [response.data.subscription] : []);
-      }
+      console.log('[Checkout] Raw subscription response:', JSON.stringify(response));
       
-      // Map backend fields to frontend interface expected by CheckoutScreen
-      const normalizedSubs = subs.map((s: any) => ({
-        ...s,
-        remainingBalance: s.remaining_amount !== undefined ? s.remaining_amount : s.remainingBalance,
-        remainingDays: s.remaining_days !== undefined ? s.remaining_days : s.remainingDays,
-        homeChef: s.seller_id ? {
-          _id: s.seller_id._id || s.seller_id,
-          shopName: s.seller_id.businessName || s.seller_name,
-          name: s.seller_id.name
-        } : s.homeChef
-      }));
+      // Backend returns { success: true, subscriptions: [...] }
+      const subs = response.subscriptions || [];
       
+      console.log('[Checkout] Parsed subs count:', subs.length);
+      
+      const normalizedSubs = subs
+        .filter((s: any) => s.status === 'active' && s.remaining_amount > 0)
+        .map((s: any) => ({
+          ...s,
+          remainingBalance: s.remaining_amount || 0,
+          remainingDays: s.remaining_days || 0,
+          homeChef: s.seller_id ? {
+            _id: s.seller_id._id || s.seller_id,
+            shopName: s.seller_id.businessName || s.seller_name || 'Unknown',
+          } : { shopName: s.seller_name || 'Unknown' }
+        }));
+      
+      console.log('[Checkout] Normalized subs:', normalizedSubs.length, normalizedSubs.map((s: any) => ({ balance: s.remainingBalance, name: s.homeChef?.shopName })));
       setActiveSubs(normalizedSubs);
     } catch (error) {
-      console.error('Error fetching active subs:', error);
+      console.error('[Checkout] Error fetching active subs:', error);
     }
   };
 
@@ -287,7 +287,79 @@ export function CheckoutScreen() {
     setLoading(true);
 
     try {
-      // Create order with delivery address correctly mapped for backend
+      // Handle subscription payment
+      if (selectedPayment.type === 'subscription') {
+        if (totalSubBalance <= 0) {
+          throw new Error('No subscription balance available');
+        }
+
+        const subAmount = Math.min(totalSubBalance, total);
+        const extraAmount = total - subAmount;
+
+        if (extraAmount > 0) {
+          // Hybrid: subscription + razorpay
+          const orderData = {
+            items: cartItems.map(item => ({
+              menuItemId: item.id,
+              name: item.name,
+              sellingPrice: item.discountPrice || item.price,
+              quantity: item.quantity,
+              image: item.image,
+            })),
+            sellerId: cartItems[0].sellerId,
+            deliveryAddress: {
+              name: deliveryAddress.name,
+              phone: deliveryAddress.phone,
+              street: deliveryAddress.street,
+              city: deliveryAddress.city,
+              state: deliveryAddress.state,
+              pincode: deliveryAddress.pincode,
+            },
+            paymentMethod: 'hybrid',
+            totalAmount: total,
+            subtotal: totalAmount,
+            deliveryFee,
+            platformFee,
+            subscriptionAmountUsed: subAmount,
+            subscriptionIds: activeSubs.map(s => s._id),
+          };
+
+          const orderResponse = await api.user.placeOrder(orderData);
+          await handleRazorpayPayment(orderResponse.order, extraAmount);
+        } else {
+          // Full subscription payment
+          const subscriptionOrderData = {
+            items: cartItems.map(item => ({
+              menuItemId: item.id,
+              name: item.name,
+              price: item.discountPrice || item.price,
+              quantity: item.quantity,
+              image: item.image,
+            })),
+            deliveryAddress: {
+              street: deliveryAddress.street,
+              city: deliveryAddress.city,
+              state: deliveryAddress.state,
+              pincode: deliveryAddress.pincode,
+            },
+            subscriptionIds: activeSubs.map(s => s._id),
+            totalAmount: total,
+          };
+
+          await api.subscriptions.placeOrderFromSubscription(subscriptionOrderData);
+          await fetchActiveSubs();
+          await refreshProfile();
+          clearCart();
+          Alert.alert(
+            '🎉 Order Placed!',
+            `Order placed! ₹${total} deducted from your subscription balance.`,
+            [{ text: 'View Orders', onPress: () => navigation.navigate('MainTabs' as any, { screen: 'Orders' }) }]
+          );
+        }
+        return;
+      }
+
+      // For non-subscription payments, create order normally
       const orderData = {
         items: cartItems.map(item => ({
           menuItemId: item.id,
@@ -320,14 +392,6 @@ export function CheckoutScreen() {
       } else if (selectedPayment.type === 'wallet' && walletBalance >= total) {
         // Wallet payment
         await processWalletPayment(orderResponse.order._id);
-      } else if (selectedPayment.type === 'subscription') {
-        // Subscription payment
-        clearCart();
-        Alert.alert(
-          '🎉 Order Placed!',
-          `Your order #${orderResponse.order?.orderNumber || ''} has been placed successfully! 1 meal has been deducted from your plan.`,
-          [{ text: 'View Orders', onPress: () => navigation.navigate('MainTabs' as any, { screen: 'Orders' }) }]
-        );
       } else {
         // COD placed successfully - show success directly
         clearCart();
@@ -544,20 +608,26 @@ export function CheckoutScreen() {
             <Text style={styles.sectionTitle}>Payment Method</Text>
           </View>
           
-          {/* Subscription - Show if user has a plan with this seller */}
-          {activeSubs.some(s => s.homeChef?._id === cartItems[0]?.sellerId || s.homeChef === cartItems[0]?.sellerId) && (
+          {/* Subscription Balance - Show if user has ANY active subscription */}
+          {activeSubs.length > 0 && totalSubBalance > 0 && (
             <TouchableOpacity
               style={[styles.paymentMethod, selectedPayment?.type === 'subscription' && styles.selectedPayment]}
-              onPress={() => setSelectedPayment({ id: 'subscription', name: 'Pay from My Plan', icon: 'star', type: 'subscription' })}
+              onPress={() => setSelectedPayment({ id: 'subscription', name: 'Pay from Subscription Balance', icon: 'star', type: 'subscription' })}
             >
               <View style={[styles.paymentIconContainer, { backgroundColor: '#6366f1' }]}>
                 <Ionicons name="star" size={20} color="#fff" />
               </View>
               <View style={styles.paymentDetails}>
-                <Text style={styles.paymentName}>Pay from My Plan</Text>
+                <Text style={styles.paymentName}>Subscription Balance</Text>
                 <Text style={styles.paymentDescription}>
-                  Balance: {activeSubs.find(s => s.homeChef?._id === cartItems[0]?.sellerId || s.homeChef === cartItems[0]?.sellerId)?.remainingBalance || 0}
+                  Total Available: ₹{totalSubBalance.toLocaleString('en-IN')}
+                  {activeSubs.length > 1 ? ` (${activeSubs.length} plans combined)` : ''}
                 </Text>
+                {totalSubBalance < total && (
+                  <Text style={[styles.paymentDescription, { color: '#FF6B00' }]}>
+                    ₹{(total - totalSubBalance).toLocaleString('en-IN')} extra will be charged online
+                  </Text>
+                )}
               </View>
               {selectedPayment?.type === 'subscription' && (
                 <Ionicons name="checkmark-circle" size={20} color="#FF6B00" />
@@ -673,7 +743,59 @@ export function CheckoutScreen() {
               </View>
             </View>
           )}
+
+          {/* Subscription Info */}
+          {selectedPayment?.type === 'subscription' && (
+            <View style={styles.walletInfoCard}>
+              {activeSubs.length > 1 && (
+                <View style={styles.subBreakdownHeader}>
+                  <Text style={styles.subBreakdownTitle}>Your Subscription Plans</Text>
+                  {activeSubs.map((s, i) => (
+                    <View key={i} style={styles.subBreakdownRow}>
+                      <Text style={styles.subBreakdownName}>
+                        {s.homeChef?.shopName || s.homeChef?.businessName || `Plan ${i + 1}`}
+                      </Text>
+                      <Text style={styles.subBreakdownAmount}>
+                        ₹{(s.remainingBalance || 0).toLocaleString('en-IN')}
+                      </Text>
+                    </View>
+                  ))}
+                  <View style={styles.subDivider} />
+                </View>
+              )}
+              <View style={styles.walletInfoRow}>
+                <Text style={styles.walletInfoLabel}>Total Sub Balance</Text>
+                <Text style={[styles.walletInfoValue, { color: '#6366f1' }]}>₹{totalSubBalance.toLocaleString('en-IN')}</Text>
+              </View>
+              <View style={styles.walletInfoRow}>
+                <Text style={styles.walletInfoLabel}>Order Total</Text>
+                <Text style={styles.walletInfoValue}>₹{total.toLocaleString('en-IN')}</Text>
+              </View>
+              {totalSubBalance >= total ? (
+                <View style={styles.walletInfoRow}>
+                  <Text style={styles.walletInfoLabel}>Remaining After Order</Text>
+                  <Text style={[styles.walletInfoValue, { color: '#22c55e' }]}>₹{(totalSubBalance - total).toLocaleString('en-IN')}</Text>
+                </View>
+              ) : (
+                <View style={[styles.walletInfoRow, { backgroundColor: '#fff5f0', padding: 8, borderRadius: 8, marginTop: 4 }]}>
+                  <Text style={[styles.walletInfoLabel, { color: '#FF6B00' }]}>Extra to Pay Online</Text>
+                  <Text style={[styles.walletInfoValue, { color: '#FF6B00' }]}>₹{(total - totalSubBalance).toLocaleString('en-IN')}</Text>
+                </View>
+              )}
+              <Text style={styles.subscriptionNote}>
+                {totalSubBalance >= total 
+                  ? '✅ Full amount covered by subscription balance'
+                  : `⚡ ₹${totalSubBalance} from subscription + ₹${total - totalSubBalance} via Razorpay`
+                }
+              </Text>
+            </View>
+          )}
           
+        </View>
+      </ScrollView>
+
+      {/* Fixed Bottom Payment Bar */}
+      <View style={styles.fixedBottomContainer}>
           <TouchableOpacity 
             style={[styles.payButton, loading && styles.buttonDisabled]} 
             onPress={handlePlaceOrder}
@@ -684,25 +806,26 @@ export function CheckoutScreen() {
             ) : (
               <>
                 <Text style={styles.payButtonText}>
-                  {selectedPayment?.type === 'subscription' ? 'Pay from My Plan' :
-                   selectedPayment?.type === 'wallet' ? `Pay ₹${payableAmount} from Wallet` :
-                   selectedPayment?.type === 'cod' ? 'Place Order (COD)' :
-                   `Pay ₹${payableAmount}`}
+                  {selectedPayment?.type === 'subscription'
+                    ? totalSubBalance >= total
+                      ? `Pay ₹${total} from Subscription`
+                      : `Pay ₹${totalSubBalance} Sub + ₹${total - totalSubBalance} Online`
+                    : selectedPayment?.type === 'wallet' ? `Pay ₹${payableAmount} from Wallet`
+                    : selectedPayment?.type === 'cod' ? 'Place Order (COD)'
+                    : `Pay ₹${payableAmount}`}
                 </Text>
                 <Ionicons name="arrow-forward" size={20} color="#fff" />
               </>
             )}
           </TouchableOpacity>
           
-          {/* Payment Note */}
           <Text style={styles.paymentNote}>
             {selectedPayment?.type === 'subscription' ? 'Using your subscription balance. Days will be deducted.' :
              selectedPayment?.type === 'wallet' ? 'Instant payment from your wallet' :
              selectedPayment?.type === 'cod' ? 'Pay cash when your order is delivered' :
              'Secure online payment via Razorpay'}
           </Text>
-        </View>
-      </ScrollView>
+      </View>
 
       {/* Razorpay WebView Modal */}
       <Modal
@@ -1054,6 +1177,40 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1a1a1a',
   },
+  subscriptionNote: {
+    fontSize: 12,
+    color: '#FF6B00',
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
+  subBreakdownHeader: {
+    marginBottom: 8,
+  },
+  subBreakdownTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6366f1',
+    marginBottom: 6,
+  },
+  subBreakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  subBreakdownName: {
+    fontSize: 12,
+    color: '#666',
+  },
+  subBreakdownAmount: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6366f1',
+  },
+  subDivider: {
+    height: 1,
+    backgroundColor: '#e5e5e5',
+    marginVertical: 8,
+  },
   payButton: {
     backgroundColor: '#FF6B00',
     flexDirection: 'row',
@@ -1082,5 +1239,17 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     marginTop: 12,
+  },
+  fixedBottomContainer: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e5e5',
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.08, shadowRadius: 8 },
+      android: { elevation: 8 },
+      web: { boxShadow: '0px -4px 8px rgba(0,0,0,0.08)' },
+    }),
   },
 });

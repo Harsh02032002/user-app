@@ -75,7 +75,7 @@ export default function AllPlansScreen() {
         {/* Card Header */}
         <View style={styles.cardHeader}>
           {bannerSource ? (
-            <Image source={bannerSource} style={styles.headerImage} />
+            <Image source={bannerSource} style={styles.headerImage} contentFit="contain" />
           ) : (
             <LinearGradient
               colors={['#4a4a4a', '#2d2d2d']}

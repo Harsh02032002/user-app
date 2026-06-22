@@ -8,16 +8,16 @@ export const BASE_URL = 'https://dabbanation.in/api';
 export const getImageUrl = (path: string | undefined): string => {
   if (!path) return '';
   
-  // If it's already a full URL, return it
-  if (path.startsWith('http')) return path;
-  
-  // If it's a data URI, return it
-  if (path.startsWith('data:')) return path;
-
   const backendBaseUrl = 'https://dabbanation.in';
   
   // Clean the path
   let cleanPath = path.trim();
+  
+  // If it's already a full URL, return it
+  if (cleanPath.startsWith('http')) return cleanPath;
+  
+  // If it's a data URI, return it
+  if (cleanPath.startsWith('data:')) return cleanPath;
   if (!cleanPath.startsWith('/')) {
     cleanPath = '/' + cleanPath;
   }

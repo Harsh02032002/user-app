@@ -131,7 +131,6 @@ export default function SelectHomeChefScreen() {
       <AppHeader 
         showSearch={false} 
         showBack={true}
-        title="Select Home Chef"
       />
 
       {/* Plan Info */}
@@ -391,7 +390,7 @@ const styles = StyleSheet.create({
   },
   bottomContainer: {
     position: 'absolute',
-    bottom: Platform.OS === 'web' ? 70 : 80, // Lift above MobileNavBar
+    bottom: 200, // Lift significantly higher to ensure visibility
     left: 0,
     right: 0,
     backgroundColor: '#fff',

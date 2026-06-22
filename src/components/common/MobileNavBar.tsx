@@ -54,13 +54,7 @@ export const MobileNavBar = () => {
   };
 
   return (
-    <View style={[
-      styles.container, 
-      { 
-        paddingBottom: Platform.OS === 'ios' ? insets.bottom : Math.max(insets.bottom, 25),
-        height: Platform.OS === 'ios' ? Math.max(85, insets.bottom + 50) : 85,
-      }
-    ]}>
+    <View style={styles.container}>
       {tabs.map((tab) => {
         const isActive = currentScreen === tab.name || currentScreen === tab.screen;
         return (
@@ -94,14 +88,14 @@ export const MobileNavBar = () => {
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    backgroundColor: '#ffffff',
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
+    backgroundColor: '#ffffff',
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+    flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
     width: '100%',
@@ -113,12 +107,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 12,
     zIndex: 1000,
+    paddingBottom: Platform.OS === 'ios' ? 25 : 30, // Increased padding to prevent cutting
+    height: Platform.OS === 'ios' ? 90 : 85, // Slightly taller
   },
   tab: {
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
-    paddingTop: 10,
   },
   iconContainer: {
     position: 'relative',

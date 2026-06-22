@@ -256,7 +256,7 @@ export default function SubscriptionPlansScreen() {
                       <Image 
                         source={bannerSource} 
                         style={styles.headerImage} 
-                        contentFit="cover"
+                        contentFit="contain"
                         onLoad={() => console.log(`[SubscriptionPlansScreen] Image loaded successfully: ${plan.plan_name}`)}
                         onError={(err) => console.error(`[SubscriptionPlansScreen] Image load failed for ${plan.plan_name}:`, err)}
                       />
@@ -333,7 +333,19 @@ export default function SubscriptionPlansScreen() {
               activeSubscriptions.map((sub: any) => (
                 <View key={sub._id} style={styles.activePlanCard}>
                    <View style={styles.activePlanHeader}>
-                      <Text style={styles.activePlanTitle}>{sub.plan_id?.plan_name || 'Active Plan'}</Text>
+                      <View style={styles.activePlanChefInfo}>
+                        {sub.seller_id?.logo ? (
+                          <Image 
+                            source={{ uri: getImageUrl(sub.seller_id.logo) || undefined }} 
+                            style={styles.chefSmallLogo} 
+                          />
+                        ) : (
+                          <View style={styles.chefSmallLogoPlaceholder}>
+                            <Ionicons name="home" size={14} color="#FF6B00" />
+                          </View>
+                        )}
+                        <Text style={styles.activePlanTitle}>{sub.plan_id?.plan_name || 'Active Plan'}</Text>
+                      </View>
                       <View style={styles.activeBadge}><Text style={styles.activeBadgeText}>ACTIVE</Text></View>
                    </View>
                    <Text style={styles.activePlanChef}>Chef: {sub.seller_id?.businessName || 'Home Chef'}</Text>
@@ -789,6 +801,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginBottom: 20,
+    marginLeft: 32, // Offset for logo
+  },
+  activePlanChefInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  chefSmallLogo: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#f5f5f5',
+  },
+  chefSmallLogoPlaceholder: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#fff5f0',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   statsRow: {
     flexDirection: 'row',

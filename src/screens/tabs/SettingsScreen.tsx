@@ -222,7 +222,7 @@ export function SettingsScreen() {
           {/* Banner Image */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Banner Image</Text>
-            <TouchableOpacity onPress={() => pickImage('banner')} style={styles.bannerContainer}>
+            <TouchableOpacity onPress={() => pickImage('banner')} style={[styles.bannerContainer, { marginBottom: 10 }]}>
               {profile.banner || user?.banner ? (
                 <Image 
                   source={{ uri: getImageUrl(profile.banner || user?.banner) || undefined }} 
@@ -241,48 +241,43 @@ export function SettingsScreen() {
           </View>
 
           {/* Basic Info */}
-          <View style={styles.formRow}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Full Name</Text>
-              <TextInput
-                style={styles.input}
-                value={profile.name}
-                onChangeText={(text) => setProfile(prev => ({ ...prev, name: text }))}
-                placeholder="Enter your name"
-              />
-            </View>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                style={styles.input}
-                value={profile.email}
-                onChangeText={(text) => setProfile(prev => ({ ...prev, email: text }))}
-                placeholder="Enter your email"
-                keyboardType="email-address"
-              />
-            </View>
+          <View style={[styles.inputGroup, { marginTop: 60 }]}>
+            <Text style={styles.label}>Full Name</Text>
+            <TextInput
+              style={styles.input}
+              value={profile.name}
+              onChangeText={(text) => setProfile(prev => ({ ...prev, name: text }))}
+              placeholder="Enter your name"
+            />
           </View>
-
-          <View style={styles.formRow}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Phone Number</Text>
-              <TextInput
-                style={styles.input}
-                value={profile.phone}
-                onChangeText={(text) => setProfile(prev => ({ ...prev, phone: text }))}
-                placeholder="Enter your phone"
-                keyboardType="phone-pad"
-              />
-            </View>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Location</Text>
-              <TextInput
-                style={styles.input}
-                value={profile.address}
-                onChangeText={(text) => setProfile(prev => ({ ...prev, address: text }))}
-                placeholder="Enter your location"
-              />
-            </View>
+          <View style={[styles.inputGroup, { marginTop: 20 }]}>
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              style={styles.input}
+              value={profile.email}
+              onChangeText={(text) => setProfile(prev => ({ ...prev, email: text }))}
+              placeholder="Enter your email"
+              keyboardType="email-address"
+            />
+          </View>
+          <View style={[styles.inputGroup, { marginTop: 20 }]}>
+            <Text style={styles.label}>Phone Number</Text>
+            <TextInput
+              style={styles.input}
+              value={profile.phone}
+              onChangeText={(text) => setProfile(prev => ({ ...prev, phone: text }))}
+              placeholder="Enter your phone"
+              keyboardType="phone-pad"
+            />
+          </View>
+          <View style={[styles.inputGroup, { marginTop: 20 }]}>
+            <Text style={styles.label}>Location</Text>
+            <TextInput
+              style={styles.input}
+              value={profile.address}
+              onChangeText={(text) => setProfile(prev => ({ ...prev, address: text }))}
+              placeholder="Enter your location"
+            />
           </View>
 
           <View style={styles.inputGroup}>
@@ -327,27 +322,25 @@ export function SettingsScreen() {
             />
           </View>
 
-          <View style={styles.formRow}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>New Password</Text>
-              <TextInput
-                style={styles.input}
-                value={passwordData.newPassword}
-                onChangeText={(text) => setPasswordData(prev => ({ ...prev, newPassword: text }))}
-                placeholder="Enter new password"
-                secureTextEntry
-              />
-            </View>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Confirm Password</Text>
-              <TextInput
-                style={styles.input}
-                value={passwordData.confirmPassword}
-                onChangeText={(text) => setPasswordData(prev => ({ ...prev, confirmPassword: text }))}
-                placeholder="Confirm new password"
-                secureTextEntry
-              />
-            </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>New Password</Text>
+            <TextInput
+              style={styles.input}
+              value={passwordData.newPassword}
+              onChangeText={(text) => setPasswordData(prev => ({ ...prev, newPassword: text }))}
+              placeholder="Enter new password"
+              secureTextEntry
+            />
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Confirm Password</Text>
+            <TextInput
+              style={styles.input}
+              value={passwordData.confirmPassword}
+              onChangeText={(text) => setPasswordData(prev => ({ ...prev, confirmPassword: text }))}
+              placeholder="Confirm new password"
+              secureTextEntry
+            />
           </View>
 
           <TouchableOpacity style={styles.saveButton} onPress={handleChangePassword} disabled={loading}>
