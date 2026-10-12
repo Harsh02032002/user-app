@@ -15,6 +15,9 @@ import { Ionicons } from '@expo/vector-icons';
 import api, { API_ENDPOINTS } from '../config/api';
 import { RootStackParamList } from '../navigation/RootNavigator';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LOCATION_COORDS_KEY, LOCATION_NAME_KEY } from '../utils/location';
+
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 interface SearchResult {
@@ -35,6 +38,8 @@ export default function SearchScreen() {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<SearchResult[]>([]);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationName, setLocationName] = useState('');
   const [recentSearches, setRecentSearches] = useState<string[]>([
     'Biryani',
     'Pizza',
@@ -44,6 +49,19 @@ export default function SearchScreen() {
 
   useEffect(() => {
     inputRef.current?.focus();
+    AsyncStorage.getItem(LOCATION_COORDS_KEY).then(savedCoords => {
+      if (savedCoords) {
+        try {
+          const parsed = JSON.parse(savedCoords);
+          if (parsed?.lat && parsed?.lng) {
+            setUserLocation({ lat: Number(parsed.lat), lng: Number(parsed.lng) });
+          }
+        } catch (_) {}
+      }
+    });
+    AsyncStorage.getItem(LOCATION_NAME_KEY).then(name => {
+      if (name) setLocationName(name);
+    });
   }, []);
 
   useEffect(() => {
@@ -56,13 +74,20 @@ export default function SearchScreen() {
     }, 300);
 
     return () => clearTimeout(debounce);
-  }, [query]);
+  }, [query, userLocation]);
 
   const searchItems = async () => {
     setLoading(true);
     try {
-      const response = await api.get(`${API_ENDPOINTS.SEARCH}?q=${query}`);
-      setResults(response.data.data || []);
+      let url = `${API_ENDPOINTS.SEARCH}?q=${encodeURIComponent(query)}&radius=12000`;
+      if (userLocation?.lat && userLocation?.lng) {
+        url += `&lat=${userLocation.lat}&lng=${userLocation.lng}`;
+      }
+      if (locationName) {
+        url += `&city=${encodeURIComponent(locationName)}`;
+      }
+      const response = await api.get(url);
+      setResults(response.data.data || response.data.products || []);
     } catch (error) {
       console.error('Search error:', error);
     } finally {

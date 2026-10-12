@@ -18,6 +18,7 @@ import { useNavigation } from '@react-navigation/native';
 import api from '../../services/api';
 import { AppHeader } from '../../components/common/AppHeader';
 import { AppFooter } from '../../components/common/AppFooter';
+import { OnlinePaymentModal } from '../../components/OnlinePaymentModal';
 
 interface Transaction {
   _id: string;
@@ -89,72 +90,9 @@ export function WalletScreen() {
       Alert.alert('Invalid Amount', 'Please enter a valid amount (minimum ₹10)');
       return;
     }
-    
-    try {
-      setLoading(true);
-      // 1. Create Razorpay order for wallet topup
-      // Note: Backend might use same generic order creator or specific one
-      const razorpayResponse = await api.payment.createRazorpayOrder({
-        amount: amount,
-        type: 'wallet_topup'
-      });
-
-      setPendingTopupAmount(amount);
-      setTopupModalVisible(false);
-
-      // 2. Build HTML for Razorpay
-      const html = `
-<!DOCTYPE html>
-<html>
-<head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-</head>
-<body>
-<script>
-  var options = {
-    key: '${razorpayResponse.key}',
-    amount: ${razorpayResponse.amount},
-    currency: '${razorpayResponse.currency || 'INR'}',
-    order_id: '${razorpayResponse.orderId}',
-    name: 'Dabba Nation',
-    description: 'Wallet Top-up',
-    prefill: {
-      name: '',
-      email: '',
-      contact: ''
-    },
-    theme: { color: '#FF6B00' },
-    handler: function(response) {
-      window.ReactNativeWebView.postMessage(JSON.stringify({ 
-        success: true, 
-        paymentId: response.razorpay_payment_id,
-        orderId: response.razorpay_order_id,
-        signature: response.razorpay_signature
-      }));
-    },
-    modal: {
-      ondismiss: function() {
-        window.ReactNativeWebView.postMessage(JSON.stringify({ success: false, cancelled: true }));
-      }
-    }
-  };
-  var rzp = new Razorpay(options);
-  rzp.on('payment.failed', function(resp) {
-    window.ReactNativeWebView.postMessage(JSON.stringify({ success: false, error: resp.error.description }));
-  });
-  window.onload = function() { rzp.open(); };
-</script>
-</body>
-</html>`;
-
-      setRazorpayHtml(html);
-      setRazorpayModal(true);
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to initialize payment');
-    } finally {
-      setLoading(false);
-    }
+    setPendingTopupAmount(amount);
+    setTopupModalVisible(false);
+    setRazorpayModal(true);
   };
 
   const handleWebViewMessage = async (event: any) => {
@@ -223,6 +161,7 @@ export function WalletScreen() {
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 110 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
@@ -312,48 +251,23 @@ export function WalletScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Razorpay WebView Modal */}
-      <Modal
+      {/* Online UPI QR Payment Modal */}
+      <OnlinePaymentModal
         visible={razorpayModal}
-        animationType="slide"
-        onRequestClose={() => {
-          setRazorpayModal(false);
-          Alert.alert('Cancelled', 'Top-up was cancelled.');
+        onClose={() => setRazorpayModal(false)}
+        amount={pendingTopupAmount || 0}
+        onPaymentSuccess={async (txnId) => {
+          if (pendingTopupAmount) {
+            setLoading(true);
+            await api.user.topupWallet({
+              amount: pendingTopupAmount,
+              transactionId: txnId || `UPI_${Date.now()}`
+            });
+            Alert.alert('Success', `₹${pendingTopupAmount} added to your wallet successfully!`);
+            fetchWallet();
+          }
         }}
-      >
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: '#eee' }}>
-            <TouchableOpacity onPress={() => { setRazorpayModal(false); Alert.alert('Cancelled', 'Top-up was cancelled.'); }} style={{ padding: 8 }}>
-              <Ionicons name="close" size={24} color="#333" />
-            </TouchableOpacity>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginLeft: 8 }}>Secure Payment</Text>
-          </View>
-          {Platform.OS === 'web' ? (
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-              <Ionicons name="phone-portrait-outline" size={64} color="#FF6B00" />
-              <Text style={{ fontSize: 18, fontWeight: '700', marginTop: 16, textAlign: 'center' }}>Use Mobile App</Text>
-              <Text style={{ fontSize: 14, color: '#666', marginTop: 8, textAlign: 'center' }}>
-                Wallet top-up via Razorpay works on the mobile app.
-              </Text>
-              <TouchableOpacity
-                style={{ marginTop: 24, backgroundColor: '#FF6B00', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 }}
-                onPress={() => setRazorpayModal(false)}
-              >
-                <Text style={{ color: '#fff', fontWeight: '600' }}>Go Back</Text>
-              </TouchableOpacity>
-            </View>
-          ) : razorpayHtml && WebViewComponent ? (
-            <WebViewComponent
-              source={{ html: razorpayHtml }}
-              onMessage={handleWebViewMessage}
-              javaScriptEnabled
-              domStorageEnabled
-              startInLoadingState
-              renderLoading={() => <ActivityIndicator size="large" color="#FF6B00" style={{ marginTop: 40 }} />}
-            />
-          ) : null}
-        </SafeAreaView>
-      </Modal>
+      />
 
       {/* Topup Modal */}
       <Modal

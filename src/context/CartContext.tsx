@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface CartItem {
@@ -78,21 +79,60 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [items]);
 
-  const addToCart = React.useCallback((newItem: Omit<CartItem, 'quantity'>) => {
+  const addToCart = React.useCallback((newItem: any, argSellerId?: any, argSellerName?: string) => {
     console.log('[CartContext] addToCart called with:', newItem);
+    const resolvedId = newItem?.id || newItem?._id || '';
+    const rawSeller = argSellerId || newItem?.sellerId;
+    const resolvedSellerId = (typeof rawSeller === 'object' ? rawSeller?._id : rawSeller) || '';
+    const resolvedSellerName = argSellerName || (typeof rawSeller === 'object' ? rawSeller?.businessName : '') || newItem?.sellerName || 'Restaurant';
+
+    const normalizedItem: CartItem = {
+      id: resolvedId,
+      name: newItem?.name || '',
+      price: newItem?.sellingPrice || newItem?.price || 0,
+      discountPrice: newItem?.discountPrice,
+      quantity: 1,
+      image: newItem?.image || '',
+      sellerId: String(resolvedSellerId),
+      sellerName: resolvedSellerName,
+      isVeg: !!newItem?.isVeg,
+      description: newItem?.description || '',
+    };
+
     setItems(currentItems => {
-      const existingItem = currentItems.find(item => item.id === newItem.id);
+      // Prevent mixing dishes from two different restaurants/sellers
+      if (currentItems.length > 0 && normalizedItem.sellerId) {
+        const existingSellerId = currentItems[0].sellerId;
+        if (existingSellerId && existingSellerId !== normalizedItem.sellerId) {
+          const existingSellerName = currentItems[0].sellerName || 'your current restaurant';
+          Alert.alert(
+            'Replace cart items?',
+            `Your cart contains dishes from "${existingSellerName}". An order can only be placed from one restaurant at a time. Do you want to discard your current cart and add items from "${normalizedItem.sellerName}"?`,
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Replace Items',
+                style: 'destructive',
+                onPress: () => setItems([normalizedItem]),
+              },
+            ]
+          );
+          return currentItems;
+        }
+      }
+
+      const existingItem = currentItems.find(item => item.id === normalizedItem.id);
       
       if (existingItem) {
         // Update quantity if item already exists
         return currentItems.map(item =>
-          item.id === newItem.id
+          item.id === normalizedItem.id
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       } else {
         // Add new item
-        return [...currentItems, { ...newItem, quantity: 1 }];
+        return [...currentItems, normalizedItem];
       }
     });
   }, []);

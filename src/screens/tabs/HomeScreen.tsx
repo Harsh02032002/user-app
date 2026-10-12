@@ -19,11 +19,14 @@ import { useCart } from '../../context/CartContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getImageUrl } from '../../config/api';
 import { api } from '../../services/api';
+import { LOCATION_COORDS_KEY, LOCATION_NAME_KEY } from '../../utils/location';
 import { AppHeader } from '../../components/common/AppHeader';
 import { AppFooter } from '../../components/common/AppFooter';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/RootNavigator';
+
+import * as Location from 'expo-location';
 
 const { width } = Dimensions.get('window');
 const CACHE_KEY = 'home_screen_data_cache';
@@ -80,6 +83,7 @@ interface PromoBanner {
 }
 
 export function HomeScreen() {
+  console.log('[HomeScreen] Component rendering');
   const { user } = useAuth();
   const { addToCart } = useCart();
   const navigation = useNavigation<NavigationProp>();
@@ -87,6 +91,8 @@ export function HomeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [selectedType, setSelectedTypeState] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationName, setLocationName] = useState<string>('');
 
   
   // Wrapper to save type to storage when changed
@@ -106,28 +112,89 @@ export function HomeScreen() {
   // Memoized filtered data
   const sellers = React.useMemo(() => {
     if (selectedType === 'all') return allSellers;
-    return allSellers.filter(s => s.type === selectedType);
+    return allSellers.filter(s => {
+      if (selectedType === 'home_chef') return s.type === 'home_chef' || s.type === 'home-chef';
+      return s.type === selectedType;
+    });
   }, [allSellers, selectedType]);
 
   const menuItems = React.useMemo(() => {
     if (selectedType === 'all') return allMenuItems;
-    return allMenuItems.filter(item => item.sellerId?.type === selectedType);
-  }, [allMenuItems, selectedType]);
+    return allMenuItems.filter(item => {
+      if (!item) return false;
+      const sType = typeof item.sellerId === 'object' ? item.sellerId?.type : null;
+      if (sType) {
+        if (selectedType === 'home_chef') return sType === 'home_chef' || sType === 'home-chef';
+        return sType === selectedType;
+      }
+      const sellerIdStr = typeof item.sellerId === 'object' ? item.sellerId?._id : item.sellerId;
+      const matchedSeller = allSellers.find(s => s._id === sellerIdStr);
+      if (matchedSeller) {
+        if (selectedType === 'home_chef') return matchedSeller.type === 'home_chef' || matchedSeller.type === 'home-chef';
+        return matchedSeller.type === selectedType;
+      }
+      return true;
+    });
+  }, [allMenuItems, selectedType, allSellers]);
 
   const fetching = React.useRef(false);
 
+  // Load location independently on mount
+  useEffect(() => {
+    const loadLocation = async () => {
+      try {
+        console.log('[Location] Starting loadLocation...');
+        const savedCoords = await AsyncStorage.getItem(LOCATION_COORDS_KEY);
+        const savedName = await AsyncStorage.getItem(LOCATION_NAME_KEY);
+        console.log('[Location] savedCoords:', savedCoords, 'savedName:', savedName);
+        if (savedCoords && savedName) {
+          const parsed = JSON.parse(savedCoords);
+          console.log('[Location] Using saved location:', parsed, savedName);
+          setUserLocation({ lat: parsed.lat, lng: parsed.lng });
+          setLocationName(savedName);
+        } else {
+          console.log('[Location] No saved location, trying GPS...');
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          console.log('[Location] Permission status:', status);
+          if (status === 'granted') {
+            const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+            const lat = loc.coords.latitude;
+            const lng = loc.coords.longitude;
+            console.log('[Location] GPS coords:', lat, lng);
+            setUserLocation({ lat, lng });
+            const geo = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
+            if (geo[0]) {
+              const name = geo[0].city || geo[0].subregion || 'Your Location';
+              console.log('[Location] City name:', name);
+              setLocationName(name);
+              await AsyncStorage.setItem(LOCATION_COORDS_KEY, JSON.stringify({ lat, lng }));
+              await AsyncStorage.setItem(LOCATION_NAME_KEY, name);
+            }
+          }
+        }
+      } catch (e) {
+        console.log('[Location] loadLocation error:', e);
+      }
+    };
+    loadLocation();
+  }, []);
 
+  // Reset fetching flag when location changes so fetchData can re-run
+  useEffect(() => {
+    console.log('[HomeScreen] userLocation changed:', userLocation, 'locationName:', locationName);
+    fetching.current = false;
+  }, [userLocation]);
 
   const loadCachedData = async () => {
     try {
       const cachedData = await AsyncStorage.getItem(CACHE_KEY);
       if (cachedData) {
         const parsed = JSON.parse(cachedData);
-        setAllSellers(parsed.sellers || []);
-        setAllMenuItems(parsed.menuItems || []);
+        // Sellers/menu are location-wise -> never restore them from a cache that
+        // isn't tied to the current location (it may contain another city's sellers).
         // setSubscriptionPlans(parsed.subscriptionPlans || []); // Skip cache for now to fix image issues
         setPromoBanners(parsed.promoBanners || []);
-        setLoading(false); // Show cached data immediately
+        await AsyncStorage.removeItem(CACHE_KEY);
       }
     } catch (error) {
       console.error('Error loading cache:', error);
@@ -150,61 +217,79 @@ export function HomeScreen() {
 
 
   const fetchData = React.useCallback(async () => {
-    if (fetching.current) {
-      console.log('[HomeScreen] fetchData ignored, already fetching');
-      return;
-    }
-    console.log('[HomeScreen] fetchData starting...');
-    fetching.current = true;
-    
     try {
-      // Use functional updates to avoid dependency on loading/refreshing state
       setError(null);
-      
-      // Fetch all data in parallel for better performance
-      const [sellersResponse, menuResponse, plansData, bannersData] = await Promise.all([
-        api.user.getSellers().catch(err => { console.log('Sellers error:', err); return { sellers: [] }; }),
-        api.user.getMenuItems().catch(err => { console.log('Menu error:', err); return { products: [] }; }),
+
+      const lat = userLocation?.lat ?? null;
+      const lng = userLocation?.lng ?? null;
+
+      // Strictly location-wise: if location not ready yet, do NOT fetch unconstrained sellers from distant cities
+      if (!lat || !lng) {
+        console.log('[HomeScreen] Location not resolved yet, waiting for location...');
+        return;
+      }
+
+      // 1. Fetch sellers - strictly nearby within 12 km
+      let sellersResponse: any;
+      try {
+        sellersResponse = await api.user.getNearbySellers({
+          lat,
+          lng,
+          radius: 12000,
+          city: locationName,
+          type: selectedType !== 'all' ? selectedType : undefined
+        });
+      } catch (e) {
+        console.log('[HomeScreen] Nearby sellers failed:', e);
+        sellersResponse = { sellers: [] };
+      }
+
+      const newAllSellers = sellersResponse?.sellers || (Array.isArray(sellersResponse) ? sellersResponse : []);
+      setAllSellers(newAllSellers);
+
+      // 2. Fetch menu items location-wise (strictly from nearby sellers within 12 km)
+      let menuResponse: any;
+      try {
+        let fetchedProducts: any[] = [];
+        if (newAllSellers.length > 0) {
+          const sellerIdsStr = newAllSellers.map((s: Seller) => s._id).join(',');
+          menuResponse = await api.user.getMenuItems({ 
+            sellerIds: sellerIdsStr,
+            lat,
+            lng,
+            radius: 12000,
+            city: locationName,
+            type: selectedType !== 'all' ? selectedType : undefined
+          }).catch(() => null);
+          fetchedProducts = menuResponse?.products || (Array.isArray(menuResponse) ? menuResponse : []);
+        } else {
+          // No nearby sellers within 12 km -> keep menu strictly empty (never show distant food)
+          fetchedProducts = [];
+        }
+
+        setAllMenuItems(fetchedProducts || []);
+      } catch (e) {
+        console.log('Error fetching menu items:', e);
+      }
+
+      const [plansData, bannersData] = await Promise.all([
         api.user.getSubscriptionPlans().catch(err => { console.log('Plans error:', err); return []; }),
         api.user.getActiveBanners().catch(err => { console.log('Banners error:', err); return []; })
       ]);
 
-      // Process Sellers
-      const newAllSellers = sellersResponse.sellers || [];
-      setAllSellers(newAllSellers);
-
-      // Process Menu Items
-      const newAllMenuData = menuResponse.products || [];
-      setAllMenuItems(newAllMenuData);
-
-      // Process Plans & Banners
       setSubscriptionPlans(plansData.plans || plansData || []);
       setPromoBanners(bannersData.banners || bannersData || []);
-      
-      // Cache the new data
-      await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({
-        sellers: newAllSellers,
-        menuItems: newAllMenuData,
-        subscriptionPlans: plansData.plans || plansData || [],
-        promoBanners: bannersData.banners || bannersData || [],
-        timestamp: Date.now(),
-      }));
-      
-      console.log('[HomeScreen] Data loaded successfully and cached');
-      
+
     } catch (err: any) {
       console.error('Error fetching data:', err);
       setError(err.message || 'Failed to load data');
     } finally {
       setLoading(false);
-      fetching.current = false;
     }
-  }, []); // No dependencies needed anymore as we use functional updates or don't need them for logic
+  }, [selectedType, userLocation, locationName]);
 
   useEffect(() => {
-    loadCachedData().then(() => {
-      loadPreferredType();
-    });
+    loadCachedData().then(() => loadPreferredType());
   }, []);
 
   useEffect(() => {
@@ -220,6 +305,10 @@ export function HomeScreen() {
   const typeLabel = selectedType === 'home_chef' ? 'Home Chef' : selectedType === 'restaurant' ? 'Restaurant' : 'All Sellers';
 
   const renderSellerCard = React.useCallback(({ item }: any) => {
+    const sellerRating = item.rating || 0;
+    const fullStars = Math.floor(sellerRating);
+    const emptyStars = 5 - fullStars;
+    const displayCity = item.address?.city || item.address?.area || locationName || item.address?.street || '';
     return (
       <TouchableOpacity 
         style={styles.sellerCard} 
@@ -257,23 +346,24 @@ export function HomeScreen() {
           />
           <View style={styles.sellerTextInfo}>
             <Text style={styles.sellerName}>{item.businessName}</Text>
-            <Text style={styles.sellerCuisines}>Multi-cuisine</Text>
+            <Text style={styles.sellerCuisines}>{item.cuisines?.length > 0 ? item.cuisines.join(', ') : 'Multi-cuisine'}</Text>
             <View style={styles.sellerMetaRow}>
               <View style={styles.ratingRow}>
-                <Ionicons name="star" size={12} color="#FFD700" />
-                <Ionicons name="star" size={12} color="#FFD700" />
-                <Ionicons name="star" size={12} color="#FFD700" />
-                <Ionicons name="star" size={12} color="#FFD700" />
-                <Ionicons name="star" size={12} color="#ccc" />
-                <Text style={styles.ratingText}>1.0</Text>
+                {Array.from({ length: fullStars }).map((_, i) => (
+                  <Ionicons key={`f${i}`} name="star" size={12} color="#FFD700" />
+                ))}
+                {Array.from({ length: emptyStars }).map((_, i) => (
+                  <Ionicons key={`e${i}`} name="star" size={12} color="#ccc" />
+                ))}
+                <Text style={styles.ratingText}>{sellerRating > 0 ? sellerRating.toFixed(1) : ''}</Text>
               </View>
-              <Text style={styles.locationText}>• Chandigarh</Text>
+              {displayCity ? <Text style={styles.locationText}>• {displayCity}</Text> : null}
             </View>
           </View>
         </View>
       </TouchableOpacity>
     );
-  }, [navigation]);
+  }, [navigation, locationName]);
 
   const renderFoodCard = React.useCallback(({ item }: any) => {
     // sellerId is an object from backend with _id, businessName, type
@@ -355,14 +445,16 @@ export function HomeScreen() {
             <TouchableOpacity 
               style={styles.addButton}
               onPress={() => {
+                const sId = (typeof item.sellerId === 'object' ? item.sellerId?._id : item.sellerId) || '';
+                const sName = (typeof item.sellerId === 'object' ? item.sellerId?.businessName : '') || 'Restaurant';
                 addToCart({
                   id: item._id,
                   name: item.name,
                   price: item.sellingPrice || item.price || 0,
                   discountPrice: item.discountPrice,
                   image: item.image,
-                  sellerId: item.sellerId?._id || '',
-                  sellerName: item.sellerId?.businessName || 'Unknown',
+                  sellerId: sId,
+                  sellerName: sName,
                   isVeg: item.isVeg || false,
                   description: item.description,
                 });
@@ -447,7 +539,7 @@ export function HomeScreen() {
         <ScrollView 
           showsVerticalScrollIndicator={false} 
           style={styles.scrollView}
-          contentContainerStyle={{ paddingBottom: 120 }}
+          contentContainerStyle={{ paddingBottom: 110 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#FF6B00']} />}
         >
           {/* Type Filter Toggle */}
@@ -499,7 +591,8 @@ export function HomeScreen() {
         {/* Sellers Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            {selectedType === 'home_chef' ? 'Home Chefs Near You' : 
+            {locationName ? `📍 Near ${locationName}` :
+             selectedType === 'home_chef' ? 'Home Chefs Near You' : 
              selectedType === 'restaurant' ? 'Top Restaurants' : 'All Sellers'}
           </Text>
           <FlatList
@@ -573,8 +666,7 @@ export function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={{ height: 40 }} />
-        <AppFooter />
+        <View style={{ height: Platform.OS === 'ios' ? 100 : 80 }} />
         </ScrollView>
       )}
     </SafeAreaView>

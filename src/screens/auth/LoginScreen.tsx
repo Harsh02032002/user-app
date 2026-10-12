@@ -152,20 +152,7 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.dividerContainer}>
-              <View style={styles.divider} />
-              <Text style={styles.dividerText}>Are you a seller or admin?</Text>
-              <View style={styles.divider} />
-            </View>
 
-            <View style={styles.otherLogins}>
-              <TouchableOpacity style={styles.outlineButton}>
-                <Text style={styles.outlineButtonText}>Seller Login</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.outlineButton}>
-                <Text style={styles.outlineButtonText}>Admin Login</Text>
-              </TouchableOpacity>
-            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

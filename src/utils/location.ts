@@ -1,8 +1,11 @@
 import * as Location from 'expo-location';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const DEFAULT_LOCATION_LABEL = 'Detecting location...';
 export const isWeb = Platform.OS === 'web';
+export const LOCATION_COORDS_KEY = 'user_location_coords';
+export const LOCATION_NAME_KEY = 'user_location_name';
 
 let isFetching = false;
 let lastLocation = DEFAULT_LOCATION_LABEL;
@@ -72,6 +75,11 @@ export const getReadableLocation = async (): Promise<string> => {
 
     lastLocation = locationStr;
     lastFetchTime = Date.now();
+    // Save coords + name to AsyncStorage for sharing across screens
+    if (coords) {
+      await AsyncStorage.setItem(LOCATION_COORDS_KEY, JSON.stringify({ lat: coords.latitude, lng: coords.longitude }));
+    }
+    await AsyncStorage.setItem(LOCATION_NAME_KEY, locationStr);
     return locationStr;
   } catch (error) {
     console.warn('Location fetch failed:', error);

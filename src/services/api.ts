@@ -1,9 +1,22 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, Platform } from 'react-native';
 import Toast from 'react-native-toast-message';
+import Constants from 'expo-constants';
 
 // API Configuration
-const API_BASE_URL = 'https://dabbanation.in/api'; // Updated to match Dabba Delights backend
+const getApiBaseUrl = () => {
+  if (Platform.OS === 'web') {
+    return 'http://localhost:5000/api';
+  }
+  const hostUri = Constants.expoConfig?.hostUri;
+  if (hostUri) {
+    const ip = hostUri.split(':')[0];
+    return `http://${ip}:5000/api`;
+  }
+  return 'https://dabbanation.in/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 // Helper to normalize image URLs (matching website logic)
 export const getImageUrl = (path: string | undefined | null) => {
@@ -194,10 +207,30 @@ export const api = {
         body: formData,
       });
     },
+
+    changePassword: async (currentPassword: string, newPassword: string) => {
+      return apiRequest('/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+    },
   },
 
   // User APIs (matching Dabba Delights userAPI exactly)
   user: {
+    getNearbySellers: async (params: { lat: number; lng: number; radius?: number; type?: string; city?: string }) => {
+      const query = new URLSearchParams({
+        lat: String(params.lat),
+        lng: String(params.lng),
+        radius: String(params.radius || 12000),
+        ...(params.type ? { type: params.type } : {}),
+        ...(params.city ? { city: params.city } : {}),
+      }).toString();
+      const res = await apiRequest(`/user/sellers/nearby?${query}`);
+      const sellers = Array.isArray(res) ? res : Array.isArray(res?.sellers) ? res.sellers : [];
+      return { sellers, success: true };
+    },
+
     // Sellers
     getSellers: async (params?: Record<string, unknown>) => {
       const res = await apiRequest(`/user/sellers${toQuery(params)}`);
@@ -272,6 +305,10 @@ export const api = {
     
     getOrderById: async (id: string) => {
       return apiRequest(`/user/orders/${id}`);
+    },
+
+    getOrderTracking: async (id: string) => {
+      return apiRequest(`/user/orders/${id}/track`);
     },
     
     placeOrder: async (data: Record<string, unknown>) => {
@@ -406,6 +443,14 @@ export const api = {
       });
     },
     
+    // GST & Platform Settings
+    getGSTSettings: async () => {
+      return apiRequest('/public/gst-settings');
+    },
+    getPlatformConfig: async () => {
+      return apiRequest('/public/platform-config');
+    },
+
     // Banners
     getActiveBanners: async () => {
       return apiRequest('/user/banners');
@@ -445,6 +490,23 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify({ status }),
       });
+    },
+
+    // Delivery fee calculator — distance-based slab pricing
+    // Returns: { success, distanceKm, customerFee, riderPayout, serviceable, message }
+    calculateDeliveryFee: async (params: {
+      sellerId?: string;
+      sellerLng?: number;
+      sellerLat?: number;
+      customerLng: number;
+      customerLat: number;
+    }) => {
+      const query = new URLSearchParams(
+        Object.entries(params)
+          .filter(([, v]) => v !== undefined && v !== null)
+          .map(([k, v]) => [k, String(v)])
+      ).toString();
+      return apiRequest(`/delivery/calculate-fee?${query}`, {}, false);
     },
   },
 

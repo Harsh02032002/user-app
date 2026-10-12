@@ -45,7 +45,18 @@ export const MobileNavBar = () => {
     { name: 'Settings', icon: 'settings', outline: 'settings-outline', label: 'Settings', screen: 'Settings' },
   ];
 
-  if (currentScreen === 'Landing' || currentScreen === 'Login' || currentScreen === 'Register' || currentScreen === 'Otp') {
+  if (
+    currentScreen === 'Landing' ||
+    currentScreen === 'Login' ||
+    currentScreen === 'SimpleLogin' ||
+    currentScreen === 'Register' ||
+    currentScreen === 'Otp' ||
+    currentScreen === 'Cart' ||
+    currentScreen === 'Checkout' ||
+    currentScreen === 'Payment' ||
+    currentScreen === 'SubscriptionCheckout' ||
+    currentScreen === 'SelectHomeChef'
+  ) {
     return null;
   }
 
@@ -53,8 +64,13 @@ export const MobileNavBar = () => {
     navigation.navigate('MainTabs', { screen: screenName });
   };
 
+  const bottomPadding = Math.max(insets.bottom, 10);
+
   return (
-    <View style={styles.container}>
+    <View style={[
+      styles.container,
+      { paddingBottom: bottomPadding }
+    ]}>
       {tabs.map((tab) => {
         const isActive = currentScreen === tab.name || currentScreen === tab.screen;
         return (
@@ -67,7 +83,7 @@ export const MobileNavBar = () => {
             <View style={styles.iconContainer}>
               <Ionicons 
                 name={(isActive ? tab.icon : tab.outline) as any} 
-                size={22} 
+                size={24} 
                 color={isActive ? '#FF6B00' : '#64748b'} 
               />
               {(tab.name === 'Home' && totalItems > 0) && (
@@ -93,43 +109,41 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: '#ffffff',
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    width: '100%',
-    maxWidth: Platform.OS === 'web' ? 500 : '100%',
-    alignSelf: 'center',
-    elevation: 20,
+    elevation: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 8,
     zIndex: 1000,
-    paddingBottom: Platform.OS === 'ios' ? 25 : 30, // Increased padding to prevent cutting
-    height: Platform.OS === 'ios' ? 90 : 85, // Slightly taller
+    paddingTop: 8,
+    paddingBottom: 8,
   },
   tab: {
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
+    gap: 3,
   },
   iconContainer: {
     position: 'relative',
-    height: 24,
+    height: 26,
+    width: 26,
     justifyContent: 'center',
     alignItems: 'center',
   },
   label: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '600',
-    marginTop: 4,
+    marginTop: 0,
+    letterSpacing: 0.1,
   },
   badge: {
     position: 'absolute',
-    top: -8,
-    right: -12,
+    top: -6,
+    right: -10,
     backgroundColor: '#ef4444',
     borderRadius: 9,
     minWidth: 18,

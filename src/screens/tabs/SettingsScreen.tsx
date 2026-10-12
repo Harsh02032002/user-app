@@ -20,6 +20,7 @@ import { AppFooter } from '../../components/common/AppFooter';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import { getImageUrl } from '../../services/api';
+import api from '../../services/api';
 
 interface UserProfile {
   name: string;
@@ -80,6 +81,14 @@ export function SettingsScreen() {
   };
 
   const handleChangePassword = async () => {
+    if (!passwordData.currentPassword) {
+      Alert.alert('Error', 'Please enter your current password');
+      return;
+    }
+    if (passwordData.newPassword.length < 6) {
+      Alert.alert('Error', 'New password must be at least 6 characters');
+      return;
+    }
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       Alert.alert('Error', 'Passwords do not match');
       return;
@@ -87,7 +96,7 @@ export function SettingsScreen() {
     
     setLoading(true);
     try {
-      // API call to change password
+      await api.auth.changePassword(passwordData.currentPassword, passwordData.newPassword);
       Alert.alert('Success', 'Password changed successfully');
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (error: any) {
@@ -188,7 +197,7 @@ export function SettingsScreen() {
     <SafeAreaView style={styles.container}>
       <AppHeader showSearch={false} />
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
         {/* Profile Information Card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
@@ -220,7 +229,7 @@ export function SettingsScreen() {
           </View>
 
           {/* Banner Image */}
-          <View style={styles.inputGroup}>
+          <View style={[styles.inputGroup, { marginBottom: 0 }]}>
             <Text style={styles.label}>Banner Image</Text>
             <TouchableOpacity onPress={() => pickImage('banner')} style={[styles.bannerContainer, { marginBottom: 10 }]}>
               {profile.banner || user?.banner ? (
@@ -241,7 +250,7 @@ export function SettingsScreen() {
           </View>
 
           {/* Basic Info */}
-          <View style={[styles.inputGroup, { marginTop: 60 }]}>
+          <View style={[styles.inputGroup, { marginTop: 36 }]}>
             <Text style={styles.label}>Full Name</Text>
             <TextInput
               style={styles.input}
@@ -250,7 +259,7 @@ export function SettingsScreen() {
               placeholder="Enter your name"
             />
           </View>
-          <View style={[styles.inputGroup, { marginTop: 20 }]}>
+          <View style={styles.inputGroup}>
             <Text style={styles.label}>Email</Text>
             <TextInput
               style={styles.input}
@@ -260,7 +269,7 @@ export function SettingsScreen() {
               keyboardType="email-address"
             />
           </View>
-          <View style={[styles.inputGroup, { marginTop: 20 }]}>
+          <View style={styles.inputGroup}>
             <Text style={styles.label}>Phone Number</Text>
             <TextInput
               style={styles.input}
@@ -270,7 +279,7 @@ export function SettingsScreen() {
               keyboardType="phone-pad"
             />
           </View>
-          <View style={[styles.inputGroup, { marginTop: 20 }]}>
+          <View style={styles.inputGroup}>
             <Text style={styles.label}>Location</Text>
             <TextInput
               style={styles.input}
@@ -480,7 +489,10 @@ const styles = StyleSheet.create({
   },
   bannerOverlay: {
     position: 'absolute',
-    inset: 0,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.3)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -491,22 +503,21 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   inputGroup: {
-    flex: 1,
-    marginBottom: 16,
+    marginBottom: 14,
   },
   label: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
     color: '#374151',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   input: {
     borderWidth: 1,
     borderColor: '#D1D5DB',
     borderRadius: 8,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
+    paddingVertical: 8,
+    fontSize: 15,
     color: '#111827',
     backgroundColor: '#fff',
   },

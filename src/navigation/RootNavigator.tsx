@@ -50,7 +50,7 @@ export type RootStackParamList = {
   Restaurant: { sellerId: string; sellerName: string };
   Checkout: undefined;
   OrderDetails: { orderId: string };
-  SubscriptionPlans: undefined;
+  SubscriptionPlans: { planId?: string; activeTab?: 'plans' | 'my-plan' | 'history' } | undefined;
   SelectHomeChef: { planId: string; planName: string; amount: number; durationDays?: number; perDayValue?: number };
   SubscriptionCheckout: { 
     planId: string; 

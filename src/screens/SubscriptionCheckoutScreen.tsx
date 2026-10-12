@@ -17,6 +17,7 @@ import RazorpayCheckout from 'react-native-razorpay';
 import api, { API_ENDPOINTS } from '../config/api';
 import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../navigation/RootNavigator';
+import { OnlinePaymentModal } from '../components/OnlinePaymentModal';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteType = RouteProp<RootStackParamList, 'SubscriptionCheckout'>;
@@ -41,6 +42,7 @@ export default function SubscriptionCheckoutScreen() {
   const [useWallet, setUseWallet] = useState(true);
   const [breakdown, setBreakdown] = useState<PaymentBreakdown | null>(null);
   const [razorpayOrderId, setRazorpayOrderId] = useState<string | null>(null);
+  const [onlineModalVisible, setOnlineModalVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -164,64 +166,49 @@ export default function SubscriptionCheckoutScreen() {
     }
   }, [planId, homeChefId, amount, durationDays, planName, homeChefName, navigation]);
 
-  const handlePayment = React.useCallback(async () => {
-    if (!breakdown) return;
-    
-    setProcessing(true);
+  const handleOnlineSuccess = React.useCallback(async (txnId?: string) => {
     try {
-      if (breakdown.razorpayAmount === 0) {
-        // Full wallet payment - no Razorpay needed
-        await verifyWalletPayment();
-        return;
-      }
-
-      if (Platform.OS === 'web') {
-        Alert.alert('Web Payment', 'Razorpay native integration is not available on web. Please use the mobile app for subscription payments.');
-        setProcessing(false);
-        return;
-      }
-
-      // Create Razorpay order
-      const orderResponse = await api.post(API_ENDPOINTS.CREATE_RAZORPAY_ORDER, {
-        amount: breakdown.razorpayAmount,
+      setProcessing(true);
+      await api.post(API_ENDPOINTS.PURCHASE_SUBSCRIPTION, {
+        planId,
+        sellerId: homeChefId,
+        totalAmount: amount,
+        totalDays: durationDays,
+        usedWallet: useWallet && (breakdown?.walletAmount || 0) > 0,
+        walletAmount: breakdown?.walletAmount || 0,
+        razorpay_payment_id: txnId || `UPI_${Date.now()}`,
       });
 
-      const orderData = orderResponse.data?.order || orderResponse.data?.data?.order || orderResponse.data;
-      const rzOrderId = orderData?.id || orderData?.orderId;
-
-      if (!rzOrderId) {
-        throw new Error('Failed to create payment order');
-      }
-
-      setRazorpayOrderId(rzOrderId);
-
-      // Open Razorpay
-      const options = {
-        description: `Subscription - ${planName}`,
-        image: 'https://dabbanation.in/logo.png',
-        currency: 'INR',
-        key: API_ENDPOINTS.RAZORPAY_KEY,
-        amount: Math.round(breakdown.razorpayAmount * 100),
-        name: 'Dabba Delights',
-        order_id: rzOrderId,
-        prefill: {
-          email: user?.email || '',
-          contact: user?.phone || '',
-          name: user?.name || '',
-        },
-        theme: { color: '#FF6B00' },
-      };
-
-      const data = await RazorpayCheckout.open(options);
-      await verifyHybridPayment(data, rzOrderId);
+      await refreshProfile();
+      Alert.alert(
+        'Subscription Activated! 🎉',
+        `Your ${planName} subscription with ${homeChefName} is now active!`,
+        [
+          {
+            text: 'View Subscriptions',
+            onPress: () => navigation.navigate('Subscriptions'),
+          },
+        ]
+      );
     } catch (error: any) {
-      if (error.code !== 2) {
-        Alert.alert('Payment Failed', error.message || error.description || 'Payment was not completed');
-      }
+      Alert.alert('Error', error?.response?.data?.message || 'Subscription payment verification failed');
     } finally {
       setProcessing(false);
     }
-  }, [breakdown, planName, user, verifyWalletPayment, verifyHybridPayment]);
+  }, [planId, homeChefId, amount, durationDays, useWallet, breakdown, planName, homeChefName, navigation, refreshProfile]);
+
+  const handlePayment = React.useCallback(async () => {
+    if (!breakdown) return;
+    
+    if (breakdown.razorpayAmount === 0) {
+      setProcessing(true);
+      await verifyWalletPayment();
+      setProcessing(false);
+      return;
+    }
+
+    setOnlineModalVisible(true);
+  }, [breakdown, verifyWalletPayment]);
 
   // Show loading state with UI skeleton to prevent blank screen
   if (loading && !mounted) {
@@ -349,11 +336,11 @@ export default function SubscriptionCheckoutScreen() {
           <Text style={styles.paymentMethodTitle}>Payment Method</Text>
           <View style={styles.methodRow}>
             <View style={styles.methodIcon}>
-              <Ionicons name="card" size={24} color="#2196F3" />
+              <Ionicons name="qr-code" size={24} color="#059669" />
             </View>
             <View style={styles.methodInfo}>
-              <Text style={styles.methodName}>Razorpay</Text>
-              <Text style={styles.methodDesc}>UPI, Cards, Netbanking & more</Text>
+              <Text style={styles.methodName}>Online Payment (UPI / QR Code)</Text>
+              <Text style={styles.methodDesc}>PhonePe, GPay, Paytm & UPI QR Code</Text>
             </View>
           </View>
         </View>
@@ -362,7 +349,7 @@ export default function SubscriptionCheckoutScreen() {
         <View style={styles.securityNote}>
           <Ionicons name="shield-checkmark" size={20} color="#22C55E" />
           <Text style={styles.securityText}>
-            Your payment is 100% secure with Razorpay encryption
+            Fast & Secure Instant Payment via UPI QR Code
           </Text>
         </View>
       </ScrollView>
@@ -385,13 +372,21 @@ export default function SubscriptionCheckoutScreen() {
           ) : (
             <>
               <Text style={styles.payButtonText}>
-                {breakdown?.razorpayAmount === 0 ? 'Activate with Wallet' : 'Pay Now'}
+                {breakdown?.razorpayAmount === 0 ? 'Activate with Wallet' : 'Pay Online (QR Code)'}
               </Text>
               <Ionicons name="arrow-forward" size={20} color="#fff" />
             </>
           )}
         </TouchableOpacity>
       </View>
+
+      <OnlinePaymentModal
+        visible={onlineModalVisible}
+        onClose={() => setOnlineModalVisible(false)}
+        amount={breakdown?.razorpayAmount || amount}
+        title="Pay Online for Subscription"
+        onPaymentSuccess={handleOnlineSuccess}
+      />
     </SafeAreaView>
   );
 }

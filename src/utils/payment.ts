@@ -297,17 +297,17 @@ export const formatCurrency = (amount: number): string => {
 // Calculate Order Total
 export const calculateOrderTotal = (
   itemTotal: number,
-  deliveryFee: number = 30,
-  platformFee: number = 5,
+  deliveryFee: number = 0,
+  platformFee: number = 0,
   discount: number = 0
 ): { itemTotal: number; deliveryFee: number; platformFee: number; gst: number; discount: number; total: number } => {
   const gst = Math.round(itemTotal * 0.05);
-  const total = itemTotal + deliveryFee + platformFee + gst - discount;
+  const total = itemTotal + deliveryFee + gst - discount;
   
   return {
     itemTotal,
     deliveryFee,
-    platformFee,
+    platformFee: 0,
     gst,
     discount,
     total: Math.max(0, total),

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -20,13 +20,21 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
-import { DEFAULT_LOCATION_LABEL, getReadableLocation } from '../utils/location';
+import { DEFAULT_LOCATION_LABEL, getReadableLocation, getCurrentCoordinates, LOCATION_COORDS_KEY, LOCATION_NAME_KEY } from '../utils/location';
 import * as Location from 'expo-location';
 import { Alert } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
 
 const PRIMARY = "#FF6B00";
+
+// Static image sources (module-level so their identity never changes between renders)
+const heroBg     = require('../../assets/images/hero-bg.jpg');
+const logo       = require('../../assets/images/logo.png');
+const leftChar   = require('../../assets/images/chef-character.png');
+const rightChar  = require('../../assets/images/traditional-woman.png');
+const homeChef   = require('../../assets/images/home-chef.jpg');
+const restaurant = require('../../assets/images/restaurant.jpg');
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -91,19 +99,27 @@ export default function LandingScreen() {
   const [location, setLocation] = useState('');
   const [detecting, setDetecting] = useState(false);
   const [imagesLoaded, setImagesLoaded] = useState(false);
-  const [loadedCount, setLoadedCount] = useState(0);
-  const totalImages = 1; // Only wait for the hero background to avoid deadlock
   const tabBarHeight = 65; // Height of the bottom tab bar
 
+  // Fallback: never block the landing UI for more than 2.5s even if the hero image is slow/fails
   useEffect(() => {
-    if (loadedCount >= totalImages) {
-      setImagesLoaded(true);
-    }
-  }, [loadedCount]);
+    const t = setTimeout(() => setImagesLoaded(true), 2500);
+    return () => clearTimeout(t);
+  }, []);
 
-  const handleImageLoad = () => {
-    setLoadedCount(prev => prev + 1);
-  };
+  // Load previously saved location on mount
+  useEffect(() => {
+    AsyncStorage.getItem(LOCATION_NAME_KEY).then(name => {
+      if (name) setLocation(name);
+    });
+  }, []);
+
+  // ✅ Stable callback: react-native-web's Image re-runs its load effect whenever the
+  // onLoad identity changes. A new function every render + setState = infinite loop
+  // ("Maximum update depth exceeded"). Setting `true` repeatedly is a no-op for React.
+  const handleImageLoad = useCallback(() => {
+    setImagesLoaded(true);
+  }, []);
 
   const detectLocation = async () => {
     setDetecting(true);
@@ -113,10 +129,10 @@ export default function LandingScreen() {
         Alert.alert('Permission Denied', 'Please allow location access.');
         return;
       }
-      const loc = await Location.getCurrentPositionAsync({});
-      
+      const coords = await getCurrentCoordinates();
       const nextLocation = await getReadableLocation();
       setLocation(nextLocation);
+      // getReadableLocation already saves to AsyncStorage via location.ts
     } catch {
       setLocation(DEFAULT_LOCATION_LABEL);
     } finally {
@@ -144,13 +160,6 @@ export default function LandingScreen() {
     }
   };
 
-  const heroBg    = require('../../assets/images/hero-bg.jpg');
-  const logo      = require('../../assets/images/logo.png');
-  const leftChar  = require('../../assets/images/chef-character.png');
-  const rightChar = require('../../assets/images/traditional-woman.png');
-  const homeChef  = require('../../assets/images/home-chef.jpg');
-  const restaurant = require('../../assets/images/restaurant.jpg');
-
   return (
     <View style={styles.container}>
       <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
@@ -161,7 +170,7 @@ export default function LandingScreen() {
         style={styles.bg} 
         resizeMode="cover" 
         onLoad={handleImageLoad}
-        defaultSource={heroBg}
+        onError={handleImageLoad}
       />
       <View style={styles.overlay} />
 
@@ -179,41 +188,24 @@ export default function LandingScreen() {
             source={logo} 
             style={styles.logo}
             resizeMode="cover"
-            onLoad={handleImageLoad}
           />
 
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            {/* Seller Portal — gradient outline style matching web */}
-            <TouchableOpacity style={styles.sellerBtnWrapper}>
+          {/* Join Us — only show if not logged in */}
+          {!user && (
+            <TouchableOpacity 
+              style={styles.joinBtnWrapper}
+              onPress={() => navigation.navigate('SimpleLogin')}
+            >
               <LinearGradient
                 colors={['#FF6B00', '#4CAF50']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
-                style={styles.sellerBtnGradientBorder}
+                style={styles.joinBtn}
               >
-                <View style={styles.sellerBtnInner}>
-                  <Text style={styles.sellerBtnText}>Seller Portal</Text>
-                </View>
+                <Text style={styles.joinBtnText}>Join Us</Text>
               </LinearGradient>
             </TouchableOpacity>
-
-            {/* Join Us — only show if not logged in */}
-            {!user && (
-              <TouchableOpacity 
-                style={styles.joinBtnWrapper}
-                onPress={() => navigation.navigate('SimpleLogin')}
-              >
-                <LinearGradient
-                  colors={['#FF6B00', '#4CAF50']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.joinBtn}
-                >
-                  <Text style={styles.joinBtnText}>Join Us</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            )}
-          </View>
+          )}
         </View>
 
         <ScrollView
@@ -266,7 +258,6 @@ export default function LandingScreen() {
                 source={homeChef} 
                 style={styles.cardImg} 
                 resizeMode="cover" 
-                onLoad={handleImageLoad}
               />
               <View style={styles.cardOverlay}>
                 <MaterialCommunityIcons name="home-heart" size={22} color="#fff" />
@@ -285,7 +276,6 @@ export default function LandingScreen() {
                 source={restaurant} 
                 style={styles.cardImg} 
                 resizeMode="cover" 
-                onLoad={handleImageLoad}
               />
               <View style={styles.cardOverlay}>
                 <MaterialCommunityIcons name="store" size={22} color="#fff" />
@@ -316,8 +306,8 @@ export default function LandingScreen() {
       {/* ✅ Characters rendered OUTSIDE ScrollView so they stay fixed at bottom */}
       {imagesLoaded && (
         <>
-          <AnimatedCharacter side="left"  imageSource={leftChar}  delay={200} onLoad={handleImageLoad} />
-          <AnimatedCharacter side="right" imageSource={rightChar} delay={400} onLoad={handleImageLoad} />
+          <AnimatedCharacter side="left"  imageSource={leftChar}  delay={200} />
+          <AnimatedCharacter side="right" imageSource={rightChar} delay={400} />
         </>
       )}
     </View>

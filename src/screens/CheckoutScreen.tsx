@@ -21,6 +21,9 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { DeliveryMap } from '../components/common/DeliveryMap';
 import api from '../services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LOCATION_COORDS_KEY, LOCATION_NAME_KEY } from '../utils/location';
+import { OnlinePaymentModal } from '../components/OnlinePaymentModal';
 // WebView is only available on native platforms
 const WebViewComponent = Platform.OS !== 'web' ? require('react-native-webview').WebView : null;
 
@@ -43,7 +46,7 @@ interface Address {
 }
 
 export function CheckoutScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const { items: cartItems, totalAmount, clearCart } = useCart();
   const { user, refreshProfile } = useAuth();
   
@@ -57,6 +60,11 @@ export function CheckoutScreen() {
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [activeSubs, setActiveSubs] = useState<any[]>([]);
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+  const [successOrderData, setSuccessOrderData] = useState<{
+    orderNumber: string;
+    total: number;
+    paymentMethodName: string;
+  } | null>(null);
 
   // Combined subscription balance from all active subscriptions
   const totalSubBalance = activeSubs.reduce((sum, s) => sum + (s.remainingBalance || 0), 0);
@@ -71,10 +79,96 @@ export function CheckoutScreen() {
     pincode: '',
   });
 
-  const deliveryFee = 30;
-  const platformFee = 5;
-  const gst = Math.round((totalAmount + deliveryFee + platformFee) * 0.05);
-  const total = totalAmount + deliveryFee + platformFee + gst;
+  const [gstSettings, setGstSettings] = useState<any>(null);
+  const [platformConfig, setPlatformConfig] = useState<any>(null);
+
+  // Distance-based delivery pricing state
+  const [deliveryPricing, setDeliveryPricing] = useState<{
+    distanceKm: number;
+    customerFee: number;
+    serviceable: boolean;
+  } | null>(null);
+  const [isFetchingDeliveryFee, setIsFetchingDeliveryFee] = useState(false);
+
+  useEffect(() => {
+    fetchWalletBalance();
+    fetchActiveSubs();
+    fetchSettings();
+
+    const loadSavedLocation = async () => {
+      try {
+        const savedCoords = await AsyncStorage.getItem(LOCATION_COORDS_KEY);
+        const savedName = await AsyncStorage.getItem(LOCATION_NAME_KEY);
+        if (savedCoords) {
+          const parsed = JSON.parse(savedCoords);
+          if (parsed && !isNaN(parsed.lat) && !isNaN(parsed.lng)) {
+            setUserLocation([parsed.lng, parsed.lat]);
+            setDeliveryAddress(prev => ({
+              ...prev,
+              street: prev.street || savedName || 'Buterla, Sector 41',
+              city: prev.city || 'Chandigarh',
+              state: prev.state || 'Punjab',
+              pincode: prev.pincode || '160041',
+            }));
+
+            const sellerId = cartItems.length > 0 ? (typeof cartItems[0].sellerId === 'object' ? (cartItems[0].sellerId as any)?._id : cartItems[0].sellerId) : null;
+            if (sellerId) {
+              api.user.calculateDeliveryFee({
+                sellerId,
+                customerLng: parsed.lng,
+                customerLat: parsed.lat,
+              }).then(feeRes => {
+                if (feeRes?.success) {
+                  setDeliveryPricing({
+                    distanceKm: feeRes.distanceKm,
+                    customerFee: feeRes.customerFee ?? 30,
+                    serviceable: feeRes.serviceable,
+                  });
+                }
+              }).catch(() => {});
+            }
+          }
+        }
+      } catch (err) {
+        console.log('[Checkout] Error loading saved location:', err);
+      }
+    };
+    loadSavedLocation();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const [gstRes, platRes] = await Promise.all([
+        api.user.getGSTSettings(),
+        api.user.getPlatformConfig(),
+      ]);
+      if (gstRes?.data) setGstSettings(gstRes.data);
+      if (platRes?.data) setPlatformConfig(platRes.data);
+    } catch (e) {
+      console.log('[Checkout] Error fetching settings:', e);
+    }
+  };
+
+  const foodGstEnabled = gstSettings?.foodGSTEnabled ?? false;
+  const foodGstRate = foodGstEnabled
+    ? ((Number(gstSettings?.foodCGSTRate) || 0) + (Number(gstSettings?.foodSGSTRate) || 0))
+    : 0;
+
+  const cgstRate = foodGstEnabled ? (Number(gstSettings?.foodCGSTRate) || 0) : 0;
+  const sgstRate = foodGstEnabled ? (Number(gstSettings?.foodSGSTRate) || 0) : 0;
+
+  // Delivery fee: use distance-based pricing if available, else fall back to platform config
+  const deliveryFee = deliveryPricing
+    ? (deliveryPricing.serviceable ? deliveryPricing.customerFee : 0)
+    : (platformConfig?.deliveryFee != null ? Number(platformConfig.deliveryFee) : 30);
+  const platformFee = platformConfig?.platformFee != null ? Number(platformConfig.platformFee) : 0;
+  
+  const totalGst = foodGstEnabled ? (totalAmount * (foodGstRate / 100)) : 0;
+  const cgstAmount = foodGstEnabled ? (totalAmount * (cgstRate / 100)) : 0;
+  const sgstAmount = foodGstEnabled ? (totalAmount * (sgstRate / 100)) : 0;
+
+  // Delivery & Platform fees are included in final total when configured by admin, but hidden from itemized breakdown UI
+  const total = totalAmount + totalGst + deliveryFee + platformFee;
   const walletAmount = useWallet ? Math.min(walletBalance, total) : 0;
   const payableAmount = total - walletAmount;
 
@@ -83,11 +177,6 @@ export function CheckoutScreen() {
     { id: 'wallet', name: `Wallet (₹${walletBalance})`, icon: 'wallet-outline', type: 'wallet' },
     { id: 'cod', name: 'Cash on Delivery', icon: 'cash-outline', type: 'cod' },
   ];
-
-  useEffect(() => {
-    fetchWalletBalance();
-    fetchActiveSubs();
-  }, []);
 
   const fetchActiveSubs = async () => {
     try {
@@ -129,9 +218,21 @@ export function CheckoutScreen() {
   }, []);
 
   const validateAddress = () => {
+    const street = deliveryAddress.street || 'Buterla, Sector 41';
+    const city = deliveryAddress.city || 'Chandigarh';
+    const pincode = deliveryAddress.pincode || '160041';
+    const name = deliveryAddress.name || user?.name || 'Customer';
+    const phone = deliveryAddress.phone || user?.phone || '9876543210';
+
     if (!deliveryAddress.street || !deliveryAddress.city || !deliveryAddress.pincode) {
-      Alert.alert('Address Required', 'Please fill in all address fields');
-      return false;
+      setDeliveryAddress(prev => ({
+        ...prev,
+        name,
+        phone,
+        street,
+        city,
+        pincode,
+      }));
     }
     return true;
   };
@@ -174,75 +275,12 @@ export function CheckoutScreen() {
 
   const handleRazorpayPayment = React.useCallback(async (order: any, amount: number) => {
     try {
-      if (Platform.OS === 'web') {
-        setRazorpayModal(true);
-        return;
-      }
-
-      setLoading(true);
-      
-      // Create Razorpay order on backend - send rupees, backend handles paise conversion
-      const razorpayResponse = await api.payment.createRazorpayOrder({
-        amount: amount, // Send in rupees - backend multiplies by 100
-        orderId: order._id,
-      });
-
-      setLoading(false);
       setPendingOrderId(order._id);
-
-      // Build Razorpay checkout HTML to embed in WebView
-      const html = `
-<!DOCTYPE html>
-<html>
-<head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-</head>
-<body>
-<script>
-  var options = {
-    key: '${razorpayResponse.key}',
-    amount: ${razorpayResponse.amount},
-    currency: '${razorpayResponse.currency || 'INR'}',
-    order_id: '${razorpayResponse.orderId}',
-    name: 'Dabba Nation',
-    description: 'Order #${order.orderNumber || ''}',
-    prefill: {
-      name: '${user?.name || ''}',
-      email: '${user?.email || ''}',
-      contact: '${user?.phone || ''}'
-    },
-    theme: { color: '#FF6B00' },
-    handler: function(response) {
-      window.ReactNativeWebView.postMessage(JSON.stringify({ 
-        success: true, 
-        paymentId: response.razorpay_payment_id,
-        orderId: response.razorpay_order_id,
-        signature: response.razorpay_signature
-      }));
-    },
-    modal: {
-      ondismiss: function() {
-        window.ReactNativeWebView.postMessage(JSON.stringify({ success: false, cancelled: true }));
-      }
-    }
-  };
-  var rzp = new Razorpay(options);
-  rzp.on('payment.failed', function(resp) {
-    window.ReactNativeWebView.postMessage(JSON.stringify({ success: false, error: resp.error.description }));
-  });
-  window.onload = function() { rzp.open(); };
-</script>
-</body>
-</html>`;
-
-      setRazorpayHtml(html);
       setRazorpayModal(true);
     } catch (error: any) {
-      setLoading(false);
       Alert.alert('Payment Error', error.message || 'Payment initialization failed');
     }
-  }, [user]);
+  }, []);
 
   const handleWebViewMessage = React.useCallback(async (event: any) => {
     try {
@@ -264,25 +302,33 @@ export function CheckoutScreen() {
   }, [pendingOrderId, processPaymentSuccess]);
 
   const handlePlaceOrder = React.useCallback(async () => {
-    if (!validateAddress()) return;
+    validateAddress();
 
     if (!selectedPayment) {
       Alert.alert('Payment Method Required', 'Please select a payment method');
       return;
     }
 
-    if (selectedPayment.type === 'subscription') {
-      const currentSub = activeSubs.find(s => s.homeChef?._id === cartItems[0]?.sellerId || s.homeChef === cartItems[0]?.sellerId);
-      if (!currentSub || currentSub.remainingBalance <= 0) {
-        Alert.alert('Insufficient Plan Balance', 'You do not have enough meals left in your plan with this chef.');
-        return;
-      }
-    }
-
     if (cartItems.length === 0) {
       Alert.alert('Empty Cart', 'Your cart is empty');
       return;
     }
+
+    // Block if location confirmed not serviceable (>12 km)
+    if (deliveryPricing && !deliveryPricing.serviceable) {
+      Alert.alert(
+        '🚫 Order Not Serviceable',
+        `Your location is ${deliveryPricing.distanceKm} km away. We deliver only up to 12 km from the restaurant.`
+      );
+      return;
+    }
+
+    // Direct Online Payment (UPI QR Code Modal)
+    if (selectedPayment.type === 'razorpay') {
+      setRazorpayModal(true);
+      return;
+    }
+
 
     setLoading(true);
 
@@ -297,35 +343,7 @@ export function CheckoutScreen() {
         const extraAmount = total - subAmount;
 
         if (extraAmount > 0) {
-          // Hybrid: subscription + razorpay
-          const orderData = {
-            items: cartItems.map(item => ({
-              menuItemId: item.id,
-              name: item.name,
-              sellingPrice: item.discountPrice || item.price,
-              quantity: item.quantity,
-              image: item.image,
-            })),
-            sellerId: cartItems[0].sellerId,
-            deliveryAddress: {
-              name: deliveryAddress.name,
-              phone: deliveryAddress.phone,
-              street: deliveryAddress.street,
-              city: deliveryAddress.city,
-              state: deliveryAddress.state,
-              pincode: deliveryAddress.pincode,
-            },
-            paymentMethod: 'hybrid',
-            totalAmount: total,
-            subtotal: totalAmount,
-            deliveryFee,
-            platformFee,
-            subscriptionAmountUsed: subAmount,
-            subscriptionIds: activeSubs.map(s => s._id),
-          };
-
-          const orderResponse = await api.user.placeOrder(orderData);
-          await handleRazorpayPayment(orderResponse.order, extraAmount);
+          setRazorpayModal(true);
         } else {
           // Full subscription payment
           const subscriptionOrderData = {
@@ -337,10 +355,10 @@ export function CheckoutScreen() {
               image: item.image,
             })),
             deliveryAddress: {
-              street: deliveryAddress.street,
-              city: deliveryAddress.city,
-              state: deliveryAddress.state,
-              pincode: deliveryAddress.pincode,
+              street: deliveryAddress.street || 'Buterla, Sector 41',
+              city: deliveryAddress.city || 'Chandigarh',
+              state: deliveryAddress.state || 'Punjab',
+              pincode: deliveryAddress.pincode || '160041',
             },
             subscriptionIds: activeSubs.map(s => s._id),
             totalAmount: total,
@@ -359,7 +377,10 @@ export function CheckoutScreen() {
         return;
       }
 
-      // For non-subscription payments, create order normally
+      // For non-subscription payments (COD / Wallet), create order normally
+      const resolvedSellerId = cartItems.find(i => !!i.sellerId)?.sellerId ||
+        (cartItems.length > 0 ? (typeof cartItems[0].sellerId === 'object' ? (cartItems[0].sellerId as any)?._id : cartItems[0].sellerId) : '') || '';
+
       const orderData = {
         items: cartItems.map(item => ({
           menuItemId: item.id,
@@ -368,14 +389,15 @@ export function CheckoutScreen() {
           quantity: item.quantity,
           image: item.image,
         })),
-        sellerId: cartItems.length > 0 ? cartItems[0].sellerId : '',
+        sellerId: resolvedSellerId,
         deliveryAddress: {
-          name: deliveryAddress.name,
-          phone: deliveryAddress.phone,
-          street: deliveryAddress.street,
-          city: deliveryAddress.city,
-          state: deliveryAddress.state,
-          pincode: deliveryAddress.pincode,
+          name: deliveryAddress.name || user?.name || 'Customer',
+          phone: deliveryAddress.phone || user?.phone || '9876543210',
+          street: deliveryAddress.street || 'Buterla, Sector 41',
+          city: deliveryAddress.city || 'Chandigarh',
+          state: deliveryAddress.state || 'Punjab',
+          pincode: deliveryAddress.pincode || '160041',
+          location: userLocation ? { type: 'Point', coordinates: [userLocation[0], userLocation[1]] } : undefined,
         },
         paymentMethod: selectedPayment.type,
         totalAmount: total,
@@ -386,27 +408,23 @@ export function CheckoutScreen() {
 
       const orderResponse = await api.user.placeOrder(orderData);
       
-      if (selectedPayment.type === 'razorpay' && payableAmount > 0) {
-        // Initialize Razorpay payment
-        await handleRazorpayPayment(orderResponse.order, payableAmount);
-      } else if (selectedPayment.type === 'wallet' && walletBalance >= total) {
-        // Wallet payment
+      if (selectedPayment.type === 'wallet' && walletBalance >= total) {
         await processWalletPayment(orderResponse.order._id);
       } else {
-        // COD placed successfully - show success directly
+        // COD placed successfully - show success popup modal
         clearCart();
-        Alert.alert(
-          '🎉 Order Placed!',
-          `Your order #${orderResponse.order?.orderNumber || ''} has been placed successfully! You will pay ₹${total} on delivery.`,
-          [{ text: 'View Orders', onPress: () => navigation.navigate('MainTabs' as any, { screen: 'Orders' }) }]
-        );
+        setSuccessOrderData({
+          orderNumber: orderResponse.order?.orderNumber || 'DN-ORDER',
+          total: total,
+          paymentMethodName: selectedPayment?.name || 'Cash on Delivery',
+        });
       }
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to place order');
     } finally {
       setLoading(false);
     }
-  }, [cartItems, deliveryAddress, selectedPayment, total, totalAmount, payableAmount, walletBalance, clearCart, navigation, handleRazorpayPayment, processWalletPayment]);
+  }, [cartItems, deliveryAddress, selectedPayment, total, totalAmount, walletBalance, clearCart, navigation, processWalletPayment, user, deliveryPricing, userLocation]);
 
   const processPaymentFailure = (orderId: string) => {
     Alert.alert('Payment Failed', 'Your payment was not successful. Please try again.');
@@ -466,7 +484,44 @@ export function CheckoutScreen() {
           state: addr.region || '',
           pincode: addr.postalCode || '',
         }));
-        Alert.alert('📍 Location Detected', `Address auto-filled successfully!`);
+
+        // ── Calculate distance-based delivery fee ──────────────────────
+        const sellerId = cartItems.length > 0 ? cartItems[0].sellerId : null;
+        if (sellerId && longitude != null && latitude != null) {
+          try {
+            setIsFetchingDeliveryFee(true);
+            const feeRes = await api.user.calculateDeliveryFee({
+              sellerId,
+              customerLng: longitude,
+              customerLat: latitude,
+            });
+            if (feeRes?.success) {
+              setDeliveryPricing({
+                distanceKm: feeRes.distanceKm,
+                customerFee: feeRes.customerFee ?? 30,
+                serviceable: feeRes.serviceable,
+              });
+              if (!feeRes.serviceable) {
+                Alert.alert(
+                  '🚫 Not Serviceable',
+                  `Your location is ${feeRes.distanceKm} km from the restaurant. We currently deliver only up to 12 km.`
+                );
+              } else {
+                Alert.alert('📍 Location Detected', `Address auto-filled! Delivery: ₹${feeRes.customerFee} (${feeRes.distanceKm} km)`);
+              }
+            } else {
+              Alert.alert('📍 Location Detected', `Address auto-filled successfully!`);
+            }
+          } catch (feeErr) {
+            console.log('[Checkout] Fee calc error:', feeErr);
+            Alert.alert('📍 Location Detected', `Address auto-filled successfully!`);
+          } finally {
+            setIsFetchingDeliveryFee(false);
+          }
+        } else {
+          Alert.alert('📍 Location Detected', `Address auto-filled successfully!`);
+        }
+        // ────────────────────────────────────────────────────────────────
       } else {
         // Fallback to nominatim if expo fails
         const response = await fetch(
@@ -512,7 +567,7 @@ export function CheckoutScreen() {
       <ScrollView 
         style={styles.scrollView} 
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: 24 }}
       >
         {/* Delivery Address Section */}
         <View style={styles.section}>
@@ -660,17 +715,17 @@ export function CheckoutScreen() {
             )}
           </TouchableOpacity>
           
-          {/* Razorpay */}
+          {/* Online Payment (UPI QR Code) */}
           <TouchableOpacity
             style={[styles.paymentMethod, selectedPayment?.type === 'razorpay' && styles.selectedPayment]}
-            onPress={() => setSelectedPayment({ id: 'razorpay', name: 'Razorpay', icon: 'card', type: 'razorpay' })}
+            onPress={() => setSelectedPayment({ id: 'razorpay', name: 'Online Payment', icon: 'qr-code', type: 'razorpay' })}
           >
-            <View style={[styles.paymentIconContainer, { backgroundColor: '#FF6B00' }]}>
-              <Ionicons name="card" size={20} color="#fff" />
+            <View style={[styles.paymentIconContainer, { backgroundColor: '#059669' }]}>
+              <Ionicons name="qr-code" size={20} color="#fff" />
             </View>
             <View style={styles.paymentDetails}>
-              <Text style={styles.paymentName}>Razorpay</Text>
-              <Text style={styles.paymentDescription}>UPI • Cards • Netbanking • Wallets</Text>
+              <Text style={styles.paymentName}>Online Payment</Text>
+              <Text style={styles.paymentDescription}>PhonePe • GPay • Paytm • UPI QR Code</Text>
             </View>
             {selectedPayment?.type === 'razorpay' && (
               <Ionicons name="checkmark-circle" size={20} color="#FF6B00" />
@@ -701,33 +756,83 @@ export function CheckoutScreen() {
           
           {/* Cart Items */}
           <View style={styles.cartItemsContainer}>
-            {cartItems.map(item => (
-              <View key={item.id} style={styles.orderItem}>
-                <View style={styles.itemInfo}>
-                  <Text style={styles.itemName}>{item.name}</Text>
-                  <Text style={styles.itemQuantity}>x{item.quantity}</Text>
+            {cartItems.map(item => {
+              const itemTotal = (item.discountPrice || item.price) * item.quantity;
+              return (
+                <View key={item.id} style={{ marginBottom: 10 }}>
+                  <View style={styles.orderItem}>
+                    <View style={styles.itemInfo}>
+                      <Text style={styles.itemName}>{item.name}</Text>
+                      <Text style={styles.itemQuantity}>x{item.quantity}</Text>
+                    </View>
+                    <Text style={styles.itemPrice}>₹{itemTotal.toFixed(0)}</Text>
+                  </View>
+                  <Text style={{ fontSize: 11, color: '#777', marginTop: 2 }}>
+                    + GST ({foodGstRate.toFixed(1)}%) ₹{(itemTotal * (foodGstRate / 100)).toFixed(2)}
+                  </Text>
                 </View>
-                <Text style={styles.itemPrice}>₹{(item.discountPrice || item.price) * item.quantity}</Text>
-              </View>
-            ))}
+              );
+            })}
           </View>
           
           <View style={styles.divider} />
           
-          {/* Bill Breakdown */}
+          {/* Bill Breakdown - Exact website match */}
           <View style={styles.billBreakdown}>
             <View style={styles.billRow}>
               <Text style={styles.billLabel}>Subtotal</Text>
-              <Text style={styles.billValue}>₹{totalAmount}</Text>
+              <Text style={styles.billValue}>₹{totalAmount.toFixed(2)}</Text>
             </View>
+
+            <Text style={{ fontSize: 11, color: '#777', fontStyle: 'italic', marginVertical: 4 }}>
+              Food GST(collected on behalf of seller)
+            </Text>
+
             <View style={styles.billRow}>
-              <Text style={styles.billLabel}>GST (5%)</Text>
-              <Text style={styles.billValue}>₹{gst}</Text>
+              <Text style={styles.billLabel}>CGST ({cgstRate.toFixed(1)}%)</Text>
+              <Text style={styles.billValue}>₹{cgstAmount.toFixed(2)}</Text>
             </View>
+
+            <View style={styles.billRow}>
+              <Text style={styles.billLabel}>SGST ({sgstRate.toFixed(1)}%)</Text>
+              <Text style={styles.billValue}>₹{sgstAmount.toFixed(2)}</Text>
+            </View>
+
+            <View style={styles.billRow}>
+              <Text style={[styles.billLabel, { color: '#15803d', fontWeight: '600' }]}>Total GST</Text>
+              <Text style={[styles.billValue, { color: '#15803d', fontWeight: '600' }]}>₹{totalGst.toFixed(2)}</Text>
+            </View>
+
             <View style={[styles.billRow, styles.totalRow]}>
               <Text style={styles.totalLabel}>You pay</Text>
-              <Text style={styles.totalValue}>₹{payableAmount}</Text>
+              <Text style={styles.totalValue}>₹{payableAmount.toFixed(2)}</Text>
             </View>
+
+            {/* Delivery Fee Breakdown */}
+            {isFetchingDeliveryFee ? (
+              <View style={styles.billRow}>
+                <Text style={[styles.billLabel, { color: '#FF6B00' }]}>🛵 Delivery Fee</Text>
+                <ActivityIndicator size="small" color="#FF6B00" />
+              </View>
+            ) : deliveryPricing ? (
+              <View style={styles.billRow}>
+                <Text style={[styles.billLabel, { color: '#FF6B00' }]}>
+                  🛵 Delivery Fee
+                  {deliveryPricing.distanceKm > 0 ? ` (${deliveryPricing.distanceKm} km)` : ''}
+                </Text>
+                {deliveryPricing.serviceable ? (
+                  <Text style={[styles.billValue, { color: '#FF6B00', fontWeight: '700' }]}>₹{deliveryPricing.customerFee}</Text>
+                ) : (
+                  <Text style={[styles.billValue, { color: '#ef4444', fontWeight: '700' }]}>🚫 Not Serviceable</Text>
+                )}
+              </View>
+            ) : deliveryFee > 0 ? (
+              <View style={styles.billRow}>
+                <Text style={[styles.billLabel, { color: '#FF6B00' }]}>🛵 Delivery Fee</Text>
+                <Text style={[styles.billValue, { color: '#FF6B00', fontWeight: '700' }]}>₹{deliveryFee}</Text>
+              </View>
+            ) : null}
+
           </View>
           
           {/* Wallet Info */}
@@ -796,13 +901,43 @@ export function CheckoutScreen() {
 
       {/* Fixed Bottom Payment Bar */}
       <View style={styles.fixedBottomContainer}>
+          {deliveryPricing && !deliveryPricing.serviceable && (
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: '#FEE2E2',
+              borderColor: '#EF4444',
+              borderWidth: 1,
+              borderRadius: 8,
+              padding: 10,
+              marginBottom: 10,
+              gap: 8,
+            }}>
+              <Ionicons name="warning-outline" size={18} color="#DC2626" />
+              <Text style={{ flex: 1, color: '#DC2626', fontSize: 12, fontWeight: '600' }}>
+                Delivery unavailable ({deliveryPricing.distanceKm} km away). We deliver strictly within 12 km.
+              </Text>
+            </View>
+          )}
+
           <TouchableOpacity 
-            style={[styles.payButton, loading && styles.buttonDisabled]} 
+            style={[
+              styles.payButton, 
+              (loading || (deliveryPricing && !deliveryPricing.serviceable)) && styles.buttonDisabled,
+              deliveryPricing && !deliveryPricing.serviceable && { backgroundColor: '#9CA3AF' }
+            ]} 
             onPress={handlePlaceOrder}
-            disabled={loading}
+            disabled={loading || !!(deliveryPricing && !deliveryPricing.serviceable)}
           >
             {loading ? (
               <ActivityIndicator color="#fff" />
+            ) : deliveryPricing && !deliveryPricing.serviceable ? (
+              <>
+                <Ionicons name="ban" size={20} color="#fff" />
+                <Text style={styles.payButtonText}>
+                  Not Serviceable ({deliveryPricing.distanceKm} km {'>'} 12 km)
+                </Text>
+              </>
             ) : (
               <>
                 <Text style={styles.payButtonText}>
@@ -820,54 +955,120 @@ export function CheckoutScreen() {
           </TouchableOpacity>
           
           <Text style={styles.paymentNote}>
-            {selectedPayment?.type === 'subscription' ? 'Using your subscription balance. Days will be deducted.' :
+            {deliveryPricing && !deliveryPricing.serviceable ? 'Please remove items from distant sellers to place an order.' :
+             selectedPayment?.type === 'subscription' ? 'Using your subscription balance. Days will be deducted.' :
              selectedPayment?.type === 'wallet' ? 'Instant payment from your wallet' :
              selectedPayment?.type === 'cod' ? 'Pay cash when your order is delivered' :
-             'Secure online payment via Razorpay'}
+             'Secure online payment via UPI QR Code'}
           </Text>
       </View>
 
-      {/* Razorpay WebView Modal */}
-      <Modal
+      {/* Online UPI QR Payment Modal */}
+      <OnlinePaymentModal
         visible={razorpayModal}
-        animationType="slide"
-        onRequestClose={() => {
-          setRazorpayModal(false);
-          Alert.alert('Cancelled', 'Payment was cancelled. Your order has been saved.');
+        onClose={() => setRazorpayModal(false)}
+        amount={payableAmount}
+        onPaymentSuccess={async (txnId) => {
+          try {
+            const resolvedSellerId = cartItems.find(i => !!i.sellerId)?.sellerId || 
+              (cartItems.length > 0 ? (typeof cartItems[0].sellerId === 'object' ? (cartItems[0].sellerId as any)?._id : cartItems[0].sellerId) : '') || '';
+
+            const orderData = {
+              items: cartItems.map(item => ({
+                menuItemId: item.id,
+                name: item.name,
+                sellingPrice: item.discountPrice || item.price,
+                quantity: item.quantity,
+                image: item.image,
+              })),
+              sellerId: resolvedSellerId,
+              deliveryAddress: {
+                name: deliveryAddress.name || user?.name || 'Customer',
+                phone: deliveryAddress.phone || user?.phone || '9876543210',
+                street: deliveryAddress.street || 'Buterla, Sector 41',
+                city: deliveryAddress.city || 'Chandigarh',
+                state: deliveryAddress.state || 'Punjab',
+                pincode: deliveryAddress.pincode || '160041',
+                location: userLocation ? { type: 'Point', coordinates: [userLocation[0], userLocation[1]] } : undefined,
+              },
+              paymentMethod: 'online',
+              transactionId: txnId || `UPI_${Date.now()}`,
+              totalAmount: total,
+              subtotal: totalAmount,
+              deliveryFee: deliveryFee,
+              platformFee: platformFee,
+            };
+            const orderResponse = await api.user.placeOrder(orderData);
+            clearCart();
+            setRazorpayModal(false);
+            setSuccessOrderData({
+              orderNumber: orderResponse.order?.orderNumber || 'DN-ORDER',
+              total: total,
+              paymentMethodName: 'Online UPI Payment',
+            });
+          } catch (err: any) {
+            Alert.alert('Error', err.message || 'Failed to place order');
+          }
         }}
+      />
+
+      {/* ─── Order Placed Success Modal ─── */}
+      <Modal
+        visible={!!successOrderData}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSuccessOrderData(null)}
       >
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: '#eee' }}>
-            <TouchableOpacity onPress={() => { setRazorpayModal(false); Alert.alert('Cancelled', 'Payment was cancelled.'); }} style={{ padding: 8 }}>
-              <Ionicons name="close" size={24} color="#333" />
-            </TouchableOpacity>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginLeft: 8 }}>Secure Payment</Text>
-          </View>
-          {Platform.OS === 'web' ? (
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-              <Ionicons name="phone-portrait-outline" size={64} color="#FF6B00" />
-              <Text style={{ fontSize: 18, fontWeight: '700', marginTop: 16, textAlign: 'center' }}>Open on Mobile App</Text>
-              <Text style={{ fontSize: 14, color: '#666', marginTop: 8, textAlign: 'center' }}>
-                Razorpay payment works on the mobile app. Please scan the QR code in Expo Go on your phone to test payments.
-              </Text>
-              <TouchableOpacity
-                style={{ marginTop: 24, backgroundColor: '#FF6B00', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 }}
-                onPress={() => setRazorpayModal(false)}
-              >
-                <Text style={{ color: '#fff', fontWeight: '600' }}>Go Back</Text>
-              </TouchableOpacity>
+        <View style={styles.successModalOverlay}>
+          <View style={styles.successModalCard}>
+            <View style={styles.successIconBadge}>
+              <Ionicons name="checkmark-circle" size={68} color="#22C55E" />
             </View>
-          ) : razorpayHtml && WebViewComponent ? (
-            <WebViewComponent
-              source={{ html: razorpayHtml }}
-              onMessage={handleWebViewMessage}
-              javaScriptEnabled
-              domStorageEnabled
-              startInLoadingState
-              renderLoading={() => <ActivityIndicator size="large" color="#FF6B00" style={{ marginTop: 40 }} />}
-            />
-          ) : null}
-        </SafeAreaView>
+
+            <Text style={styles.successModalTitle}>🎉 Order Placed!</Text>
+            <Text style={styles.successModalSubtitle}>
+              Your order has been placed successfully.
+            </Text>
+
+            <View style={styles.successOrderBox}>
+              <View style={styles.successRow}>
+                <Text style={styles.successRowLabel}>Order Number</Text>
+                <Text style={styles.successRowValue}>#{successOrderData?.orderNumber}</Text>
+              </View>
+              <View style={styles.successRow}>
+                <Text style={styles.successRowLabel}>Total Amount</Text>
+                <Text style={[styles.successRowValue, { color: '#FF6B00', fontWeight: '800' }]}>
+                  ₹{successOrderData?.total}
+                </Text>
+              </View>
+              <View style={styles.successRow}>
+                <Text style={styles.successRowLabel}>Payment Method</Text>
+                <Text style={styles.successRowValue}>{successOrderData?.paymentMethodName}</Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.successPrimaryBtn}
+              onPress={() => {
+                setSuccessOrderData(null);
+                navigation.navigate('MainTabs' as any, { screen: 'Orders' });
+              }}
+            >
+              <Ionicons name="bag-handle" size={18} color="#fff" />
+              <Text style={styles.successPrimaryBtnText}>View & Track Orders 📦</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.successSecondaryBtn}
+              onPress={() => {
+                setSuccessOrderData(null);
+                navigation.navigate('MainTabs' as any, { screen: 'Home' });
+              }}
+            >
+              <Text style={styles.successSecondaryBtnText}>Back to Home 🏠</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -1243,7 +1444,8 @@ const styles = StyleSheet.create({
   fixedBottomContainer: {
     backgroundColor: '#fff',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 16,
     borderTopWidth: 1,
     borderTopColor: '#e5e5e5',
     ...Platform.select({
@@ -1251,5 +1453,100 @@ const styles = StyleSheet.create({
       android: { elevation: 8 },
       web: { boxShadow: '0px -4px 8px rgba(0,0,0,0.08)' },
     }),
+  },
+
+  // ─── Order Success Popup Modal ───────────────────
+  successModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  successModalCard: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  successIconBadge: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: '#F0FDF4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: '#DCFCE7',
+  },
+  successModalTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#1a1a1a',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  successModalSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  successOrderBox: {
+    backgroundColor: '#FAF8F5',
+    borderRadius: 16,
+    padding: 16,
+    width: '100%',
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#EFEBE4',
+  },
+  successRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  successRowLabel: {
+    fontSize: 13,
+    color: '#666',
+  },
+  successRowValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1a1a1a',
+  },
+  successPrimaryBtn: {
+    backgroundColor: '#FF6B00',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+    width: '100%',
+    gap: 8,
+    marginBottom: 10,
+  },
+  successPrimaryBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  successSecondaryBtn: {
+    paddingVertical: 10,
+  },
+  successSecondaryBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
   },
 });

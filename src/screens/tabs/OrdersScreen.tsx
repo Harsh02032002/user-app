@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,17 +12,19 @@ import {
   Platform,
   Image,
   Dimensions,
+  Animated,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as WebBrowser from 'expo-web-browser';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { AppHeader } from '../../components/common/AppHeader';
 import { AppFooter } from '../../components/common/AppFooter';
-import { DeliveryMap } from '../../components/common/DeliveryMap';
-import { getCurrentCoordinates } from '../../utils/location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { DeliveryMap } from '../../components/common/DeliveryMap';
+import { trackOrder, untrackOrder } from '../../services/socket';
 
 const ORDERS_CACHE_KEY = 'orders_screen_cache';
 
@@ -91,9 +93,11 @@ export function OrdersScreen() {
   const [activeTab, setActiveTab] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showTrackingModal, setShowTrackingModal] = useState(false);
+  const [trackingData, setTrackingData] = useState<any>(null);
+  const [trackingLoading, setTrackingLoading] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [rating, setRating] = useState(0);
-  const [userLocation, setUserLocation] = useState<[number, number] | undefined>(undefined);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     loadCachedData().then(() => {
@@ -114,12 +118,7 @@ export function OrdersScreen() {
     }
   };
 
-  const loadUserLocation = async () => {
-    const coords = await getCurrentCoordinates();
-    if (coords) {
-      setUserLocation([coords.longitude, coords.latitude]);
-    }
-  };
+  const loadUserLocation = async () => {}; // Location tracking removed
 
   const fetchOrders = async () => {
     try {
@@ -128,8 +127,6 @@ export function OrdersScreen() {
       const response = await api.user.getOrders(activeTab === 'all' ? undefined : activeTab);
       const ordersData = Array.isArray(response) ? response : response.orders || response.data || [];
       setOrders(ordersData);
-      
-      // Cache the results for this tab
       await AsyncStorage.setItem(ORDERS_CACHE_KEY + activeTab, JSON.stringify(ordersData));
     } catch (err: any) {
       console.error('Error fetching orders:', err);
@@ -139,16 +136,58 @@ export function OrdersScreen() {
     }
   };
 
-  const openMap = (order: Order) => {
-    const deliveryLat = 19.0760;
-    const deliveryLng = 72.8777;
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${deliveryLat},${deliveryLng}`;
-    Linking.openURL(url);
-  };
-
-  const showOrderTracking = (order: Order) => {
+  const showOrderTracking = async (order: Order) => {
     setSelectedOrder(order);
     setShowTrackingModal(true);
+    setTrackingLoading(true);
+    setTrackingData(null);
+
+    try {
+      const res = await api.user.getOrderTracking(order._id);
+      if (res?.success && res.order) {
+        setTrackingData(res.order);
+      }
+    } catch (e) {
+      console.warn('getOrderTracking error:', e);
+    } finally {
+      setTrackingLoading(false);
+    }
+
+    trackOrder(
+      order._id,
+      (loc: any) => {
+        console.log('[OrdersScreen] Live rider location:', loc);
+        setTrackingData((prev: any) => ({
+          ...prev,
+          riderLocation: { lat: loc.lat, lng: loc.lng },
+        }));
+      },
+      (statusData: any) => {
+        console.log('[OrdersScreen] Live status update:', statusData);
+        if (statusData?.status) {
+          setSelectedOrder((prev: any) => prev ? { ...prev, status: statusData.status } : prev);
+          setTrackingData((prev: any) => prev ? { ...prev, status: statusData.status } : prev);
+          if (statusData.status === 'delivered') {
+            fetchOrders();
+          }
+        }
+      }
+    );
+
+    // Start pulse animation for active step
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.2, duration: 800, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+      ])
+    ).start();
+  };
+
+  const closeTrackingModal = () => {
+    if (selectedOrder) {
+      untrackOrder(selectedOrder._id);
+    }
+    setShowTrackingModal(false);
   };
 
   const handleCancelOrder = async (order: Order) => {
@@ -214,8 +253,26 @@ export function OrdersScreen() {
 
   const downloadInvoice = async (orderId: string) => {
     try {
-      await api.user.downloadInvoice(orderId);
-      Alert.alert('Success', 'Invoice download started');
+      const url = await api.user.downloadInvoice(orderId);
+      if (url) {
+        Alert.alert(
+          '📄 Download Invoice PDF',
+          'Invoice download link generated!\nTap "Download PDF" to save the invoice directly to your device.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Download PDF 📥',
+              onPress: async () => {
+                try {
+                  await WebBrowser.openBrowserAsync(url);
+                } catch (e) {
+                  await Linking.openURL(url);
+                }
+              },
+            },
+          ]
+        );
+      }
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to download invoice');
     }
@@ -315,35 +372,28 @@ export function OrdersScreen() {
         {/* Order Tracker */}
         {renderOrderTracker(order.status)}
 
-        {/* Live Tracking Map for Active Orders */}
+        {/* Live Tracking — Status only, no map since rider app not connected */}
         {['confirmed', 'preparing', 'out_for_delivery'].includes(order.status) && (
           <View style={styles.trackingSection}>
             <View style={styles.trackingHeader}>
-              <Ionicons name="location" size={16} color="#FF6B00" />
-              <Text style={styles.trackingTitle}>Live Order Tracking</Text>
+              <Ionicons name="bicycle" size={16} color="#FF6B00" />
+              <Text style={styles.trackingTitle}>
+                {order.status === 'out_for_delivery' ? '🛵 Your order is on the way!' :
+                 order.status === 'preparing' ? '👨‍🍳 Being prepared...' : '✅ Order confirmed!'}
+              </Text>
             </View>
-            
-            <DeliveryMap 
-              userCoords={userLocation}
-              height={180}
-            />
-
-            <TouchableOpacity style={styles.mapButton} onPress={() => openMap(order)}>
-              <Ionicons name="map" size={16} color="#fff" />
-              <Text style={styles.mapButtonText}>Open in Google Maps</Text>
-            </TouchableOpacity>
           </View>
         )}
 
         {/* Subscription Info */}
-        {order.subscriptionAmountUsed && order.subscriptionAmountUsed > 0 && (
+        {Boolean(order.subscriptionAmountUsed && order.subscriptionAmountUsed > 0) && (
           <View style={styles.subscriptionInfo}>
             <Text style={styles.subscriptionTitle}>Subscription Used</Text>
             <Text style={styles.subscriptionAmount}>-₹{order.subscriptionAmountUsed}</Text>
-            {order.subscriptionDaysDeducted && order.subscriptionDaysDeducted > 0 && (
+            {Boolean(order.subscriptionDaysDeducted && order.subscriptionDaysDeducted > 0) && (
               <Text style={styles.subscriptionDays}>-{order.subscriptionDaysDeducted} days</Text>
             )}
-            {order.payableAfterSubscription && order.payableAfterSubscription > 0 && (
+            {Boolean(order.payableAfterSubscription && order.payableAfterSubscription > 0) && (
               <Text style={styles.subscriptionPaid}>Paid: ₹{order.payableAfterSubscription}</Text>
             )}
           </View>
@@ -443,7 +493,7 @@ export function OrdersScreen() {
         </ScrollView>
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#FF6B00" />
@@ -475,7 +525,171 @@ export function OrdersScreen() {
         <View style={{ height: 120 }} />
       </ScrollView>
 
+      {/* ─── Swiggy-Style Order Tracking Modal ─── */}
+      <Modal
+        visible={showTrackingModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowTrackingModal(false)}
+      >
+        <View style={styles.trackingModalOverlay}>
+          <View style={styles.trackingModalContainer}>
+            {/* Header */}
+            <View style={styles.trackingModalHeader}>
+              <View>
+                <Text style={styles.trackingModalTitle}>Order Tracking</Text>
+                {selectedOrder && (
+                  <Text style={styles.trackingModalOrderNum}>#{selectedOrder.orderNumber}</Text>
+                )}
+              </View>
+              <TouchableOpacity onPress={closeTrackingModal} style={styles.trackingCloseBtn}>
+                <Ionicons name="close" size={22} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Live Delivery Map */}
+            {selectedOrder && (
+              <DeliveryMap
+                pickupCoords={trackingData?.pickupCoords}
+                dropCoords={trackingData?.dropCoords}
+                riderCoords={trackingData?.riderLocation}
+                restaurantName={trackingData?.restaurantName || selectedOrder.sellerName || 'Restaurant'}
+                height={200}
+              />
+            )}
+
+            {/* Rider Info Card (when rider is assigned) */}
+            {trackingData?.riderInfo && (
+              <View style={styles.trackingRiderCard}>
+                <View style={styles.trackingRiderAvatar}>
+                  <Text style={{ fontSize: 20 }}>🛵</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.trackingRiderName}>{trackingData.riderInfo.name}</Text>
+                  <Text style={styles.trackingRiderVehicle}>
+                    {trackingData.riderInfo.vehicleType ? String(trackingData.riderInfo.vehicleType).toUpperCase() : 'BIKE'}
+                    {trackingData.riderInfo.vehicleNumber ? ` • ${trackingData.riderInfo.vehicleNumber}` : ''}
+                    {' '}| ⭐ {trackingData.riderInfo.rating || '5.0'}
+                  </Text>
+                </View>
+                {trackingData.riderInfo.phone ? (
+                  <TouchableOpacity
+                    style={styles.trackingCallBtn}
+                    onPress={() => Linking.openURL(`tel:${trackingData.riderInfo.phone}`)}
+                  >
+                    <Ionicons name="call" size={18} color="#fff" />
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            )}
+
+            {/* Seller Info */}
+            {selectedOrder && (() => {
+              const sellerObj = typeof selectedOrder.sellerId === 'object' ? selectedOrder.sellerId : null;
+              const sellerName = sellerObj?.businessName || selectedOrder.sellerName || 'Seller';
+              return (
+                <View style={styles.trackingSellerRow}>
+                  <View style={styles.trackingSellerIcon}>
+                    <Ionicons name="restaurant" size={20} color="#FF6B00" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.trackingSellerName}>{sellerName}</Text>
+                    <Text style={styles.trackingItemsText}>
+                      {selectedOrder.items.map(i => `${i.name} x${i.quantity}`).join(', ')}
+                    </Text>
+                  </View>
+                  <Text style={styles.trackingTotalBadge}>₹{selectedOrder.total}</Text>
+                </View>
+              );
+            })()}
+
+            {/* Status Steps */}
+            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+              {(() => {
+                const currentStatus = selectedOrder?.status || 'pending';
+                const currentIdx = statusSteps.findIndex(s => s.key === currentStatus);
+                const isCancelled = currentStatus === 'cancelled';
+
+                if (isCancelled) {
+                  return (
+                    <View style={styles.cancelledState}>
+                      <View style={styles.cancelledIconCircle}>
+                        <Ionicons name="close-circle" size={48} color="#DC2626" />
+                      </View>
+                      <Text style={styles.cancelledStateTitle}>Order Cancelled</Text>
+                      <Text style={styles.cancelledStateSubtitle}>Your order has been cancelled</Text>
+                    </View>
+                  );
+                }
+
+                return (
+                  <View style={styles.stepsContainer}>
+                    {statusSteps.map((step, idx) => {
+                      const isCompleted = idx < currentIdx;
+                      const isActive = idx === currentIdx;
+                      const isPending = idx > currentIdx;
+                      return (
+                        <View key={step.key} style={styles.stepRow}>
+                          {/* Left column: dot + line */}
+                          <View style={styles.stepLeftCol}>
+                            {isActive ? (
+                              <Animated.View style={[styles.stepDotActive, { transform: [{ scale: pulseAnim }] }]}>
+                                <Ionicons name="ellipse" size={12} color="#fff" />
+                              </Animated.View>
+                            ) : isCompleted ? (
+                              <View style={styles.stepDotDone}>
+                                <Ionicons name="checkmark" size={12} color="#fff" />
+                              </View>
+                            ) : (
+                              <View style={styles.stepDotPending} />
+                            )}
+                            {idx < statusSteps.length - 1 && (
+                              <View style={[styles.stepConnector, isCompleted && styles.stepConnectorDone]} />
+                            )}
+                          </View>
+
+                          {/* Right column: label + sublabel */}
+                          <View style={styles.stepRightCol}>
+                            <Text style={[
+                              styles.stepName,
+                              isActive && styles.stepNameActive,
+                              isCompleted && styles.stepNameDone,
+                              isPending && styles.stepNamePending,
+                            ]}>
+                              {step.label}
+                            </Text>
+                            {isActive && (
+                              <Text style={styles.stepActiveSubLabel}>
+                                {step.key === 'pending' ? 'Waiting for restaurant confirmation...' :
+                                 step.key === 'confirmed' ? 'Restaurant accepted your order' :
+                                 step.key === 'preparing' ? 'Kitchen is cooking your food' :
+                                 step.key === 'ready' ? 'Food is ready, picking up soon' :
+                                 step.key === 'out_for_delivery' ? 'Rider is heading to your location' :
+                                 'Enjoy your meal!'}
+                              </Text>
+                            )}
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+                );
+              })()}
+            </ScrollView>
+
+            {/* Bottom status message */}
+            {selectedOrder && !['cancelled', 'delivered'].includes(selectedOrder.status) && (
+              <View style={styles.trackingStatusBar}>
+                <View style={styles.trackingStatusDot} />
+                <Text style={styles.trackingStatusBarText}>Tracking your order in real-time</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
+
       {/* Rating Modal */}
+
       <Modal
         visible={showRatingModal}
         transparent
@@ -711,9 +925,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 4,
-  },
-  stepDotActive: {
-    backgroundColor: '#FF6B00',
   },
   stepDotInactive: {
     backgroundColor: '#e5e5e5',
@@ -1005,5 +1216,237 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#fff',
+  },
+
+  // ─── Swiggy-Style Tracking Modal ───────────────
+  trackingModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+  },
+  trackingModalContainer: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 32,
+    maxHeight: '92%',
+  },
+  trackingModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 14,
+  },
+  trackingModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111',
+  },
+  trackingModalOrderNum: {
+    fontSize: 13,
+    color: '#FF6B00',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  trackingCloseBtn: {
+    backgroundColor: '#f3f4f6',
+    borderRadius: 20,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  trackingRiderCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0FDF4',
+    borderRadius: 14,
+    padding: 12,
+    marginVertical: 10,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    gap: 10,
+  },
+  trackingRiderAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#DCFCE7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  trackingRiderName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#166534',
+  },
+  trackingRiderVehicle: {
+    fontSize: 12,
+    color: '#15803D',
+    marginTop: 1,
+  },
+  trackingCallBtn: {
+    backgroundColor: '#16A34A',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  trackingSellerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF8F3',
+    borderRadius: 14,
+    padding: 12,
+    marginVertical: 8,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#FFE4CC',
+  },
+  trackingSellerIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#FFF0E5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#FFD5AE',
+  },
+  trackingSellerName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111',
+  },
+  trackingItemsText: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 2,
+  },
+  trackingTotalBadge: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#FF6B00',
+  },
+  stepsContainer: {
+    paddingTop: 8,
+    paddingBottom: 16,
+  },
+  stepRow: {
+    flexDirection: 'row',
+    minHeight: 64,
+  },
+  stepLeftCol: {
+    width: 32,
+    alignItems: 'center',
+  },
+  stepDotDone: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#22C55E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepDotActive: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#FF6B00',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#FF6B00',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  stepDotPending: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#E5E7EB',
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+  },
+  stepConnector: {
+    width: 2,
+    flex: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 4,
+  },
+  stepConnectorDone: {
+    backgroundColor: '#22C55E',
+  },
+  stepRightCol: {
+    flex: 1,
+    paddingLeft: 14,
+    paddingBottom: 16,
+  },
+  stepName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#333',
+    paddingTop: 4,
+  },
+  stepNameActive: {
+    color: '#FF6B00',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  stepNameDone: {
+    color: '#22C55E',
+  },
+  stepNamePending: {
+    color: '#9CA3AF',
+    fontWeight: '400',
+  },
+  stepActiveSubLabel: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  cancelledState: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  cancelledIconCircle: {
+    marginBottom: 12,
+  },
+  cancelledStateTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#DC2626',
+    marginBottom: 6,
+  },
+  cancelledStateSubtitle: {
+    fontSize: 13,
+    color: '#888',
+  },
+  trackingStatusBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0FFF4',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  trackingStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#22C55E',
+  },
+  trackingStatusBarText: {
+    fontSize: 12,
+    color: '#15803D',
+    fontWeight: '600',
   },
 });

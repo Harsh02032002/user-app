@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   FlatList,
+  Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -18,6 +20,7 @@ import { useCart } from '../context/CartContext';
 import { api } from '../services/api';
 import { getImageUrl } from '../config/api';
 import { RootStackParamList } from '../navigation/RootNavigator';
+import { LOCATION_COORDS_KEY } from '../utils/location';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteType = RouteProp<RootStackParamList, 'Restaurant'>;
@@ -40,19 +43,32 @@ interface MenuItem {
   };
 }
 
+interface SellerAddress {
+  area?: string;
+  city?: string;
+  street?: string;
+  fullAddress?: string;
+}
+
 interface SellerDetails {
   _id: string;
   name: string;
   shopName: string;
+  businessName?: string;
   image?: string;
+  logo?: string;
+  coverImage?: string;
   rating: number;
   cuisine?: string;
   type: 'home_chef' | 'restaurant';
-  address?: {
-    area?: string;
-    city?: string;
-  };
+  address?: SellerAddress | string;
 }
+
+const getSellerAddressText = (address?: SellerAddress | string): string => {
+  if (!address) return '';
+  if (typeof address === 'string') return address;
+  return address.city || address.area || address.fullAddress || address.street || '';
+};
 
 export default function RestaurantScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -64,6 +80,8 @@ export default function RestaurantScreen() {
   const [seller, setSeller] = useState<SellerDetails | null>(null);
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [deliveryDistanceKm, setDeliveryDistanceKm] = useState<number | null>(null);
+  const [isNotServiceable, setIsNotServiceable] = useState(false);
 
   useEffect(() => {
     console.log('RestaurantScreen mounted with sellerId:', sellerId);
@@ -82,10 +100,31 @@ export default function RestaurantScreen() {
       console.log('Menu data:', menuRes);
       
       const sellerData = sellerRes.seller || sellerRes;
-      const menuItems = Array.isArray(menuRes) ? menuRes : menuRes.products || menuRes.data || menuRes.menu || [];
+      const menuItems: MenuItem[] = menuRes?.products || [];
       
       setSeller(sellerData);
       setMenu(menuItems);
+
+      // Check distance and serviceability from user's current location
+      const savedCoords = await AsyncStorage.getItem(LOCATION_COORDS_KEY);
+      if (savedCoords) {
+        try {
+          const parsed = JSON.parse(savedCoords);
+          if (parsed?.lat && parsed?.lng) {
+            const feeRes = await api.user.calculateDeliveryFee({
+              sellerId,
+              customerLng: parsed.lng,
+              customerLat: parsed.lat,
+            }).catch(() => null);
+            if (feeRes?.success) {
+              setDeliveryDistanceKm(feeRes.distanceKm);
+              if (feeRes.serviceable === false || (feeRes.distanceKm != null && feeRes.distanceKm > 12)) {
+                setIsNotServiceable(true);
+              }
+            }
+          }
+        } catch (_) {}
+      }
     } catch (error) {
       console.error('Error fetching restaurant data:', error);
     } finally {
@@ -109,6 +148,13 @@ export default function RestaurantScreen() {
   };
 
   const handleAddToCart = (item: MenuItem) => {
+    if (isNotServiceable) {
+      Alert.alert(
+        '🚫 Outside Delivery Range',
+        `This seller is ${deliveryDistanceKm} km away. We deliver strictly within 12 km.`
+      );
+      return;
+    }
     console.log('Adding to cart:', item._id, item.name);
     const cartItem = {
       id: item._id,
@@ -203,11 +249,38 @@ export default function RestaurantScreen() {
             <View style={styles.locationBox}>
               <Ionicons name="location" size={14} color="#666" />
               <Text style={styles.locationValue}>
-                {seller?.address?.city || 'Chandigarh'}
+                {getSellerAddressText(seller?.address)}
               </Text>
             </View>
           </View>
         </View>
+
+        {/* 12km Service Radius Warning Banner */}
+        {isNotServiceable && (
+          <View style={{
+            marginHorizontal: 16,
+            marginBottom: 16,
+            backgroundColor: '#FEE2E2',
+            borderWidth: 1,
+            borderColor: '#EF4444',
+            borderRadius: 12,
+            padding: 14,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+          }}>
+            <Ionicons name="warning" size={26} color="#DC2626" />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: '#DC2626' }}>
+                Outside 12 km Delivery Radius ({deliveryDistanceKm} km away)
+              </Text>
+              <Text style={{ fontSize: 12, color: '#991B1B', marginTop: 3, lineHeight: 16 }}>
+                We strictly deliver within 12 km of your location. You cannot place orders from this seller to your current address.
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Categories */}
         <ScrollView
           horizontal
@@ -292,6 +365,10 @@ export default function RestaurantScreen() {
                         >
                           <Ionicons name="add" size={18} color="#FF6B00" />
                         </TouchableOpacity>
+                      </View>
+                    ) : isNotServiceable ? (
+                      <View style={[styles.addBtn, { backgroundColor: '#F3F4F6', borderColor: '#E5E7EB', paddingHorizontal: 6 }]}>
+                        <Text style={[styles.addBtnText, { color: '#9CA3AF', fontSize: 10, fontWeight: '700' }]}>UNAVAILABLE</Text>
                       </View>
                     ) : (
                       <TouchableOpacity

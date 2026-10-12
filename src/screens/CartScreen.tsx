@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Platform,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,14 +15,41 @@ import { useNavigation } from '@react-navigation/native';
 import { AppHeader } from '../components/common/AppHeader';
 import { useCart } from '../context/CartContext';
 import { getImageUrl } from '../config/api';
+import api from '../services/api';
 
 export function CartScreen() {
   const navigation = useNavigation();
   const { items: cartItems, totalItems, totalAmount, updateQuantity, removeFromCart } = useCart();
-  
-  const deliveryFee = 30;
-  const platformFee = 5;
-  const gst = Math.round((totalAmount + deliveryFee + platformFee) * 0.05);
+  const [gstSettings, setGstSettings] = useState<any>(null);
+  const [platformConfig, setPlatformConfig] = useState<any>(null);
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const [gstRes, platRes] = await Promise.all([
+        api.user.getGSTSettings(),
+        api.user.getPlatformConfig(),
+      ]);
+      if (gstRes?.data) setGstSettings(gstRes.data);
+      if (platRes?.data) setPlatformConfig(platRes.data);
+    } catch (e) {
+      console.log('Error fetching settings in CartScreen:', e);
+    }
+  };
+
+  const foodGstEnabled = gstSettings?.foodGSTEnabled ?? false;
+  const foodGstRate = foodGstEnabled
+    ? ((Number(gstSettings?.foodCGSTRate) || 0) + (Number(gstSettings?.foodSGSTRate) || 0))
+    : 0;
+
+  const deliveryFee = platformConfig?.deliveryFee != null ? Number(platformConfig.deliveryFee) : 0;
+  const platformFee = platformConfig?.platformFee != null ? Number(platformConfig.platformFee) : 0;
+  const gst = foodGstEnabled ? Math.round(totalAmount * (foodGstRate / 100)) : 0;
+
+  // Delivery & Platform fees are added to total when configured by admin, but hidden from the itemized UI breakdown list
   const total = totalAmount + deliveryFee + platformFee + gst;
 
   const handleQuantityChange = (id: string, change: number) => {
@@ -72,11 +100,12 @@ export function CartScreen() {
           </TouchableOpacity>
         </View>
       ) : (
-        <>
-            <ScrollView 
-              style={styles.scrollView}
-              contentContainerStyle={{ paddingBottom: 150 }}
-            >
+        <View style={{ flex: 1 }}>
+          <ScrollView 
+            style={styles.scrollView}
+            contentContainerStyle={{ paddingBottom: 16 }}
+            showsVerticalScrollIndicator={false}
+          >
             {cartItems.map(item => (
               <View key={item.id} style={styles.cartItem}>
                 <Image 
@@ -135,15 +164,7 @@ export function CartScreen() {
                 <Text style={styles.billValue}>₹{totalAmount}</Text>
               </View>
               <View style={styles.billRow}>
-                <Text style={styles.billLabel}>Delivery Fee</Text>
-                <Text style={styles.billValue}>₹{deliveryFee}</Text>
-              </View>
-              <View style={styles.billRow}>
-                <Text style={styles.billLabel}>Platform Fee</Text>
-                <Text style={styles.billValue}>₹{platformFee}</Text>
-              </View>
-              <View style={styles.billRow}>
-                <Text style={styles.billLabel}>GST (5%)</Text>
+                <Text style={styles.billLabel}>GST ({foodGstRate}%)</Text>
                 <Text style={styles.billValue}>₹{gst}</Text>
               </View>
               <View style={[styles.billRow, styles.totalRow]}>
@@ -157,7 +178,7 @@ export function CartScreen() {
               <Ionicons name="arrow-forward" size={20} color="#fff" />
             </TouchableOpacity>
           </View>
-        </>
+        </View>
       )}
     </SafeAreaView>
   );
@@ -197,33 +218,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    padding: 12,
+    marginBottom: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 3,
+    minHeight: 80,
   },
   itemImage: {
-    width: 60,
-    height: 60,
+    width: 68,
+    height: 68,
     borderRadius: 8,
   },
   itemDetails: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 10,
+    justifyContent: 'center',
   },
   itemName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#1a1a1a',
-    marginBottom: 4,
+    marginBottom: 2,
+    flexWrap: 'wrap',
   },
   itemSeller: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 4,
+    fontSize: 11,
+    color: '#888',
+    marginBottom: 2,
   },
   itemPrice: {
     fontSize: 16,
@@ -325,18 +349,16 @@ const styles = StyleSheet.create({
   checkoutSection: {
     backgroundColor: '#fff',
     padding: 20,
-    paddingBottom: 12,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 16,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
+    shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowRadius: 10,
     elevation: 8,
-    position: 'absolute',
-    bottom: 100,
-    left: 0,
-    right: 0,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
   },
   billDetails: {
     marginBottom: 20,

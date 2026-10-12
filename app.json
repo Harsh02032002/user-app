@@ -53,12 +53,6 @@
     ],
     "experiments": {
       "reactCompiler": true
-    },
-    "extra": {
-      "eas": {
-        "projectId": "241f2168-e7a4-4491-8734-b760e6c06d93"
-      }
-    },
-    "owner": "harsh_web"
+    }
   }
 }

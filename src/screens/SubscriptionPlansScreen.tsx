@@ -9,6 +9,7 @@ import {
   RefreshControl,
   Dimensions,
   Modal,
+  Platform,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useNavigation, useRoute, RouteProp, useIsFocused } from '@react-navigation/native';
@@ -117,7 +118,7 @@ export default function SubscriptionPlansScreen() {
   // Auto-select plan from route params
   useEffect(() => {
     if (route.params?.planId && plans.length > 0 && !hasAutoOpened) {
-      const plan = plans.find(p => p._id === route.params.planId);
+      const plan = plans.find(p => p._id === route.params?.planId);
       if (plan) {
         setSelectedPlan(plan);
         setHasAutoOpened(true);
@@ -202,7 +203,7 @@ export default function SubscriptionPlansScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader showSearch={true} title="Subscriptions" />
+      <AppHeader showSearch={true} />
       
       {/* Tabs Switcher - Matching Website */}
       <View style={styles.tabContainer}>
@@ -553,9 +554,14 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 22,
     fontWeight: 'bold',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 10,
+    ...Platform.select<any>({
+      web: { textShadow: '-1px 1px 10px rgba(0, 0, 0, 0.75)' },
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.75)',
+        textShadowOffset: { width: -1, height: 1 },
+        textShadowRadius: 10,
+      },
+    }),
   },
   badgeContainer: {
     position: 'absolute',

@@ -10,6 +10,8 @@ interface User {
   profileImage?: string;
   avatar?: string;
   banner?: string;
+  bio?: string;
+  address?: string;
 }
 
 interface AuthContextType {
@@ -124,7 +126,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const updateProfile = React.useCallback(async (data: Partial<User>) => {
     try {
       const response = await api.auth.updateProfile(data);
-      const updatedUser = { ...user, ...response } as User;
+      // API response could be { user: {...} } or directly the user object
+      const updatedData = response?.user || response?.data || response;
+      const updatedUser = { ...user, ...updatedData } as User;
       await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
     } catch (error: any) {

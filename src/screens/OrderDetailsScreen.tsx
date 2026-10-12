@@ -16,6 +16,7 @@ import api from '../services/api';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { extractCoordinates, getCurrentCoordinates } from '../utils/location';
 import { DeliveryMap } from '../components/common/DeliveryMap';
+import { trackOrder, untrackOrder } from '../services/socket';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteType = RouteProp<RootStackParamList, 'OrderDetails'>;
@@ -73,18 +74,51 @@ export default function OrderDetailsScreen() {
 
   const [loading, setLoading] = useState(true);
   const [order, setOrder] = useState<OrderDetails | null>(null);
+  const [riderCoords, setRiderCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [riderInfo, setRiderInfo] = useState<any>(null);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
 
   useEffect(() => {
     fetchOrderDetails();
     getCurrentLocation();
-  }, []);
+  }, [orderId]);
+
+  useEffect(() => {
+    if (!orderId) return;
+    trackOrder(
+      orderId as string,
+      (loc: any) => {
+        if (loc?.lat && loc?.lng) {
+          setRiderCoords({ lat: loc.lat, lng: loc.lng });
+        }
+      },
+      (statusData: any) => {
+        if (statusData?.status) {
+          setOrder((prev: any) => prev ? { ...prev, status: statusData.status } : prev);
+        }
+      }
+    );
+    return () => {
+      untrackOrder(orderId as string);
+    };
+  }, [orderId]);
 
   const fetchOrderDetails = async () => {
     try {
-      const response = await api.user.getOrderById(orderId as string);
-      setOrder(response?.data || response);
+      const [orderRes, trackRes] = await Promise.allSettled([
+        api.user.getOrderById(orderId as string),
+        api.user.getOrderTracking(orderId as string),
+      ]);
+      if (orderRes.status === 'fulfilled') {
+        const d = orderRes.value?.data || orderRes.value;
+        setOrder(d);
+      }
+      if (trackRes.status === 'fulfilled') {
+        const t = trackRes.value?.order || trackRes.value;
+        if (t?.riderLocation) setRiderCoords(t.riderLocation);
+        if (t?.riderInfo) setRiderInfo(t.riderInfo);
+      }
     } catch (error) {
       console.error('Error fetching order details:', error);
     } finally {
@@ -286,10 +320,10 @@ export default function OrderDetailsScreen() {
           </View>
         </View>
 
-        {/* Map */}
+        {/* Map & Live Delivery Tracking */}
         {mapRegion && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Delivery Location</Text>
+            <Text style={styles.sectionTitle}>Live Delivery Tracking</Text>
             <View style={styles.mapContainer}>
               <DeliveryMap
                 pickupCoords={
@@ -301,10 +335,63 @@ export default function OrderDetailsScreen() {
                   const coords = extractCoordinates(order.deliveryAddress);
                   return coords ? [coords.longitude, coords.latitude] : undefined;
                 })()}
-                userCoords={userLocation ? [userLocation.longitude, userLocation.latitude] : undefined}
+                riderCoords={riderCoords}
+                restaurantName={order.sellerId?.shopName || order.sellerId?.businessName || 'Restaurant'}
                 height={250}
               />
             </View>
+
+            {/* Rider Card if assigned */}
+            {riderInfo && (
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: '#F0FDF4',
+                borderRadius: 12,
+                padding: 12,
+                marginTop: 10,
+                borderWidth: 1,
+                borderColor: '#BBF7D0',
+                gap: 10,
+              }}>
+                <View style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: '#DCFCE7',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <Text style={{ fontSize: 20 }}>🛵</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#166534' }}>
+                    {riderInfo.name || 'Delivery Partner'}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: '#15803D', marginTop: 1 }}>
+                    {riderInfo.vehicleType ? String(riderInfo.vehicleType).toUpperCase() : 'BIKE'}
+                    {riderInfo.vehicleNumber ? ` • ${riderInfo.vehicleNumber}` : ''}
+                    {' '}| ⭐ {riderInfo.rating || '5.0'}
+                  </Text>
+                </View>
+                {riderInfo.phone ? (
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: '#16A34A',
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    onPress={() => Linking.openURL(`tel:${riderInfo.phone}`)}
+                  >
+                    <Ionicons name="call" size={18} color="#fff" />
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            )}
+
             {locationPermissionDenied && !deliveryCoordinates && (
               <Text style={styles.mapHint}>
                 Location permission is off, so the map is using the saved delivery address only.

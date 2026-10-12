@@ -13,8 +13,11 @@ import { Image } from 'expo-image';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppHeader } from '../components/common/AppHeader';
 import api, { API_ENDPOINTS, getImageUrl } from '../config/api';
+import { api as userServicesApi } from '../services/api';
+import { LOCATION_COORDS_KEY, LOCATION_NAME_KEY } from '../utils/location';
 import { RootStackParamList } from '../navigation/RootNavigator';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -45,6 +48,7 @@ export default function SelectHomeChefScreen() {
   const [selectedChef, setSelectedChef] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [locationName, setLocationName] = useState<string>('');
 
   // Prevent blank screen - ensure component is mounted before fetching
   useEffect(() => {
@@ -58,8 +62,39 @@ export default function SelectHomeChefScreen() {
   const fetchHomeChefs = async () => {
     try {
       setError(null);
-      const response = await api.get(API_ENDPOINTS.HOME_CHEFS);
-      const chefsData = response.data?.sellers || response.data?.data || response.data?.homeChefs || [];
+      let chefsData: HomeChef[] = [];
+      let locationSet = false;
+
+      // Try fetching location-based nearby home chefs
+      try {
+        const savedCoords = await AsyncStorage.getItem(LOCATION_COORDS_KEY);
+        const savedName = await AsyncStorage.getItem(LOCATION_NAME_KEY);
+        if (savedName) setLocationName(savedName);
+
+        if (savedCoords) {
+          const parsed = JSON.parse(savedCoords);
+          if (parsed?.lat && parsed?.lng) {
+            locationSet = true;
+            const res = await userServicesApi.user.getNearbySellers({
+              lat: parsed.lat,
+              lng: parsed.lng,
+              radius: 12000,
+              type: 'home_chef',
+            });
+            chefsData = res.sellers || [];
+          }
+        }
+      } catch (locErr) {
+        console.log('[SelectHomeChef] Error getting location-based sellers:', locErr);
+      }
+
+      // ONLY fallback to all home chefs IF the user has never selected/saved any location
+      if ((!chefsData || chefsData.length === 0) && !locationSet) {
+        const response = await api.get(API_ENDPOINTS.HOME_CHEFS);
+        const rawChefs = response.data?.sellers || response.data?.data || response.data?.homeChefs || [];
+        chefsData = rawChefs.filter((c: any) => c.type === 'home_chef' || c.type === 'home-chef' || !c.type);
+      }
+
       setHomeChefs(chefsData);
     } catch (error: any) {
       console.error('Error fetching home chefs:', error);
@@ -148,8 +183,13 @@ export default function SelectHomeChefScreen() {
 
         {homeChefs.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Ionicons name="restaurant-outline" size={48} color="#ccc" />
-            <Text style={styles.emptyText}>No home chefs available</Text>
+            <Ionicons name="location-outline" size={56} color="#FF6B00" />
+            <Text style={styles.emptyTitle}>No Home Chefs Available</Text>
+            <Text style={styles.emptySubtitle}>
+              {locationName 
+                ? `Currently no home chefs are available near ${locationName}. Please try selecting a different delivery location.` 
+                : 'No home chefs available near your current location.'}
+            </Text>
           </View>
         ) : (
           homeChefs.map((chef) => (
@@ -191,10 +231,10 @@ export default function SelectHomeChefScreen() {
                     <Ionicons name="star" size={14} color="#FFB800" />
                     <Text style={styles.ratingText}>{chef.rating || '4.0'}</Text>
                   </View>
-                  {chef.address?.area && (
+                  {(chef.address?.city || chef.address?.area) && (
                     <>
                       <Text style={styles.dot}>-</Text>
-                      <Text style={styles.chefLocation}>{chef.address.area}</Text>
+                      <Text style={styles.chefLocation}>{chef.address?.city || chef.address?.area}</Text>
                     </>
                   )}
                 </View>
@@ -293,11 +333,20 @@ const styles = StyleSheet.create({
   emptyContainer: {
     alignItems: 'center',
     paddingVertical: 48,
+    paddingHorizontal: 24,
   },
-  emptyText: {
-    fontSize: 16,
-    color: '#888',
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
     marginTop: 12,
+    marginBottom: 6,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   chefCard: {
     flexDirection: 'row',
@@ -323,7 +372,6 @@ const styles = StyleSheet.create({
   chefImage: {
     width: '100%',
     height: '100%',
-    resizeMode: 'cover',
   },
   placeholderImage: {
     backgroundColor: '#f5f5f5',
@@ -390,15 +438,21 @@ const styles = StyleSheet.create({
   },
   bottomContainer: {
     position: 'absolute',
-    bottom: 200, // Lift significantly higher to ensure visibility
+    bottom: 0,
     left: 0,
     right: 0,
     backgroundColor: '#fff',
     padding: 20,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 16,
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
     flexDirection: 'row',
     alignItems: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
   totalContainer: {
     flex: 1,

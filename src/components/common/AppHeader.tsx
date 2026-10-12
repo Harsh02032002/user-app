@@ -116,13 +116,13 @@ export const AppHeader = React.memo(function AppHeader({ showSearch = true, show
             // Main App Logo
             <TouchableOpacity 
               style={styles.mainLogoContainer}
-              onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })}
+              onPress={() => navigation.navigate('Landing' as never)}
               activeOpacity={0.7}
             >
               <Image 
                 source={require('../../../assets/images/logo.png')} 
                 style={styles.logoImage}
-                resizeMode="cover"
+                contentFit="cover"
               />
             </TouchableOpacity>
           )}

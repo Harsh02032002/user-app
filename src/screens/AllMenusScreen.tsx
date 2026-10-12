@@ -9,10 +9,14 @@ import {
   ActivityIndicator,
   TextInput,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '../services/api';
+import { LOCATION_COORDS_KEY, LOCATION_NAME_KEY } from '../utils/location';
 import { useCart } from '../context/CartContext';
 import { AppFooter } from '../components/common/AppFooter';
 
@@ -26,31 +30,108 @@ export default function AllMenusScreen() {
   const [items, setItems] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationName, setLocationName] = useState('');
+  const [locationReady, setLocationReady] = useState(false);
 
+  // Get user's location on mount
   useEffect(() => {
+    getUserLocation();
+  }, []);
+
+  // Fetch items when search or location changes (only after location is resolved,
+  // otherwise we'd briefly show menus from every city)
+  useEffect(() => {
+    if (!locationReady) return;
     fetchItems();
-  }, [search]);
+  }, [search, userLocation, locationReady]);
+
+  const getUserLocation = async () => {
+    try {
+      // 1. Same "Deliver to" location the Home screen uses
+      const savedCoords = await AsyncStorage.getItem(LOCATION_COORDS_KEY);
+      const savedName = await AsyncStorage.getItem(LOCATION_NAME_KEY);
+      if (savedCoords) {
+        const parsed = JSON.parse(savedCoords);
+        if (parsed?.lat && parsed?.lng) {
+          setUserLocation({ lat: Number(parsed.lat), lng: Number(parsed.lng) });
+          if (savedName) setLocationName(savedName);
+          return;
+        }
+      }
+
+      // 2. Fallback: device GPS
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        console.log('Location permission denied');
+        // Still fetch items without location filter
+        return;
+      }
+
+      // Try last known location first (faster)
+      let location = await Location.getLastKnownPositionAsync({});
+      
+      // If no last known location, get current position
+      if (!location) {
+        location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+      }
+
+      if (location) {
+        setUserLocation({
+          lat: location.coords.latitude,
+          lng: location.coords.longitude,
+        });
+      }
+    } catch (error) {
+      console.error('Error getting location:', error);
+    } finally {
+      setLocationReady(true);
+      setLoading(false);
+    }
+  };
 
   const fetchItems = async () => {
     try {
-      const res = await api.user.getMenuItems({ search: search || undefined });
+      if (!userLocation?.lat || !userLocation?.lng) {
+        console.log('[AllMenusScreen] Location not ready yet, skipping fetch');
+        return;
+      }
+      const params: any = {
+        lat: userLocation.lat,
+        lng: userLocation.lng,
+        radius: 12000,
+      };
+      if (search) params.search = search;
+      if (locationName) params.city = locationName;
+      
+      const res = await api.user.getMenuItems(params);
       if (res.success) {
-        setItems(res.products);
+        setItems(res.products || []);
       }
     } catch (error) {
       console.error('Error fetching menu items:', error);
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
   };
 
   const handleAddToCart = (item: any) => {
-    const seller = item.sellerId || { 
-      _id: 'unknown', 
-      businessName: 'Chef' 
-    };
-    addToCart(item, seller._id || seller, seller.businessName || 'Chef', item.sellerType || 'home_chef');
+    const rawSeller = item.sellerId;
+    const sellerId = (typeof rawSeller === 'object' ? rawSeller?._id : rawSeller) || '';
+    const sellerName = (typeof rawSeller === 'object' ? rawSeller?.businessName : '') || 'Restaurant';
+    addToCart({
+      id: item._id,
+      name: item.name,
+      price: item.sellingPrice || item.price || 0,
+      discountPrice: item.discountPrice,
+      image: item.image,
+      sellerId,
+      sellerName,
+      isVeg: item.isVeg || false,
+      description: item.description,
+    });
   };
 
   const renderItem = ({ item }: { item: any }) => (
@@ -89,8 +170,27 @@ export default function AllMenusScreen() {
           <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>All Menus</Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity 
+          onPress={getUserLocation}
+          style={styles.locationBtn}
+          disabled={loading}
+        >
+          <Ionicons 
+            name={userLocation ? "location" : "location-outline"} 
+            size={20} 
+            color={userLocation ? "#FF6B00" : "#666"} 
+          />
+        </TouchableOpacity>
       </View>
+
+      {userLocation && (
+        <View style={styles.locationBadge}>
+          <Ionicons name="location" size={14} color="#fff" />
+          <Text style={styles.locationText}>
+            Location-based results • {(userLocation.lat).toFixed(4)}, {(userLocation.lng).toFixed(4)}
+          </Text>
+        </View>
+      )}
 
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={20} color="#888" style={styles.searchIcon} />
@@ -147,6 +247,25 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     padding: 4,
+  },
+  locationBtn: {
+    padding: 8,
+  },
+  locationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FF6B00',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
+  },
+  locationText: {
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: '500',
   },
   headerTitle: {
     fontSize: 20,

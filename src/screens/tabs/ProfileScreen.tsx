@@ -12,6 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
+import { useNavigation } from '@react-navigation/native';
+import { api } from '../../services/api';
 
 interface UserProfile {
   name: string;
@@ -100,6 +102,7 @@ const getMenuItems = (user: UserProfile | null) => [
 
 export function ProfileScreen() {
   const { user: authUser, logout } = useAuth();
+  const navigation = useNavigation<any>();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -119,10 +122,10 @@ export function ProfileScreen() {
             phone: authUser.phone || '',
             wallet: walletRes?.data?.balance || 0,
             totalOrders: (ordersRes?.orders || []).length,
-            memberSince: authUser.createdAt || '2024-01-01',
-            avatar: authUser.profileImage || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150',
-            bio: authUser.bio || '',
-            address: authUser.address || ''
+            memberSince: (authUser as any).createdAt || '2024-01-01',
+            avatar: authUser.profileImage || authUser.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150',
+            bio: (authUser as any).bio || '',
+            address: (authUser as any).address || ''
           });
         } catch (error) {
           console.error('Error fetching user data:', error);
@@ -245,7 +248,7 @@ export function ProfileScreen() {
           <Text style={styles.versionSubtext}>Made with ❤️ in India</Text>
         </View>
         
-        <View style={{ height: 20 }} />
+        <View style={{ height: 96 }} />
       </ScrollView>
     </SafeAreaView>
   );
