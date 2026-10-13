@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
+import { registerForPushNotifications } from '../utils/pushNotifications';
 
 interface User {
   _id: string;
@@ -62,6 +63,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const response = await api.auth.getProfile();
           setUser(response);
           await AsyncStorage.setItem('user', JSON.stringify(response));
+          registerForPushNotifications(storedToken);
         } catch (error) {
           // Token invalid, clear storage
           await logout();
@@ -99,6 +101,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       setToken(authToken);
       setUser(userData);
+      registerForPushNotifications(authToken);
     } catch (error: any) {
       console.error('Login error:', error);
       throw new Error(error.message || 'Login failed');

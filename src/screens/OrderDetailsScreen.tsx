@@ -311,10 +311,10 @@ export default function OrderDetailsScreen() {
             <Ionicons name="location" size={20} color="#FF6B00" />
             <View style={styles.addressInfo}>
               <Text style={styles.addressText}>
-                {order.deliveryAddress?.address}, {order.deliveryAddress?.area}
+                {order.deliveryAddress?.fullAddress || order.deliveryAddress?.street || order.deliveryAddress?.address || 'Delivery Address'}
               </Text>
               <Text style={styles.addressCity}>
-                {order.deliveryAddress?.city} - {order.deliveryAddress?.pincode}
+                {[order.deliveryAddress?.city, order.deliveryAddress?.state, order.deliveryAddress?.pincode].filter(Boolean).join(', ')}
               </Text>
             </View>
           </View>

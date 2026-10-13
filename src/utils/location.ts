@@ -110,6 +110,18 @@ export const extractCoordinates = (addressObj: any) => {
       longitude: Number(lng)
     };
   }
+
+  // Sector name fallback
+  const str = `${addressObj.street || ''} ${addressObj.fullAddress || ''} ${addressObj.address || ''}`.toLowerCase();
+  if (str.includes('sector 40') || str.includes('sec 40') || str.includes('40-d') || str.includes('40d')) {
+    return { latitude: 30.7385, longitude: 76.7375 };
+  }
+  if (str.includes('sector 41') || str.includes('sec 41') || str.includes('buterla')) {
+    return { latitude: 30.7325, longitude: 76.7410 };
+  }
+  if (str.includes('sector 37') || str.includes('sec 37')) {
+    return { latitude: 30.7420, longitude: 76.7550 };
+  }
   
   return null;
 };

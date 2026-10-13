@@ -218,21 +218,9 @@ export function CheckoutScreen() {
   }, []);
 
   const validateAddress = () => {
-    const street = deliveryAddress.street || 'Buterla, Sector 41';
-    const city = deliveryAddress.city || 'Chandigarh';
-    const pincode = deliveryAddress.pincode || '160041';
-    const name = deliveryAddress.name || user?.name || 'Customer';
-    const phone = deliveryAddress.phone || user?.phone || '9876543210';
-
-    if (!deliveryAddress.street || !deliveryAddress.city || !deliveryAddress.pincode) {
-      setDeliveryAddress(prev => ({
-        ...prev,
-        name,
-        phone,
-        street,
-        city,
-        pincode,
-      }));
+    if (!deliveryAddress.street?.trim() || !deliveryAddress.city?.trim() || !deliveryAddress.pincode?.trim()) {
+      Alert.alert('Address Incomplete', 'Please enter your street address, city, and pincode');
+      return false;
     }
     return true;
   };
@@ -355,10 +343,11 @@ export function CheckoutScreen() {
               image: item.image,
             })),
             deliveryAddress: {
-              street: deliveryAddress.street || 'Buterla, Sector 41',
-              city: deliveryAddress.city || 'Chandigarh',
-              state: deliveryAddress.state || 'Punjab',
-              pincode: deliveryAddress.pincode || '160041',
+              street: deliveryAddress.street?.trim() || '',
+              city: deliveryAddress.city?.trim() || 'Chandigarh',
+              state: deliveryAddress.state?.trim() || 'Chandigarh',
+              pincode: deliveryAddress.pincode?.trim() || '',
+              fullAddress: `${deliveryAddress.street?.trim() || ''}, ${deliveryAddress.city?.trim() || 'Chandigarh'}, ${deliveryAddress.pincode?.trim() || ''}`.replace(/^, |, $/, ''),
             },
             subscriptionIds: activeSubs.map(s => s._id),
             totalAmount: total,
@@ -393,10 +382,11 @@ export function CheckoutScreen() {
         deliveryAddress: {
           name: deliveryAddress.name || user?.name || 'Customer',
           phone: deliveryAddress.phone || user?.phone || '9876543210',
-          street: deliveryAddress.street || 'Buterla, Sector 41',
-          city: deliveryAddress.city || 'Chandigarh',
-          state: deliveryAddress.state || 'Punjab',
-          pincode: deliveryAddress.pincode || '160041',
+          street: deliveryAddress.street?.trim() || '',
+          city: deliveryAddress.city?.trim() || 'Chandigarh',
+          state: deliveryAddress.state?.trim() || 'Chandigarh',
+          pincode: deliveryAddress.pincode?.trim() || '',
+          fullAddress: `${deliveryAddress.street?.trim() || ''}, ${deliveryAddress.city?.trim() || 'Chandigarh'}, ${deliveryAddress.pincode?.trim() || ''}`.replace(/^, |, $/, ''),
           location: userLocation ? { type: 'Point', coordinates: [userLocation[0], userLocation[1]] } : undefined,
         },
         paymentMethod: selectedPayment.type,
@@ -985,10 +975,11 @@ export function CheckoutScreen() {
               deliveryAddress: {
                 name: deliveryAddress.name || user?.name || 'Customer',
                 phone: deliveryAddress.phone || user?.phone || '9876543210',
-                street: deliveryAddress.street || 'Buterla, Sector 41',
-                city: deliveryAddress.city || 'Chandigarh',
-                state: deliveryAddress.state || 'Punjab',
-                pincode: deliveryAddress.pincode || '160041',
+                street: deliveryAddress.street?.trim() || '',
+                city: deliveryAddress.city?.trim() || 'Chandigarh',
+                state: deliveryAddress.state?.trim() || 'Chandigarh',
+                pincode: deliveryAddress.pincode?.trim() || '',
+                fullAddress: `${deliveryAddress.street?.trim() || ''}, ${deliveryAddress.city?.trim() || 'Chandigarh'}, ${deliveryAddress.pincode?.trim() || ''}`.replace(/^, |, $/, ''),
                 location: userLocation ? { type: 'Point', coordinates: [userLocation[0], userLocation[1]] } : undefined,
               },
               paymentMethod: 'online',

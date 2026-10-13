@@ -25,11 +25,14 @@
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "POST_NOTIFICATIONS",
+        "VIBRATE"
       ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.harsh02032002.DabbaNation"
+      "package": "com.dabbnation.user",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "single",
@@ -49,7 +52,8 @@
         }
       ],
       "expo-location",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-notifications"
     ],
     "experiments": {
       "reactCompiler": true
