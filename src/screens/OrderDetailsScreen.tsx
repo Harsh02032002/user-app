@@ -86,21 +86,19 @@ export default function OrderDetailsScreen() {
 
   useEffect(() => {
     if (!orderId) return;
-    trackOrder(
-      orderId as string,
-      (loc: any) => {
-        if (loc?.lat && loc?.lng) {
-          setRiderCoords({ lat: loc.lat, lng: loc.lng });
-        }
-      },
-      (statusData: any) => {
-        if (statusData?.status) {
-          setOrder((prev: any) => prev ? { ...prev, status: statusData.status } : prev);
-        }
+    const onLocation = (loc: any) => {
+      if (loc?.lat && loc?.lng) {
+        setRiderCoords({ lat: loc.lat, lng: loc.lng });
       }
-    );
+    };
+    const onStatus = (statusData: any) => {
+      if (statusData?.status) {
+        setOrder((prev: any) => prev ? { ...prev, status: statusData.status } : prev);
+      }
+    };
+    trackOrder(orderId as string, onLocation, onStatus);
     return () => {
-      untrackOrder(orderId as string);
+      untrackOrder(orderId as string, onLocation, onStatus);
     };
   }, [orderId]);
 

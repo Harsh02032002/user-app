@@ -24,7 +24,8 @@ import { AppHeader } from '../../components/common/AppHeader';
 import { AppFooter } from '../../components/common/AppFooter';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DeliveryMap } from '../../components/common/DeliveryMap';
-import { trackOrder, untrackOrder } from '../../services/socket';
+import { trackOrder, untrackOrder, onAnyOrderUpdate } from '../../services/socket';
+import { useIsFocused } from '@react-navigation/native';
 
 const ORDERS_CACHE_KEY = 'orders_screen_cache';
 
@@ -34,7 +35,8 @@ const { width } = Dimensions.get('window');
 interface Order {
   _id: string;
   orderNumber: string;
-  status: 'pending' | 'confirmed' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'out_for_delivery' | 'delivered' | 'cancelled';
+  deliveryStatus?: 'assigned' | 'arrived_at_restaurant' | 'picked_up' | 'delivered' | null;
   total: number;
   items: { name: string; quantity: number; image?: string }[];
   createdAt: string;
@@ -47,13 +49,18 @@ interface Order {
   payableAfterSubscription?: number;
 }
 
-const statusTabs = ['all', 'pending', 'confirmed', 'preparing', 'out_for_delivery', 'delivered', 'cancelled'];
+const statusTabs = ['all', 'pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'cancelled'];
+
+/** Orders that are still moving — Track is offered and the tracking view keeps syncing */
+const ACTIVE_STATUSES = ['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery'];
+const TRACKING_POLL_MS = 15000;
 
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'pending': return '#FEF3C7';
     case 'confirmed': return '#DBEAFE';
     case 'preparing': return '#E9D5FF';
+    case 'ready': return '#CCFBF1';
     case 'out_for_delivery': return '#FED7AA';
     case 'delivered': return '#D1FAE5';
     case 'cancelled': return '#FEE2E2';
@@ -66,6 +73,7 @@ const getStatusTextColor = (status: string) => {
     case 'pending': return '#92400E';
     case 'confirmed': return '#1E40AF';
     case 'preparing': return '#7C3AED';
+    case 'ready': return '#0F766E';
     case 'out_for_delivery': return '#EA580C';
     case 'delivered': return '#065F46';
     case 'cancelled': return '#DC2626';
@@ -81,10 +89,41 @@ const statusSteps = [
   { key: 'pending', label: 'Order Placed' },
   { key: 'confirmed', label: 'Confirmed' },
   { key: 'preparing', label: 'Preparing' },
-  { key: 'ready', label: 'Ready' },
+  { key: 'ready', label: 'Ready for Pickup' },
+  { key: 'rider_assigned', label: 'Rider Assigned' },
   { key: 'out_for_delivery', label: 'Out for Delivery' },
   { key: 'delivered', label: 'Delivered' },
 ];
+
+const KITCHEN_ORDER = ['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered'];
+
+/**
+ * Index of the furthest step reached. Kitchen and rider progress run in parallel
+ * (a rider can be assigned while food is still cooking), so each step is "reached"
+ * from the persisted status, deliveryStatus and statusHistory.
+ */
+const getReachedSteps = (status: string, deliveryStatus?: string | null, history?: { status: string }[]) => {
+  const reached = new Set<string>();
+  const kitchenIdx = KITCHEN_ORDER.indexOf(status);
+  KITCHEN_ORDER.forEach((k, i) => { if (kitchenIdx >= 0 && i <= kitchenIdx) reached.add(k); });
+  (history || []).forEach((h) => { if (h?.status) reached.add(h.status); });
+  if (deliveryStatus || reached.has('out_for_delivery')) reached.add('rider_assigned');
+  // Rider picked up before the kitchen pressed "ready" — food was obviously ready
+  if (reached.has('out_for_delivery')) { reached.add('ready'); reached.add('preparing'); reached.add('confirmed'); }
+  let currentIdx = 0;
+  statusSteps.forEach((s, i) => { if (reached.has(s.key)) currentIdx = i; });
+  return { reached, currentIdx };
+};
+
+const STEP_SUBLABELS: Record<string, string> = {
+  pending: 'Waiting for restaurant confirmation...',
+  confirmed: 'Restaurant accepted your order',
+  preparing: 'Kitchen is cooking your food',
+  ready: 'Food is ready, waiting for pickup',
+  rider_assigned: 'Delivery partner is heading to the restaurant',
+  out_for_delivery: 'Rider is heading to your location',
+  delivered: 'Enjoy your meal!',
+};
 
 export function OrdersScreen() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -95,9 +134,15 @@ export function OrdersScreen() {
   const [showTrackingModal, setShowTrackingModal] = useState(false);
   const [trackingData, setTrackingData] = useState<any>(null);
   const [trackingLoading, setTrackingLoading] = useState(false);
+  const [trackingError, setTrackingError] = useState<string | null>(null);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [rating, setRating] = useState(0);
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const pulseLoop = useRef<Animated.CompositeAnimation | null>(null);
+  const trackingOrderIdRef = useRef<string | null>(null);
+  const trackingCallbacks = useRef<{ onLocation: (d: any) => void; onStatus: (d: any) => void } | null>(null);
+  const trackingPoll = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isFocused = useIsFocused();
 
   useEffect(() => {
     loadCachedData().then(() => {
@@ -105,6 +150,19 @@ export function OrdersScreen() {
       loadUserLocation();
     });
   }, [activeTab]);
+
+  // Keep the list in sync: refresh when coming back to the tab and on live status pushes
+  useEffect(() => {
+    if (!isFocused) return;
+    fetchOrders(true);
+    const unsubscribe = onAnyOrderUpdate((data: any) => {
+      if (data?.type === 'reconnected' || data?.orderId) fetchOrders(true);
+    });
+    return unsubscribe;
+  }, [isFocused, activeTab]);
+
+  // Stop tracking listeners/polling if the screen unmounts with the modal open
+  useEffect(() => () => stopTracking(), []);
 
   const loadCachedData = async () => {
     try {
@@ -120,9 +178,9 @@ export function OrdersScreen() {
 
   const loadUserLocation = async () => {}; // Location tracking removed
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       setError(null);
       const response = await api.user.getOrders(activeTab === 'all' ? undefined : activeTab);
       const ordersData = Array.isArray(response) ? response : response.orders || response.data || [];
@@ -130,63 +188,111 @@ export function OrdersScreen() {
       await AsyncStorage.setItem(ORDERS_CACHE_KEY + activeTab, JSON.stringify(ordersData));
     } catch (err: any) {
       console.error('Error fetching orders:', err);
-      setError(err.message || 'Failed to load orders');
+      if (!silent) setError(err.message || 'Failed to load orders');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
+  /** Load the latest persisted tracking state (source of truth for the modal) */
+  const loadTracking = async (orderId: string, showSpinner = false) => {
+    if (showSpinner) setTrackingLoading(true);
+    try {
+      const res = await api.user.getOrderTracking(orderId);
+      if (trackingOrderIdRef.current !== orderId) return; // modal moved on
+      if (res?.success && res.order) {
+        setTrackingData((prev: any) => ({
+          ...res.order,
+          // keep a fresher socket location if the stored one is older
+          riderLocation: prev?.riderLocation && prev?._id === res.order._id ? prev.riderLocation : res.order.riderLocation,
+        }));
+        setSelectedOrder((prev: any) => prev ? { ...prev, status: res.order.status, deliveryStatus: res.order.deliveryStatus } : prev);
+        setTrackingError(null);
+        if (['delivered', 'cancelled'].includes(res.order.status)) {
+          stopPolling();
+          fetchOrders(true);
+        }
+      } else {
+        setTrackingError(res?.message || 'Could not load tracking details.');
+      }
+    } catch (e: any) {
+      console.warn('getOrderTracking error:', e);
+      if (trackingOrderIdRef.current === orderId) {
+        setTrackingError(e?.message?.includes('not found') ? 'This order could not be found.' : 'Could not reach the server. Retrying...');
+      }
+    } finally {
+      if (showSpinner) setTrackingLoading(false);
+    }
+  };
+
+  const stopPolling = () => {
+    if (trackingPoll.current) {
+      clearInterval(trackingPoll.current);
+      trackingPoll.current = null;
+    }
+  };
+
+  const stopTracking = () => {
+    stopPolling();
+    const orderId = trackingOrderIdRef.current;
+    if (orderId && trackingCallbacks.current) {
+      untrackOrder(orderId, trackingCallbacks.current.onLocation, trackingCallbacks.current.onStatus);
+    }
+    trackingCallbacks.current = null;
+    trackingOrderIdRef.current = null;
+    pulseLoop.current?.stop();
+    pulseLoop.current = null;
+  };
+
   const showOrderTracking = async (order: Order) => {
+    stopTracking();
+    trackingOrderIdRef.current = order._id;
     setSelectedOrder(order);
     setShowTrackingModal(true);
-    setTrackingLoading(true);
     setTrackingData(null);
+    setTrackingError(null);
 
-    try {
-      const res = await api.user.getOrderTracking(order._id);
-      if (res?.success && res.order) {
-        setTrackingData(res.order);
-      }
-    } catch (e) {
-      console.warn('getOrderTracking error:', e);
-    } finally {
-      setTrackingLoading(false);
+    await loadTracking(order._id, true);
+
+    const onLocation = (loc: any) => {
+      if (loc?.lat == null || loc?.lng == null) return;
+      setTrackingData((prev: any) => prev ? { ...prev, riderLocation: { lat: Number(loc.lat), lng: Number(loc.lng) } } : prev);
+    };
+    const onStatus = (statusData: any) => {
+      if (!statusData?.status && statusData?.deliveryStatus === undefined) return;
+      setSelectedOrder((prev: any) => prev ? {
+        ...prev,
+        status: statusData.status || prev.status,
+        deliveryStatus: statusData.deliveryStatus !== undefined ? statusData.deliveryStatus : prev.deliveryStatus,
+      } : prev);
+      setTrackingData((prev: any) => prev ? {
+        ...prev,
+        status: statusData.status || prev.status,
+        deliveryStatus: statusData.deliveryStatus !== undefined ? statusData.deliveryStatus : prev.deliveryStatus,
+      } : prev);
+      // Re-read persisted state for rider details, timeline history and final states
+      loadTracking(order._id);
+    };
+    trackingCallbacks.current = { onLocation, onStatus };
+    trackOrder(order._id, onLocation, onStatus);
+
+    // Fallback when socket events are missed (background, flaky network)
+    if (ACTIVE_STATUSES.includes(order.status)) {
+      trackingPoll.current = setInterval(() => loadTracking(order._id), TRACKING_POLL_MS);
     }
 
-    trackOrder(
-      order._id,
-      (loc: any) => {
-        console.log('[OrdersScreen] Live rider location:', loc);
-        setTrackingData((prev: any) => ({
-          ...prev,
-          riderLocation: { lat: loc.lat, lng: loc.lng },
-        }));
-      },
-      (statusData: any) => {
-        console.log('[OrdersScreen] Live status update:', statusData);
-        if (statusData?.status) {
-          setSelectedOrder((prev: any) => prev ? { ...prev, status: statusData.status } : prev);
-          setTrackingData((prev: any) => prev ? { ...prev, status: statusData.status } : prev);
-          if (statusData.status === 'delivered') {
-            fetchOrders();
-          }
-        }
-      }
-    );
-
     // Start pulse animation for active step
-    Animated.loop(
+    pulseLoop.current = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, { toValue: 1.2, duration: 800, useNativeDriver: true }),
         Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
       ])
-    ).start();
+    );
+    pulseLoop.current.start();
   };
 
   const closeTrackingModal = () => {
-    if (selectedOrder) {
-      untrackOrder(selectedOrder._id);
-    }
+    stopTracking();
     setShowTrackingModal(false);
   };
 
@@ -286,9 +392,11 @@ export function OrdersScreen() {
     </View>
   );
 
-  const renderOrderTracker = (status: string) => {
-    const currentIdx = statusSteps.findIndex(s => s.key === status);
-    
+  const renderOrderTracker = (order: Order) => {
+    const status = order.status;
+    const { reached } = getReachedSteps(status, order.deliveryStatus, (order as any).statusHistory);
+    const currentIdx = statusSteps.reduce((acc, s, i) => (reached.has(s.key) ? i : acc), 0);
+
     if (status === 'cancelled') {
       return (
         <View style={styles.cancelledTracker}>
@@ -370,15 +478,17 @@ export function OrdersScreen() {
         </View>
 
         {/* Order Tracker */}
-        {renderOrderTracker(order.status)}
+        {renderOrderTracker(order)}
 
-        {/* Live Tracking — Status only, no map since rider app not connected */}
-        {['confirmed', 'preparing', 'out_for_delivery'].includes(order.status) && (
+        {/* Live status summary */}
+        {['confirmed', 'preparing', 'ready', 'out_for_delivery'].includes(order.status) && (
           <View style={styles.trackingSection}>
             <View style={styles.trackingHeader}>
               <Ionicons name="bicycle" size={16} color="#FF6B00" />
               <Text style={styles.trackingTitle}>
                 {order.status === 'out_for_delivery' ? '🛵 Your order is on the way!' :
+                 order.deliveryStatus ? '🛵 Delivery partner assigned' :
+                 order.status === 'ready' ? '✅ Food is ready!' :
                  order.status === 'preparing' ? '👨‍🍳 Being prepared...' : '✅ Order confirmed!'}
               </Text>
             </View>
@@ -442,7 +552,7 @@ export function OrdersScreen() {
           )}
 
           {/* Track Button */}
-          {['confirmed', 'preparing', 'out_for_delivery'].includes(order.status) && (
+          {ACTIVE_STATUSES.includes(order.status) && (
             <TouchableOpacity style={styles.trackButton} onPress={() => showOrderTracking(order)}>
               <Ionicons name="location-outline" size={14} color="#fff" />
               <Text style={styles.trackButtonText}>Track</Text>
@@ -504,7 +614,7 @@ export function OrdersScreen() {
             <Ionicons name="alert-circle-outline" size={64} color="#ff4444" />
             <Text style={styles.emptyTitle}>Error loading orders</Text>
             <Text style={styles.emptySubtitle}>{error}</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={fetchOrders}>
+            <TouchableOpacity style={styles.retryButton} onPress={() => fetchOrders()}>
               <Text style={styles.retryButtonText}>Try Again</Text>
             </TouchableOpacity>
           </View>
@@ -530,7 +640,7 @@ export function OrdersScreen() {
         visible={showTrackingModal}
         transparent
         animationType="slide"
-        onRequestClose={() => setShowTrackingModal(false)}
+        onRequestClose={closeTrackingModal}
       >
         <View style={styles.trackingModalOverlay}>
           <View style={styles.trackingModalContainer}>
@@ -603,11 +713,31 @@ export function OrdersScreen() {
               );
             })()}
 
+            {trackingLoading && (
+              <View style={styles.trackingInfoRow}>
+                <ActivityIndicator size="small" color="#FF6B00" />
+                <Text style={styles.trackingInfoText}>Loading latest status...</Text>
+              </View>
+            )}
+            {!!trackingError && !trackingLoading && (
+              <TouchableOpacity
+                style={[styles.trackingInfoRow, styles.trackingErrorRow]}
+                onPress={() => selectedOrder && loadTracking(selectedOrder._id, true)}
+              >
+                <Ionicons name="cloud-offline-outline" size={16} color="#B91C1C" />
+                <Text style={[styles.trackingInfoText, { color: '#B91C1C' }]}>{trackingError} Tap to retry.</Text>
+              </TouchableOpacity>
+            )}
+
             {/* Status Steps */}
             <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
               {(() => {
-                const currentStatus = selectedOrder?.status || 'pending';
-                const currentIdx = statusSteps.findIndex(s => s.key === currentStatus);
+                const currentStatus = trackingData?.status || selectedOrder?.status || 'pending';
+                const { reached, currentIdx } = getReachedSteps(
+                  currentStatus,
+                  trackingData?.deliveryStatus ?? selectedOrder?.deliveryStatus,
+                  trackingData?.statusHistory,
+                );
                 const isCancelled = currentStatus === 'cancelled';
 
                 if (isCancelled) {
@@ -625,9 +755,9 @@ export function OrdersScreen() {
                 return (
                   <View style={styles.stepsContainer}>
                     {statusSteps.map((step, idx) => {
-                      const isCompleted = idx < currentIdx;
-                      const isActive = idx === currentIdx;
-                      const isPending = idx > currentIdx;
+                      const isActive = idx === currentIdx && currentStatus !== 'delivered';
+                      const isCompleted = !isActive && (idx < currentIdx || reached.has(step.key));
+                      const isPending = !isActive && !isCompleted;
                       return (
                         <View key={step.key} style={styles.stepRow}>
                           {/* Left column: dot + line */}
@@ -660,12 +790,9 @@ export function OrdersScreen() {
                             </Text>
                             {isActive && (
                               <Text style={styles.stepActiveSubLabel}>
-                                {step.key === 'pending' ? 'Waiting for restaurant confirmation...' :
-                                 step.key === 'confirmed' ? 'Restaurant accepted your order' :
-                                 step.key === 'preparing' ? 'Kitchen is cooking your food' :
-                                 step.key === 'ready' ? 'Food is ready, picking up soon' :
-                                 step.key === 'out_for_delivery' ? 'Rider is heading to your location' :
-                                 'Enjoy your meal!'}
+                                {step.key === 'rider_assigned' && trackingData?.deliveryStatus === 'arrived_at_restaurant'
+                                  ? 'Delivery partner is at the restaurant'
+                                  : STEP_SUBLABELS[step.key]}
                               </Text>
                             )}
                           </View>
@@ -678,7 +805,16 @@ export function OrdersScreen() {
             </ScrollView>
 
             {/* Bottom status message */}
-            {selectedOrder && !['cancelled', 'delivered'].includes(selectedOrder.status) && (
+            {(trackingData?.status === 'delivered' || selectedOrder?.status === 'delivered') && (
+              <View style={styles.trackingInfoRow}>
+                <Ionicons name="checkmark-circle" size={16} color="#16A34A" />
+                <Text style={[styles.trackingInfoText, { color: '#16A34A' }]}>
+                  Delivered{trackingData?.actualDelivery ? ` at ${new Date(trackingData.actualDelivery).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}` : ''}
+                </Text>
+              </View>
+            )}
+
+            {selectedOrder && !['cancelled', 'delivered'].includes(trackingData?.status || selectedOrder.status) && (
               <View style={styles.trackingStatusBar}>
                 <View style={styles.trackingStatusDot} />
                 <Text style={styles.trackingStatusBarText}>Tracking your order in real-time</Text>
@@ -1426,6 +1562,26 @@ const styles = StyleSheet.create({
   cancelledStateSubtitle: {
     fontSize: 13,
     color: '#888',
+  },
+  trackingInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#F9FAFB',
+  },
+  trackingErrorRow: {
+    backgroundColor: '#FEF2F2',
+  },
+  trackingInfoText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#4B5563',
   },
   trackingStatusBar: {
     flexDirection: 'row',

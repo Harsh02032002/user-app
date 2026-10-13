@@ -33,13 +33,32 @@ const getSocketConfig = () => {
 let socket: Socket | null = null;
 const orderListeners: Map<string, Set<(data: any) => void>> = new Map();
 const statusListeners: Map<string, Set<(data: any) => void>> = new Map();
+const anyOrderListeners: Set<(data: any) => void> = new Set();
+const trackedOrders: Set<string> = new Set();
+let connectingPromise: Promise<Socket> | null = null;
+
+let socketToken = '';
+
+const readToken = async () =>
+  (await AsyncStorage.getItem('token')) ||
+  (await AsyncStorage.getItem('user_token')) ||
+  (await AsyncStorage.getItem('dabba_token')) || '';
 
 export const initSocket = async (): Promise<Socket> => {
-  if (socket?.connected) return socket;
+  if (connectingPromise) return connectingPromise;
+  const token = await readToken();
+  // Reuse the connection unless the logged-in user changed (rooms are tied to the token)
+  if (socket && token === socketToken) return socket;
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
+  connectingPromise = createSocket(token).finally(() => { connectingPromise = null; });
+  return connectingPromise;
+};
 
-  const token = (await AsyncStorage.getItem('token')) ||
-                (await AsyncStorage.getItem('user_token')) ||
-                (await AsyncStorage.getItem('dabba_token')) || '';
+const createSocket = async (token: string): Promise<Socket> => {
+  socketToken = token;
 
   const config = getSocketConfig();
   console.log(`[UserSocket] Connecting to ${config.url} (path: ${config.path})`);
@@ -55,20 +74,23 @@ export const initSocket = async (): Promise<Socket> => {
 
   socket.on('connect', () => {
     console.log('[UserSocket] Connected:', socket?.id);
+    // Rooms are per-connection: re-subscribe to tracked orders after a reconnect
+    trackedOrders.forEach((orderId) => socket?.emit('trackOrder', { orderId }));
+    anyOrderListeners.forEach((cb) => cb({ type: 'reconnected' }));
   });
 
-  socket.on('disconnect', (reason) => {
+  socket.on('disconnect', (reason: any) => {
     console.log('[UserSocket] Disconnected:', reason);
   });
 
-  socket.on('connect_error', (err) => {
+  socket.on('connect_error', (err: any) => {
     console.warn('[UserSocket] Connect error:', err.message);
   });
 
   // Handle live rider location updates
-  socket.on('delivery_location_update', (data) => {
+  socket.on('delivery_location_update', (data: any) => {
     console.log('[UserSocket] delivery_location_update:', data);
-    const orderId = data?.orderId;
+    const orderId = data?.orderId ? String(data.orderId) : '';
     if (orderId && orderListeners.has(orderId)) {
       orderListeners.get(orderId)?.forEach((cb) => cb(data));
     }
@@ -77,10 +99,11 @@ export const initSocket = async (): Promise<Socket> => {
   // Handle live status updates
   const handleStatus = (data: any) => {
     console.log('[UserSocket] status update:', data);
-    const orderId = data?.orderId;
+    const orderId = data?.orderId ? String(data.orderId) : '';
     if (orderId && statusListeners.has(orderId)) {
       statusListeners.get(orderId)?.forEach((cb) => cb(data));
     }
+    anyOrderListeners.forEach((cb) => cb(data));
   };
 
   socket.on('delivery_status_update', handleStatus);
@@ -97,7 +120,7 @@ export const trackOrder = async (
   onLocationUpdate?: (data: { lat: number; lng: number }) => void,
   onStatusUpdate?: (data: { status: string; message?: string }) => void
 ) => {
-  const s = socket || (await initSocket());
+  const s = await initSocket();
 
   if (onLocationUpdate) {
     if (!orderListeners.has(orderId)) orderListeners.set(orderId, new Set());
@@ -109,8 +132,15 @@ export const trackOrder = async (
     statusListeners.get(orderId)!.add(onStatusUpdate);
   }
 
+  trackedOrders.add(orderId);
   s.emit('trackOrder', { orderId });
-  s.emit('join_room', `order_${orderId}`);
+};
+
+/** Subscribe to status updates for any of the user's orders (and reconnects). Returns unsubscribe. */
+export const onAnyOrderUpdate = (cb: (data: any) => void) => {
+  anyOrderListeners.add(cb);
+  initSocket().catch(() => {});
+  return () => { anyOrderListeners.delete(cb); };
 };
 
 export const untrackOrder = (
@@ -125,8 +155,11 @@ export const untrackOrder = (
     statusListeners.get(orderId)!.delete(onStatusUpdate);
   }
 
-  if (socket) {
-    socket.emit('untrackOrder', { orderId });
-    socket.emit('leave_room', `order_${orderId}`);
+  const stillWatched = (orderListeners.get(orderId)?.size || 0) + (statusListeners.get(orderId)?.size || 0) > 0;
+  if (!stillWatched) {
+    trackedOrders.delete(orderId);
+    if (socket) {
+      socket.emit('untrackOrder', { orderId });
+    }
   }
 };
