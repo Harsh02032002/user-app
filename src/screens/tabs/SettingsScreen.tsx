@@ -10,9 +10,12 @@ import {
   Switch,
   ActivityIndicator,
   Alert,
+  Platform,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import { useAuth } from '../../context/AuthContext';
 import { AppHeader } from '../../components/common/AppHeader';
 import { AppFooter } from '../../components/common/AppFooter';
@@ -36,13 +39,18 @@ export function SettingsScreen() {
   const { user, updateProfile, refreshProfile, uploadAvatar, uploadBanner } = useAuth();
   const navigation = useNavigation();
   const [loading, setLoading] = useState(false);
+  const [uploadingType, setUploadingType] = useState<'profileImage' | 'banner' | null>(null);
+  const [pickerModalType, setPickerModalType] = useState<'profileImage' | 'banner' | null>(null);
+  const [avatarLoadError, setAvatarLoadError] = useState(false);
+  const [bannerLoadError, setBannerLoadError] = useState(false);
+
   const [profile, setProfile] = useState<UserProfile>({
     name: user?.name || '',
     email: user?.email || '',
     phone: user?.phone || '',
     address: user?.address || '',
     bio: user?.bio || '',
-    profileImage: user?.profileImage || '',
+    profileImage: user?.profileImage || user?.avatar || '',
     banner: user?.banner || '',
   });
 
@@ -61,20 +69,37 @@ export function SettingsScreen() {
         phone: user.phone || '',
         address: user.address || '',
         bio: user.bio || '',
-        profileImage: user.profileImage || '',
+        profileImage: user.profileImage || user.avatar || '',
         banner: user.banner || '',
       });
     }
   }, [user]);
 
+  const showMessage = (type: 'success' | 'error', title: string, message: string) => {
+    Toast.show({
+      type,
+      text1: title,
+      text2: message,
+      position: 'top',
+    });
+    if (Platform.OS !== 'web') {
+      Alert.alert(title, message);
+    }
+  };
+
   const handleSaveProfile = async () => {
     setLoading(true);
     try {
-      await updateProfile(profile);
+      await updateProfile({
+        name: profile.name,
+        phone: profile.phone,
+        address: profile.address,
+        bio: profile.bio,
+      });
       await refreshProfile();
-      Alert.alert('Success', 'Profile updated successfully');
+      showMessage('success', 'Success', 'Profile updated successfully');
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to update profile');
+      showMessage('error', 'Error', error.message || 'Failed to update profile');
     } finally {
       setLoading(false);
     }
@@ -82,116 +107,162 @@ export function SettingsScreen() {
 
   const handleChangePassword = async () => {
     if (!passwordData.currentPassword) {
-      Alert.alert('Error', 'Please enter your current password');
+      showMessage('error', 'Error', 'Please enter your current password');
       return;
     }
     if (passwordData.newPassword.length < 6) {
-      Alert.alert('Error', 'New password must be at least 6 characters');
+      showMessage('error', 'Error', 'New password must be at least 6 characters');
       return;
     }
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      showMessage('error', 'Error', 'Passwords do not match');
       return;
     }
     
     setLoading(true);
     try {
       await api.auth.changePassword(passwordData.currentPassword, passwordData.newPassword);
-      Alert.alert('Success', 'Password changed successfully');
+      showMessage('success', 'Success', 'Password changed successfully');
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to change password');
+      showMessage('error', 'Error', error.message || 'Failed to change password');
     } finally {
       setLoading(false);
     }
   };
 
+  const launchGalleryPicker = async (type: 'profileImage' | 'banner') => {
+    setPickerModalType(null);
+    try {
+      if (Platform.OS !== 'web') {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          showMessage('error', 'Permission Denied', 'Camera roll permission is required to choose a photo.');
+          return;
+        }
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: type === 'profileImage' ? [1, 1] : [16, 9],
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        await handleImageUpload(type, result.assets[0]);
+      }
+    } catch (err: any) {
+      console.error('Gallery picker error:', err);
+      showMessage('error', 'Error', err.message || 'Could not open image picker');
+    }
+  };
+
+  const launchCameraPicker = async (type: 'profileImage' | 'banner') => {
+    setPickerModalType(null);
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        showMessage('error', 'Permission Denied', 'Camera permission is required to take a photo.');
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: type === 'profileImage' ? [1, 1] : [16, 9],
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        await handleImageUpload(type, result.assets[0]);
+      }
+    } catch (err: any) {
+      console.error('Camera picker error:', err);
+      showMessage('error', 'Error', err.message || 'Could not open camera');
+    }
+  };
+
   const pickImage = async (type: 'profileImage' | 'banner') => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'Sorry, we need camera roll permissions to make this work!');
+    // On Web, directly open the file chooser dialog (Alert.alert multi-button doesn't work on Web)
+    if (Platform.OS === 'web') {
+      await launchGalleryPicker(type);
       return;
     }
-
-    Alert.alert(
-      'Update ' + (type === 'profileImage' ? 'Profile Photo' : 'Banner'),
-      'Select source',
-      [
-        { 
-          text: 'Camera', 
-          onPress: async () => {
-            const result = await ImagePicker.launchCameraAsync({
-              allowsEditing: true,
-              aspect: type === 'profileImage' ? [1, 1] : [16, 9],
-              quality: 0.8,
-            });
-            if (!result.canceled) {
-              handleImageUpload(type, result.assets[0]);
-            }
-          } 
-        },
-        { 
-          text: 'Gallery', 
-          onPress: async () => {
-            const result = await ImagePicker.launchImageLibraryAsync({
-              allowsEditing: true,
-              aspect: type === 'profileImage' ? [1, 1] : [16, 9],
-              quality: 0.8,
-            });
-            if (!result.canceled) {
-              handleImageUpload(type, result.assets[0]);
-            }
-          } 
-        },
-        { text: 'Cancel', style: 'cancel' }
-      ]
-    );
+    // On Mobile (Android/iOS), show custom modal for Camera or Gallery
+    setPickerModalType(type);
   };
 
   const handleImageUpload = async (type: 'profileImage' | 'banner', asset: any) => {
-    setLoading(true);
+    setUploadingType(type);
+    if (type === 'profileImage') {
+      setAvatarLoadError(false);
+    } else {
+      setBannerLoadError(false);
+    }
+
     // Set local preview immediately
     setProfile(prev => ({
       ...prev,
-      [type]: asset.uri
+      [type]: asset.uri,
     }));
 
     try {
       const formData = new FormData();
-      const fileName = asset.uri.split('/').pop() || (type === 'profileImage' ? 'avatar.jpg' : 'banner.jpg');
-      
-      // Extract file extension for mime type
-      const ext = fileName.split('.').pop()?.toLowerCase() || 'jpg';
-      const fileType = `image/${ext === 'png' ? 'png' : 'jpeg'}`;
-      
-      formData.append(type === 'profileImage' ? 'avatar' : 'banner', {
-        uri: asset.uri,
-        name: fileName,
-        type: fileType,
-      } as any);
+      const fieldName = type === 'profileImage' ? 'avatar' : 'banner';
+      const defaultFileName = type === 'profileImage' ? 'avatar.jpg' : 'banner.jpg';
+
+      if (Platform.OS === 'web') {
+        if (asset.file) {
+          const validName =
+            asset.file.name && /\.(jpg|jpeg|png|gif|webp)$/i.test(asset.file.name)
+              ? asset.file.name
+              : defaultFileName;
+          formData.append(fieldName, asset.file, validName);
+        } else {
+          const response = await fetch(asset.uri);
+          const blob = await response.blob();
+          const mime = blob.type || asset.mimeType || 'image/jpeg';
+          const ext = mime.includes('png') ? 'png' : mime.includes('webp') ? 'webp' : 'jpg';
+          formData.append(fieldName, blob, `${fieldName}.${ext}`);
+        }
+      } else {
+        const rawName = asset.fileName || asset.uri.split('/').pop() || defaultFileName;
+        const fileName = /\.(jpg|jpeg|png|gif|webp)$/i.test(rawName) ? rawName : defaultFileName;
+        const ext = fileName.split('.').pop()?.toLowerCase() || 'jpg';
+        const fileType =
+          asset.mimeType ||
+          `image/${ext === 'png' ? 'png' : ext === 'webp' ? 'webp' : 'jpeg'}`;
+
+        formData.append(fieldName, {
+          uri: asset.uri,
+          name: fileName,
+          type: fileType,
+        } as any);
+      }
 
       if (type === 'profileImage') {
         await uploadAvatar(formData);
       } else {
         await uploadBanner(formData);
       }
-      
-      // The update is handled by the AuthContext, which updates the 'user' object.
-      // Our useEffect will then sync the 'profile' state.
-      
-      Alert.alert('Success', `${type === 'profileImage' ? 'Profile photo' : 'Banner'} updated successfully`);
+
+      showMessage(
+        'success',
+        'Success',
+        `${type === 'profileImage' ? 'Profile photo' : 'Banner image'} updated successfully`
+      );
     } catch (error: any) {
       console.error('Image upload error:', error);
-      Alert.alert('Error', error.message || 'Failed to upload image');
+      showMessage('error', 'Upload Failed', error.message || 'Failed to upload image');
       // Revert to original user data on error
       setProfile(prev => ({
         ...prev,
-        [type]: type === 'profileImage' ? user?.profileImage || user?.avatar : user?.banner
+        [type]: (type === 'profileImage' ? user?.profileImage || user?.avatar : user?.banner) || '',
       }));
     } finally {
-      setLoading(false);
+      setUploadingType(null);
     }
   };
+
+  const resolvedAvatarUri = getImageUrl(profile.profileImage || user?.avatar || user?.profileImage);
+  const resolvedBannerUri = getImageUrl(profile.banner || user?.banner);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -207,45 +278,104 @@ export function SettingsScreen() {
 
           {/* Profile Picture */}
           <View style={styles.profileSection}>
-            <TouchableOpacity onPress={() => pickImage('profileImage')} style={styles.avatarContainer}>
-              {profile.profileImage || user?.avatar || user?.profileImage ? (
+            <TouchableOpacity
+              onPress={() => pickImage('profileImage')}
+              style={styles.avatarContainer}
+              disabled={uploadingType === 'profileImage'}
+              activeOpacity={0.8}
+            >
+              {resolvedAvatarUri && !avatarLoadError ? (
                 <Image 
-                  source={{ uri: getImageUrl(profile.profileImage || user?.avatar || user?.profileImage) || undefined }} 
-                  style={styles.avatar} 
+                  source={{ uri: resolvedAvatarUri }} 
+                  style={styles.avatar}
+                  onError={() => setAvatarLoadError(true)}
                 />
               ) : (
                 <View style={styles.avatarPlaceholder}>
-                  <Ionicons name="person" size={40} color="#999" />
+                  <Ionicons name="person" size={40} color="#FF6B00" />
+                </View>
+              )}
+              {uploadingType === 'profileImage' && (
+                <View style={styles.avatarLoadingOverlay}>
+                  <ActivityIndicator size="small" color="#fff" />
                 </View>
               )}
               <View style={styles.cameraButton}>
                 <Ionicons name="camera" size={16} color="#fff" />
               </View>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => pickImage('profileImage')} style={styles.changePhotoButton}>
-              <Ionicons name="camera-outline" size={16} color="#FF6B00" />
-              <Text style={styles.changePhotoText}>Change Photo</Text>
+            <TouchableOpacity
+              onPress={() => pickImage('profileImage')}
+              style={styles.changePhotoButton}
+              disabled={uploadingType === 'profileImage'}
+              activeOpacity={0.8}
+            >
+              {uploadingType === 'profileImage' ? (
+                <ActivityIndicator size="small" color="#FF6B00" />
+              ) : (
+                <Ionicons name="camera-outline" size={16} color="#FF6B00" />
+              )}
+              <Text style={styles.changePhotoText}>
+                {uploadingType === 'profileImage' ? 'Uploading...' : 'Change Photo'}
+              </Text>
             </TouchableOpacity>
           </View>
 
           {/* Banner Image */}
           <View style={[styles.inputGroup, { marginBottom: 0 }]}>
-            <Text style={styles.label}>Banner Image</Text>
-            <TouchableOpacity onPress={() => pickImage('banner')} style={[styles.bannerContainer, { marginBottom: 10 }]}>
-              {profile.banner || user?.banner ? (
-                <Image 
-                  source={{ uri: getImageUrl(profile.banner || user?.banner) || undefined }} 
-                  style={styles.bannerImage} 
-                />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <Text style={[styles.label, { marginBottom: 0 }]}>Banner Image</Text>
+              <TouchableOpacity
+                onPress={() => pickImage('banner')}
+                disabled={uploadingType === 'banner'}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+              >
+                <Ionicons name="cloud-upload-outline" size={15} color="#FF6B00" />
+                <Text style={{ fontSize: 13, fontWeight: '600', color: '#FF6B00' }}>
+                  {uploadingType === 'banner'
+                    ? 'Uploading...'
+                    : resolvedBannerUri && !bannerLoadError
+                    ? 'Change Banner'
+                    : 'Upload Banner'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              onPress={() => pickImage('banner')}
+              style={[styles.bannerContainer, { marginBottom: 10 }]}
+              disabled={uploadingType === 'banner'}
+              activeOpacity={0.85}
+            >
+              {resolvedBannerUri && !bannerLoadError ? (
+                <>
+                  <Image 
+                    source={{ uri: resolvedBannerUri }} 
+                    style={styles.bannerImage}
+                    resizeMode="cover"
+                    onError={() => setBannerLoadError(true)}
+                  />
+                  <View style={styles.bannerEditBadge}>
+                    <Ionicons name="camera" size={14} color="#fff" />
+                    <Text style={styles.bannerEditBadgeText}>Tap to change</Text>
+                  </View>
+                </>
               ) : (
                 <View style={styles.bannerPlaceholder}>
-                  <Ionicons name="camera-outline" size={24} color="#999" />
-                  <Text style={styles.bannerPlaceholderText}>Upload Banner</Text>
+                  <View style={styles.bannerUploadIconCircle}>
+                    <Ionicons name="camera-outline" size={24} color="#FF6B00" />
+                  </View>
+                  <Text style={styles.bannerPlaceholderText}>Tap to Upload Banner Photo</Text>
+                  <Text style={{ fontSize: 11, color: '#9CA3AF' }}>JPG, PNG or WEBP (16:9 recommended)</Text>
                 </View>
               )}
-              <View style={styles.bannerOverlay}>
-                <Ionicons name="camera" size={24} color="#fff" />
-              </View>
+              {uploadingType === 'banner' && (
+                <View style={styles.bannerLoadingOverlay}>
+                  <ActivityIndicator size="large" color="#fff" />
+                  <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600', marginTop: 6 }}>
+                    Uploading Banner...
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
 
@@ -364,6 +494,62 @@ export function SettingsScreen() {
         <View style={{ height: 20 }} />
         <AppFooter />
       </ScrollView>
+
+      {/* Camera / Gallery Picker Modal for Mobile */}
+      <Modal
+        visible={pickerModalType !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPickerModalType(null)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setPickerModalType(null)}
+        >
+          <View style={styles.pickerModalSheet}>
+            <Text style={styles.pickerModalTitle}>
+              {pickerModalType === 'profileImage' ? 'Update Profile Photo' : 'Update Banner Image'}
+            </Text>
+            <Text style={styles.pickerModalSubtitle}>Choose an image source</Text>
+
+            <TouchableOpacity
+              style={styles.pickerOptionBtn}
+              onPress={() => pickerModalType && launchCameraPicker(pickerModalType)}
+            >
+              <View style={[styles.pickerOptionIcon, { backgroundColor: '#FFF5F0' }]}>
+                <Ionicons name="camera" size={22} color="#FF6B00" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.pickerOptionTitle}>Take Photo</Text>
+                <Text style={styles.pickerOptionDesc}>Use your camera to capture a new photo</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.pickerOptionBtn}
+              onPress={() => pickerModalType && launchGalleryPicker(pickerModalType)}
+            >
+              <View style={[styles.pickerOptionIcon, { backgroundColor: '#EFF6FF' }]}>
+                <Ionicons name="images" size={22} color="#3B82F6" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.pickerOptionTitle}>Choose from Gallery</Text>
+                <Text style={styles.pickerOptionDesc}>Select an existing photo from your device</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.pickerCancelBtn}
+              onPress={() => setPickerModalType(null)}
+            >
+              <Text style={styles.pickerCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -418,23 +604,37 @@ const styles = StyleSheet.create({
   },
   avatarContainer: {
     position: 'relative',
+    width: 80,
+    height: 80,
   },
   avatar: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    borderWidth: 4,
-    borderColor: '#fff',
+    borderWidth: 2,
+    borderColor: '#FF6B00',
+    backgroundColor: '#FFF5F0',
   },
   avatarPlaceholder: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFF5F0',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#e5e5e5',
+    borderColor: '#FFCFB3',
+  },
+  avatarLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   cameraButton: {
     position: 'absolute',
@@ -454,22 +654,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFF5F0',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#FFCFB3',
     gap: 8,
   },
   changePhotoText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#FF6B00',
   },
   bannerContainer: {
-    height: 120,
+    height: 140,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFF9F5',
     borderWidth: 2,
-    borderColor: '#e5e5e5',
+    borderColor: '#FFCFB3',
     borderStyle: 'dashed',
     position: 'relative',
   },
@@ -481,22 +683,109 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
+  },
+  bannerUploadIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFF0E5',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   bannerPlaceholderText: {
     fontSize: 14,
-    color: '#999',
+    fontWeight: '600',
+    color: '#FF6B00',
   },
-  bannerOverlay: {
+  bannerEditBadge: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  bannerEditBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  bannerLoadingOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    opacity: 0,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  pickerModalSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 22,
+    paddingBottom: 32,
+  },
+  pickerModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  pickerModalSubtitle: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginBottom: 18,
+  },
+  pickerOptionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: '#F9FAFB',
+    marginBottom: 10,
+    gap: 14,
+  },
+  pickerOptionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pickerOptionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  pickerOptionDesc: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  pickerCancelBtn: {
+    marginTop: 6,
+    paddingVertical: 13,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+  },
+  pickerCancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#374151',
   },
   formRow: {
     flexDirection: 'row',

@@ -16,29 +16,13 @@ import { useNavigation, useRoute, RouteProp, useIsFocused } from '@react-navigat
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import api, { API_ENDPOINTS, getImageUrl } from '../config/api';
+import api, { API_ENDPOINTS, getImageUrl, getSubscriptionPlanImage } from '../config/api';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { AppHeader } from '../components/common/AppHeader';
 
 const { width } = Dimensions.get('window');
 
-const BASE_IMAGE_URL = 'https://dabbanation.in';
-
-const getBannerSource = (item: any) => {
-  let imgPath = item.banner_image || item.image || item.plan_image;
-  
-  if (!imgPath) {
-    const name = (item.plan_name || '').toLowerCase();
-    const days = item.total_days;
-    let path = 'weekly.png';
-    if (name.includes('weekly') || name.includes('7 day') || days <= 7) path = 'weekly.png';
-    else if (name.includes('fortnightly') || name.includes('15 day') || name.includes('14 day') || days <= 15) path = 'fortnightly.png';
-    else if (name.includes('monthly') || name.includes('30 day') || days > 15) path = 'monthly.png';
-    imgPath = `/uploads/subscriptions/${path}`;
-  }
-  
-  return { uri: getImageUrl(imgPath) };
-};
+const getBannerSource = (item: any) => getSubscriptionPlanImage(item);
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -257,7 +241,7 @@ export default function SubscriptionPlansScreen() {
                       <Image 
                         source={bannerSource} 
                         style={styles.headerImage} 
-                        contentFit="contain"
+                        contentFit="cover"
                         onLoad={() => console.log(`[SubscriptionPlansScreen] Image loaded successfully: ${plan.plan_name}`)}
                         onError={(err) => console.error(`[SubscriptionPlansScreen] Image load failed for ${plan.plan_name}:`, err)}
                       />

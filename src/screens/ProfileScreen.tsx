@@ -42,6 +42,11 @@ const MenuItem = ({ icon, title, subtitle, onPress, showArrow = true, color = '#
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const navigation = useNavigation<NavigationProp>();
+  const [avatarError, setAvatarError] = React.useState(false);
+
+  React.useEffect(() => {
+    setAvatarError(false);
+  }, [user?.avatar, user?.profileImage]);
 
   const handleLogout = () => {
     Alert.alert(
@@ -54,6 +59,8 @@ export default function ProfileScreen() {
     );
   };
 
+  const avatarUri = getImageUrl(user?.avatar || user?.profileImage);
+
   return (
     <ScrollView style={styles.container}>
       {/* Header */}
@@ -64,10 +71,11 @@ export default function ProfileScreen() {
       {/* Profile Card */}
       <View style={styles.profileCard}>
         <View style={styles.avatar}>
-          {user?.avatar || user?.profileImage ? (
+          {avatarUri && !avatarError ? (
             <Image 
-              source={{ uri: getImageUrl(user.avatar || user.profileImage) || undefined }} 
-              style={styles.avatarImage} 
+              source={{ uri: avatarUri }} 
+              style={styles.avatarImage}
+              onError={() => setAvatarError(true)}
             />
           ) : (
             <Text style={styles.avatarText}>
@@ -80,7 +88,7 @@ export default function ProfileScreen() {
           <Text style={styles.profilePhone}>{user?.phone || ''}</Text>
           <Text style={styles.profileEmail}>{user?.email || ''}</Text>
         </View>
-        <TouchableOpacity style={styles.editBtn}>
+        <TouchableOpacity style={styles.editBtn} onPress={() => navigation.navigate('Settings')}>
           <Ionicons name="pencil" size={18} color="#FF6B00" />
         </TouchableOpacity>
       </View>

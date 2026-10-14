@@ -74,8 +74,11 @@ export default function OrderDetailsScreen() {
 
   const [loading, setLoading] = useState(true);
   const [order, setOrder] = useState<OrderDetails | null>(null);
-  const [riderCoords, setRiderCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [riderCoords, setRiderCoords] = useState<{ lat: number; lng: number; heading?: number | null } | null>(null);
   const [riderInfo, setRiderInfo] = useState<any>(null);
+  const [trackedPickupCoords, setTrackedPickupCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [trackedDropCoords, setTrackedDropCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [deliveryStatus, setDeliveryStatus] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
 
@@ -88,12 +91,37 @@ export default function OrderDetailsScreen() {
     if (!orderId) return;
     const onLocation = (loc: any) => {
       if (loc?.lat && loc?.lng) {
-        setRiderCoords({ lat: loc.lat, lng: loc.lng });
+        setRiderCoords({
+          lat: Number(loc.lat),
+          lng: Number(loc.lng),
+          heading: loc.heading != null ? Number(loc.heading) : null,
+        });
+      }
+      if (loc?.pickupCoords?.lat && loc?.pickupCoords?.lng) {
+        setTrackedPickupCoords(loc.pickupCoords);
+      }
+      if (loc?.dropCoords?.lat && loc?.dropCoords?.lng) {
+        setTrackedDropCoords(loc.dropCoords);
+      }
+      if (loc?.riderInfo) {
+        setRiderInfo((prev: any) => ({ ...prev, ...loc.riderInfo }));
+      }
+      if (loc?.deliveryStatus !== undefined) {
+        setDeliveryStatus(loc.deliveryStatus);
+      }
+      if (loc?.status) {
+        setOrder((prev: any) => (prev ? { ...prev, status: loc.status } : prev));
       }
     };
     const onStatus = (statusData: any) => {
       if (statusData?.status) {
-        setOrder((prev: any) => prev ? { ...prev, status: statusData.status } : prev);
+        setOrder((prev: any) => (prev ? { ...prev, status: statusData.status } : prev));
+      }
+      if (statusData?.deliveryStatus !== undefined) {
+        setDeliveryStatus(statusData.deliveryStatus);
+      }
+      if (statusData?.riderInfo) {
+        setRiderInfo((prev: any) => ({ ...prev, ...statusData.riderInfo }));
       }
     };
     trackOrder(orderId as string, onLocation, onStatus);
@@ -109,13 +137,19 @@ export default function OrderDetailsScreen() {
         api.user.getOrderTracking(orderId as string),
       ]);
       if (orderRes.status === 'fulfilled') {
-        const d = orderRes.value?.data || orderRes.value;
-        setOrder(d);
+        const d = orderRes.value?.order || orderRes.value?.data || orderRes.value;
+        if (d && d._id) {
+          setOrder(d);
+          if (d.deliveryStatus) setDeliveryStatus(d.deliveryStatus);
+        }
       }
       if (trackRes.status === 'fulfilled') {
         const t = trackRes.value?.order || trackRes.value;
         if (t?.riderLocation) setRiderCoords(t.riderLocation);
         if (t?.riderInfo) setRiderInfo(t.riderInfo);
+        if (t?.pickupCoords?.lat && t?.pickupCoords?.lng) setTrackedPickupCoords(t.pickupCoords);
+        if (t?.dropCoords?.lat && t?.dropCoords?.lng) setTrackedDropCoords(t.dropCoords);
+        if (t?.deliveryStatus) setDeliveryStatus(t.deliveryStatus);
       }
     } catch (error) {
       console.error('Error fetching order details:', error);
@@ -197,7 +231,68 @@ export default function OrderDetailsScreen() {
   }
 
   const deliveryCoordinates = extractCoordinates(order.deliveryAddress);
-  const mapRegion = deliveryCoordinates || userLocation;
+  const resolvedPickupCoords =
+    trackedPickupCoords ||
+    (order.sellerId?.address?.location?.coordinates
+      ? [order.sellerId.address.location.coordinates[0], order.sellerId.address.location.coordinates[1]]
+      : undefined);
+  const resolvedDropCoords =
+    trackedDropCoords ||
+    (deliveryCoordinates ? [deliveryCoordinates.longitude, deliveryCoordinates.latitude] : undefined);
+
+  const currentStage: 'to_restaurant' | 'to_customer' | 'delivered' =
+    order.status === 'delivered' || deliveryStatus === 'delivered'
+      ? 'delivered'
+      : deliveryStatus === 'picked_up' || order.status === 'out_for_delivery'
+      ? 'to_customer'
+      : 'to_restaurant';
+
+  const getLiveStageBanner = () => {
+    if (order.status === 'delivered' || deliveryStatus === 'delivered') {
+      return { icon: 'checkmark-circle', title: 'Order Delivered!', subtitle: 'Enjoy your meal from Dabba Nation', bg: '#DCFCE7', color: '#166534' };
+    }
+    if (currentStage === 'to_customer') {
+      return {
+        icon: 'bicycle',
+        title: 'Order is on the way!',
+        subtitle: riderInfo?.name
+          ? `${riderInfo.name} has picked up your order and is riding to your location`
+          : 'Delivery partner has picked up your order and is riding to your location',
+        bg: '#ECFDF5',
+        color: '#065F46',
+      };
+    }
+    if (deliveryStatus === 'arrived_at_restaurant') {
+      return {
+        icon: 'storefront',
+        title: 'Rider reached the kitchen',
+        subtitle: 'Waiting to pick up your freshly prepared order',
+        bg: '#FFF7ED',
+        color: '#9A3412',
+      };
+    }
+    if (riderInfo || deliveryStatus === 'assigned') {
+      return {
+        icon: 'bicycle',
+        title: 'Delivery Partner Assigned',
+        subtitle: `${riderInfo?.name || 'Rider'} is heading to the kitchen to pick up your order`,
+        bg: '#EFF6FF',
+        color: '#1E40AF',
+      };
+    }
+    return {
+      icon: 'restaurant',
+      title: 'Kitchen is preparing your order',
+      subtitle: 'A delivery partner near the restaurant will be assigned shortly',
+      bg: '#FFF7ED',
+      color: '#9A3412',
+    };
+  };
+
+  const liveBanner = getLiveStageBanner();
+  const itemTotal = order.totalAmount ?? (order as any).subtotal ?? (order as any).total ?? 0;
+  const delivCharges = order.deliveryCharges ?? (order as any).deliveryFee ?? 0;
+  const totalPaid = order.onlineAmountPaid ?? (order as any).total ?? itemTotal + delivCharges;
 
   return (
     <View style={styles.container}>
@@ -224,118 +319,49 @@ export default function OrderDetailsScreen() {
           <Text style={styles.orderDate}>{formatDate(order.createdAt)}</Text>
         </View>
 
-        {/* Seller Info */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Order From</Text>
-          <View style={styles.sellerCard}>
-            <View style={styles.sellerIcon}>
-              <Ionicons name="restaurant" size={24} color="#FF6B00" />
-            </View>
-            <View style={styles.sellerInfo}>
-              <Text style={styles.sellerName}>{order.sellerId?.shopName || order.sellerId?.businessName || order.sellerId?.name}</Text>
-              <Text style={styles.sellerPhone}>{order.sellerId?.phone}</Text>
-            </View>
-            <TouchableOpacity style={styles.callBtn}>
-              <Ionicons name="call" size={20} color="#FF6B00" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Items */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Items Ordered</Text>
-          <View style={styles.itemsCard}>
-            {order.items.map((item, index) => (
-              <View key={index} style={styles.itemRow}>
-                <View style={styles.itemInfo}>
-                  <Text style={styles.itemName}>{item.name}</Text>
-                  <Text style={styles.itemQty}>x{item.quantity}</Text>
-                </View>
-                <Text style={styles.itemPrice}>Rs. {item.price * item.quantity}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Payment Details */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Payment Details</Text>
-          <View style={styles.billCard}>
-            <View style={styles.billRow}>
-              <Text style={styles.billLabel}>Item Total</Text>
-              <Text style={styles.billValue}>Rs. {order.totalAmount}</Text>
-            </View>
-            <View style={styles.billRow}>
-              <Text style={styles.billLabel}>Delivery Charges</Text>
-              <Text style={styles.billValue}>Rs. {order.deliveryCharges}</Text>
-            </View>
-
-            {order.subscriptionAmountUsed > 0 && (
-              <View style={[styles.billRow, styles.subscriptionRow]}>
-                <View>
-                  <Text style={styles.subscriptionLabel}>Subscription Balance Used</Text>
-                  <Text style={styles.daysDeducted}>
-                    {order.daysDeducted} days deducted from subscription
-                  </Text>
-                </View>
-                <Text style={styles.subscriptionValue}>- Rs. {order.subscriptionAmountUsed}</Text>
-              </View>
-            )}
-
-            <View style={styles.divider} />
-
-            <View style={styles.billRow}>
-              <Text style={styles.totalLabel}>Total Paid</Text>
-              <Text style={styles.totalValue}>Rs. {order.onlineAmountPaid}</Text>
-            </View>
-
-            <View style={styles.paymentMethod}>
-              <Ionicons name="card" size={16} color="#888" />
-              <Text style={styles.paymentMethodText}>
-                {order.paymentMethod === 'subscription'
-                  ? 'Paid via Subscription Balance'
-                  : order.paymentMethod === 'hybrid'
-                  ? 'Hybrid Payment (Subscription + Online)'
-                  : 'Online Payment'}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Delivery Address */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Delivery Address</Text>
-          <View style={styles.addressCard}>
-            <Ionicons name="location" size={20} color="#FF6B00" />
-            <View style={styles.addressInfo}>
-              <Text style={styles.addressText}>
-                {order.deliveryAddress?.fullAddress || order.deliveryAddress?.street || order.deliveryAddress?.address || 'Delivery Address'}
-              </Text>
-              <Text style={styles.addressCity}>
-                {[order.deliveryAddress?.city, order.deliveryAddress?.state, order.deliveryAddress?.pincode].filter(Boolean).join(', ')}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Map & Live Delivery Tracking */}
-        {mapRegion && (
+        {/* Map & Live Delivery Tracking (Moved near top like Blinkit!) */}
+        {order.status !== 'cancelled' && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Live Delivery Tracking</Text>
+            <Text style={styles.sectionTitle}>Live Order Tracking</Text>
+
+            {/* Blinkit-style Live Stage Banner */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: liveBanner.bg,
+                padding: 12,
+                borderRadius: 12,
+                marginBottom: 10,
+                gap: 10,
+              }}
+            >
+              <Ionicons name={liveBanner.icon as any} size={24} color={liveBanner.color} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: liveBanner.color }}>
+                  {liveBanner.title}
+                </Text>
+                <Text style={{ fontSize: 12, color: liveBanner.color, opacity: 0.85, marginTop: 2 }}>
+                  {liveBanner.subtitle}
+                </Text>
+              </View>
+            </View>
+
             <View style={styles.mapContainer}>
               <DeliveryMap
-                pickupCoords={
-                  order.sellerId?.address?.location?.coordinates 
-                    ? [order.sellerId.address.location.coordinates[0], order.sellerId.address.location.coordinates[1]] 
-                    : undefined
-                }
-                dropCoords={(() => {
-                  const coords = extractCoordinates(order.deliveryAddress);
-                  return coords ? [coords.longitude, coords.latitude] : undefined;
-                })()}
+                pickupCoords={resolvedPickupCoords}
+                dropCoords={resolvedDropCoords}
                 riderCoords={riderCoords}
+                riderHeading={riderCoords?.heading}
+                deliveryStage={currentStage}
                 restaurantName={order.sellerId?.shopName || order.sellerId?.businessName || 'Restaurant'}
-                height={250}
+                dropLabel={
+                  order.deliveryAddress?.fullAddress ||
+                  order.deliveryAddress?.street ||
+                  order.deliveryAddress?.address ||
+                  'Your Location'
+                }
+                height={260}
               />
             </View>
 
@@ -360,16 +386,16 @@ export default function OrderDetailsScreen() {
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}>
-                  <Text style={{ fontSize: 20 }}>🛵</Text>
+                  <Ionicons name="bicycle" size={20} color="#166534" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 14, fontWeight: '700', color: '#166534' }}>
                     {riderInfo.name || 'Delivery Partner'}
                   </Text>
                   <Text style={{ fontSize: 12, color: '#15803D', marginTop: 1 }}>
-                    {riderInfo.vehicleType ? String(riderInfo.vehicleType).toUpperCase() : 'BIKE'}
+                    {riderInfo.vehicleType ? String(riderInfo.vehicleType).toUpperCase() : 'SCOOTER'}
                     {riderInfo.vehicleNumber ? ` • ${riderInfo.vehicleNumber}` : ''}
-                    {' '}| ⭐ {riderInfo.rating || '5.0'}
+                    {' '}| Rating: {riderInfo.rating || '5.0'}
                   </Text>
                 </View>
                 {riderInfo.phone ? (
@@ -397,6 +423,105 @@ export default function OrderDetailsScreen() {
             )}
           </View>
         )}
+
+        {/* Seller Info */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Order From</Text>
+          <View style={styles.sellerCard}>
+            <View style={styles.sellerIcon}>
+              <Ionicons name="restaurant" size={24} color="#FF6B00" />
+            </View>
+            <View style={styles.sellerInfo}>
+              <Text style={styles.sellerName}>{order.sellerId?.shopName || order.sellerId?.businessName || order.sellerId?.name}</Text>
+              <Text style={styles.sellerPhone}>{order.sellerId?.phone}</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.callBtn}
+              onPress={() => order.sellerId?.phone && Linking.openURL(`tel:${order.sellerId.phone}`)}
+            >
+              <Ionicons name="call" size={20} color="#FF6B00" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Items */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Items Ordered</Text>
+          <View style={styles.itemsCard}>
+            {(order.items || []).map((item, index) => (
+              <View key={index} style={styles.itemRow}>
+                <View style={styles.itemInfo}>
+                  <Text style={styles.itemName}>{item.name}</Text>
+                  <Text style={styles.itemQty}>x{item.quantity}</Text>
+                </View>
+                <Text style={styles.itemPrice}>Rs. {item.price * item.quantity}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Payment Details */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Payment Details</Text>
+          <View style={styles.billCard}>
+            <View style={styles.billRow}>
+              <Text style={styles.billLabel}>Item Total</Text>
+              <Text style={styles.billValue}>Rs. {itemTotal}</Text>
+            </View>
+            <View style={styles.billRow}>
+              <Text style={styles.billLabel}>Delivery Charges</Text>
+              <Text style={styles.billValue}>Rs. {delivCharges}</Text>
+            </View>
+
+            {order.subscriptionAmountUsed > 0 && (
+              <View style={[styles.billRow, styles.subscriptionRow]}>
+                <View>
+                  <Text style={styles.subscriptionLabel}>Subscription Balance Used</Text>
+                  <Text style={styles.daysDeducted}>
+                    {order.daysDeducted} days deducted from subscription
+                  </Text>
+                </View>
+                <Text style={styles.subscriptionValue}>- Rs. {order.subscriptionAmountUsed}</Text>
+              </View>
+            )}
+
+            <View style={styles.divider} />
+
+            <View style={styles.billRow}>
+              <Text style={styles.totalLabel}>Total Paid</Text>
+              <Text style={styles.totalValue}>Rs. {totalPaid}</Text>
+            </View>
+
+            <View style={styles.paymentMethod}>
+              <Ionicons name="card" size={16} color="#888" />
+              <Text style={styles.paymentMethodText}>
+                {order.paymentMethod === 'subscription'
+                  ? 'Paid via Subscription Balance'
+                  : order.paymentMethod === 'hybrid'
+                  ? 'Hybrid Payment (Subscription + Online)'
+                  : order.paymentMethod === 'cod'
+                  ? 'Cash on Delivery (COD)'
+                  : 'Online Payment'}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Delivery Address */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Delivery Address</Text>
+          <View style={styles.addressCard}>
+            <Ionicons name="location" size={20} color="#FF6B00" />
+            <View style={styles.addressInfo}>
+              <Text style={styles.addressText}>
+                {order.deliveryAddress?.fullAddress || order.deliveryAddress?.street || order.deliveryAddress?.address || 'Delivery Address'}
+              </Text>
+              <Text style={styles.addressCity}>
+                {[order.deliveryAddress?.city, (order.deliveryAddress as any)?.state, order.deliveryAddress?.pincode].filter(Boolean).join(', ')}
+              </Text>
+            </View>
+          </View>
+        </View>
 
         <View style={{ height: 40 }} />
       </ScrollView>

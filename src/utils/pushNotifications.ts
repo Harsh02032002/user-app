@@ -56,12 +56,25 @@ export async function registerForPushNotifications(authToken: string | null): Pr
     const projectId =
       (Constants.expoConfig as any)?.extra?.eas?.projectId ||
       (Constants as any)?.easConfig?.projectId;
-    if (!projectId) {
-      console.log('[Push] No EAS projectId in app.json - run `eas init` in DabbaExpoApp');
-      return null;
+
+    let pushToken: string | null = null;
+    try {
+      const { data } = await Notifications.getExpoPushTokenAsync(
+        projectId ? { projectId } : undefined
+      );
+      pushToken = data;
+    } catch (expoErr: any) {
+      console.log('[Push] Expo token fallback to native FCM device token:', expoErr?.message);
+      try {
+        const deviceToken = await Notifications.getDevicePushTokenAsync();
+        pushToken = typeof deviceToken?.data === 'string' ? deviceToken.data : null;
+      } catch {}
     }
 
-    const { data: pushToken } = await Notifications.getExpoPushTokenAsync({ projectId });
+    if (!pushToken) {
+      console.log('[Push] Could not obtain push token');
+      return null;
+    }
 
     await fetch(`${getApiBaseUrl()}/user/push-token`, {
       method: 'POST',
@@ -79,3 +92,38 @@ export async function registerForPushNotifications(authToken: string | null): Pr
     return null;
   }
 }
+
+/**
+ * Displays a native OS push notification banner immediately (with sound & vibration on 'orders' channel).
+ * Used when real-time Socket.IO notification events arrive so phone banners always fire reliably.
+ */
+export async function showLocalPushNotification(
+  title: string,
+  body: string,
+  data: Record<string, any> = {}
+) {
+  try {
+    if (Platform.OS === 'web') return;
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('orders', {
+        name: 'Orders',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        sound: 'default',
+      });
+    }
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body,
+        data,
+        sound: 'default',
+        ...(Platform.OS === 'android' ? { channelId: 'orders' } : {}),
+      } as any,
+      trigger: null,
+    });
+  } catch (err: any) {
+    console.log('[Push] Local notification error:', err?.message || err);
+  }
+}
+

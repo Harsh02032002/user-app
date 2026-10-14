@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getImageUrl } from '../../config/api';
+import { getImageUrl, getSubscriptionPlanImage } from '../../config/api';
 import { api } from '../../services/api';
 import { LOCATION_COORDS_KEY, LOCATION_NAME_KEY } from '../../utils/location';
 import { AppHeader } from '../../components/common/AppHeader';
@@ -484,19 +484,7 @@ export function HomeScreen() {
   ), []);
 
   const renderSubscriptionPlan = React.useCallback(({ item }: any) => {
-    // Resolve banner image
-    let imgPath = item.banner_image || item.image || item.plan_image;
-    
-    if (!imgPath) {
-      // Fallback to a default based on days if no image provided by API
-      let path = 'weekly.png';
-      if (item.total_days <= 7) path = 'weekly.png';
-      else if (item.total_days <= 14) path = 'fortnightly.png';
-      else path = 'monthly.png';
-      imgPath = `/uploads/subscriptions/${path}`;
-    }
-
-    const bannerSource = { uri: getImageUrl(imgPath) };
+    const bannerSource = getSubscriptionPlanImage(item);
 
     return (
       <TouchableOpacity 
@@ -504,7 +492,7 @@ export function HomeScreen() {
         onPress={() => navigation.navigate('SubscriptionPlans', { planId: item._id })}
       >
         <View style={styles.planImageContainer}>
-          <Image source={bannerSource} style={styles.planImage} />
+          <Image source={bannerSource} style={styles.planImage} contentFit="cover" />
           {item.badge && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{item.badge}</Text>
@@ -550,27 +538,30 @@ export function HomeScreen() {
               contentContainerStyle={styles.filterContainer}
             >
               <TouchableOpacity 
-                style={[styles.filterButton, selectedType === 'all' && styles.filterButtonActive]}
+                style={[styles.filterButton, selectedType === 'all' && styles.filterButtonActive, { flexDirection: 'row', alignItems: 'center', gap: 5 }]}
                 onPress={() => setSelectedType('all')}
               >
+                <Ionicons name="sparkles-outline" size={14} color={selectedType === 'all' ? '#fff' : '#4B5563'} />
                 <Text style={[styles.filterText, selectedType === 'all' && styles.filterTextActive]}>
-                  🌟 All
+                  All
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity 
-                style={[styles.filterButton, selectedType === 'home_chef' && styles.filterButtonActive]}
+                style={[styles.filterButton, selectedType === 'home_chef' && styles.filterButtonActive, { flexDirection: 'row', alignItems: 'center', gap: 5 }]}
                 onPress={() => setSelectedType('home_chef')}
               >
+                <Ionicons name="home-outline" size={14} color={selectedType === 'home_chef' ? '#fff' : '#4B5563'} />
                 <Text style={[styles.filterText, selectedType === 'home_chef' && styles.filterTextActive]}>
-                  🏠 Home Chef
+                  Home Chef
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity 
-                style={[styles.filterButton, selectedType === 'restaurant' && styles.filterButtonActive]}
+                style={[styles.filterButton, selectedType === 'restaurant' && styles.filterButtonActive, { flexDirection: 'row', alignItems: 'center', gap: 5 }]}
                 onPress={() => setSelectedType('restaurant')}
               >
+                <Ionicons name="restaurant-outline" size={14} color={selectedType === 'restaurant' ? '#fff' : '#4B5563'} />
                 <Text style={[styles.filterText, selectedType === 'restaurant' && styles.filterTextActive]}>
-                  🍽️ Restaurant
+                  Restaurant
                 </Text>
               </TouchableOpacity>
             </ScrollView>
@@ -591,7 +582,7 @@ export function HomeScreen() {
         {/* Sellers Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            {locationName ? `📍 Near ${locationName}` :
+            {locationName ? `Near ${locationName}` :
              selectedType === 'home_chef' ? 'Home Chefs Near You' : 
              selectedType === 'restaurant' ? 'Top Restaurants' : 'All Sellers'}
           </Text>

@@ -245,7 +245,11 @@ export function ProfileScreen() {
         {/* App Version */}
         <View style={styles.versionContainer}>
           <Text style={styles.versionText}>Dabba Delights v1.0.0</Text>
-          <Text style={styles.versionSubtext}>Made with ❤️ in India</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={styles.versionSubtext}>Made with</Text>
+            <Ionicons name="heart" size={12} color="#EF4444" />
+            <Text style={styles.versionSubtext}>in India</Text>
+          </View>
         </View>
         
         <View style={{ height: 96 }} />

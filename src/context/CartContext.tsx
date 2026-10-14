@@ -58,7 +58,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (savedCart) {
         const parsedCart = JSON.parse(savedCart);
         if (Array.isArray(parsedCart)) {
-          setItems(parsedCart);
+          const normalized = parsedCart.map((item: any, idx: number) => ({
+            ...item,
+            id: String(item.id || item._id || item.menuItemId || item.name || idx),
+          }));
+          setItems(normalized);
         } else {
           setItems([]);
         }
@@ -81,7 +85,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addToCart = React.useCallback((newItem: any, argSellerId?: any, argSellerName?: string) => {
     console.log('[CartContext] addToCart called with:', newItem);
-    const resolvedId = newItem?.id || newItem?._id || '';
+    const resolvedId = String(newItem?.id || newItem?._id || newItem?.menuItemId || newItem?.name || Date.now());
     const rawSeller = argSellerId || newItem?.sellerId;
     const resolvedSellerId = (typeof rawSeller === 'object' ? rawSeller?._id : rawSeller) || '';
     const resolvedSellerName = argSellerName || (typeof rawSeller === 'object' ? rawSeller?.businessName : '') || newItem?.sellerName || 'Restaurant';
@@ -121,12 +125,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      const existingItem = currentItems.find(item => item.id === normalizedItem.id);
+      const existingItem = currentItems.find(item => String(item.id || (item as any)._id) === normalizedItem.id);
       
       if (existingItem) {
         // Update quantity if item already exists
         return currentItems.map(item =>
-          item.id === normalizedItem.id
+          String(item.id || (item as any)._id) === normalizedItem.id
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
@@ -138,19 +142,27 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const removeFromCart = React.useCallback((itemId: string) => {
-    setItems(currentItems => currentItems.filter(item => item.id !== itemId));
+    const targetId = String(itemId);
+    setItems(currentItems =>
+      currentItems.filter(item => {
+        const currentId = String(item.id || (item as any)._id || (item as any).menuItemId || item.name);
+        return currentId !== targetId;
+      })
+    );
   }, []);
 
   const updateQuantity = React.useCallback((itemId: string, quantity: number) => {
+    const targetId = String(itemId);
     if (quantity <= 0) {
-      removeFromCart(itemId);
+      removeFromCart(targetId);
       return;
     }
 
     setItems(currentItems =>
-      currentItems.map(item =>
-        item.id === itemId ? { ...item, quantity } : item
-      )
+      currentItems.map(item => {
+        const currentId = String(item.id || (item as any)._id || (item as any).menuItemId || item.name);
+        return currentId === targetId ? { ...item, quantity } : item;
+      })
     );
   }, [removeFromCart]);
 
@@ -159,7 +171,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const getItemQuantity = React.useCallback((itemId: string): number => {
-    const item = items.find(item => item.id === itemId);
+    const targetId = String(itemId);
+    const item = items.find(i => String(i.id || (i as any)._id || (i as any).menuItemId) === targetId);
     return item ? item.quantity : 0;
   }, [items]);
 

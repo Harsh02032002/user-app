@@ -261,7 +261,7 @@ export default function LandingScreen() {
               />
               <View style={styles.cardOverlay}>
                 <MaterialCommunityIcons name="home-heart" size={22} color="#fff" />
-                <Text style={styles.cardTitle}>Home Chef ✨</Text>
+                <Text style={styles.cardTitle}>Home Chef</Text>
                 <Text style={styles.cardSub}>Ghar jaisa swad. Fresh dabbas made with love.</Text>
               </View>
             </TouchableOpacity>

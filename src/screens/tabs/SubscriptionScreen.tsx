@@ -16,11 +16,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { api } from '../../services/api';
 import { AppFooter } from '../../components/common/AppFooter';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getImageUrl } from '../../config/api';
-
-// Direct imports for reliable bundling
-// Local banners removed to fix build issues and support dynamic seeding
-const BASE_IMAGE_URL = 'https://dabbanation.in';
+import { getImageUrl, getSubscriptionPlanImage } from '../../config/api';
 
 const SUB_CACHE_KEY = 'subscription_screen_cache';
 
@@ -337,28 +333,14 @@ export function SubscriptionScreen() {
         {activeTab === 'plans' && (
           <View style={styles.plansContainer}>
             {plans.map((plan: any) => {
-              // Resolve banner image
-              // Resolve banner image
-              let imgPath = plan.banner_image || plan.image || plan.plan_image;
-              
-              if (!imgPath) {
-                // Fallback to a default based on days if no image provided by API
-                let path = 'weekly.png';
-                if (plan.total_days <= 7) path = 'weekly.png';
-                else if (plan.total_days <= 14) path = 'fortnightly.png';
-                else path = 'monthly.png';
-                imgPath = `/uploads/subscriptions/${path}`;
-              }
-
-              const bannerSource = { uri: getImageUrl(imgPath) };
-
+              const bannerSource = getSubscriptionPlanImage(plan);
               const perDay = plan.per_day_value || Math.round(plan.total_amount / plan.total_days);
 
               return (
                 <View key={plan._id} style={styles.premiumPlanCard}>
                   {/* Card Header with Image */}
                   <View style={styles.planImageContainer}>
-                    <Image source={bannerSource} style={styles.planImage} resizeMode="cover" />
+                    <Image source={bannerSource} style={styles.planImage} contentFit="cover" />
                     {plan.badge && (
                       <View style={styles.planBadge}>
                         <Text style={styles.planBadgeText}>{plan.badge}</Text>

@@ -32,7 +32,7 @@ export const getImageUrl = (path: string | undefined | null) => {
 };
 
 // Request timeout
-const REQUEST_TIMEOUT = 10000;
+const REQUEST_TIMEOUT = 25000;
 
 // Helper to add timeout to fetch
 async function fetchWithTimeout(url: string, options: RequestInit, timeout = REQUEST_TIMEOUT): Promise<Response> {
@@ -159,12 +159,38 @@ export const api = {
         body: JSON.stringify({ email, password }),
       }, false); // No auth required
     },
+
+    // Send Dual Login OTP (SMS + Email)
+    sendLoginOtp: async (identifier: string, password?: string) => {
+      return apiRequest('/auth/send-login-otp', {
+        method: 'POST',
+        body: JSON.stringify({
+          identifier,
+          email: identifier,
+          phone: identifier,
+          password,
+        }),
+      }, false);
+    },
+
+    // Verify Dual Login OTP
+    verifyLoginOtp: async (identifier: string, otp: string) => {
+      return apiRequest('/auth/verify-login-otp', {
+        method: 'POST',
+        body: JSON.stringify({
+          identifier,
+          email: identifier,
+          phone: identifier,
+          otp,
+        }),
+      }, false);
+    },
     
     // Phone/OTP login
     loginWithPhone: async (phone: string, otp: string) => {
-      return apiRequest('/auth/login-phone', {
+      return apiRequest('/auth/verify-login-otp', {
         method: 'POST',
-        body: JSON.stringify({ phone, otp }),
+        body: JSON.stringify({ identifier: phone, phone, otp }),
       }, false); // No auth required
     },
     
@@ -462,9 +488,8 @@ export const api = {
       if (!token) {
         throw new Error('No token found for invoice download');
       }
-      const API_BASE = 'https://dabbanation.in/api';
       const encodedToken = encodeURIComponent(token);
-      return `${API_BASE}/invoice/download/${orderId}?token=${encodedToken}`;
+      return `${API_BASE_URL}/invoice/download/${orderId}?token=${encodedToken}`;
     },
     
     generateInvoice: async (orderId: string) => {

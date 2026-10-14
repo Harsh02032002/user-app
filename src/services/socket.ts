@@ -87,6 +87,31 @@ const createSocket = async (token: string): Promise<Socket> => {
     console.warn('[UserSocket] Connect error:', err.message);
   });
 
+  // Handle initial order tracking snapshot from backend
+  socket.on('track_order_init', (data: any) => {
+    console.log('[UserSocket] track_order_init:', data);
+    const orderId = data?.orderId ? String(data.orderId) : '';
+    if (orderId) {
+      if (data?.riderLocation && orderListeners.has(orderId)) {
+        orderListeners.get(orderId)?.forEach((cb) =>
+          cb({
+            orderId,
+            lat: data.riderLocation.lat,
+            lng: data.riderLocation.lng,
+            pickupCoords: data.pickupCoords,
+            dropCoords: data.dropCoords,
+            riderInfo: data.riderInfo,
+            status: data.status,
+            deliveryStatus: data.deliveryStatus,
+          }),
+        );
+      }
+      if (statusListeners.has(orderId)) {
+        statusListeners.get(orderId)?.forEach((cb) => cb(data));
+      }
+    }
+  });
+
   // Handle live rider location updates
   socket.on('delivery_location_update', (data: any) => {
     console.log('[UserSocket] delivery_location_update:', data);
@@ -110,6 +135,29 @@ const createSocket = async (token: string): Promise<Socket> => {
   socket.on('order_status_update', handleStatus);
   socket.on('order_delivered', handleStatus);
 
+  // Listen for all 12-step order lifecycle notifications from backend and trigger OS push banner
+  socket.on('notification', (notif: any) => {
+    console.log('[UserSocket] notification received:', notif);
+    if (notif?.title && notif?.message) {
+      const { showLocalPushNotification } = require('../utils/pushNotifications');
+      showLocalPushNotification(notif.title, notif.message, {
+        orderId: notif.orderId,
+        type: notif.type,
+        ...(notif.data || {}),
+      });
+      try {
+        const Toast = require('react-native-toast-message').default;
+        Toast?.show?.({
+          type: notif.data?.status === 'cancelled' ? 'error' : 'success',
+          text1: notif.title,
+          text2: notif.message,
+          visibilityTime: 4500,
+        });
+      } catch {}
+    }
+    anyOrderListeners.forEach((cb) => cb({ type: 'notification', ...notif }));
+  });
+
   return socket;
 };
 
@@ -117,8 +165,18 @@ export const getSocket = (): Socket | null => socket;
 
 export const trackOrder = async (
   orderId: string,
-  onLocationUpdate?: (data: { lat: number; lng: number }) => void,
-  onStatusUpdate?: (data: { status: string; message?: string }) => void
+  onLocationUpdate?: (data: {
+    lat: number;
+    lng: number;
+    heading?: number | null;
+    speed?: number | null;
+    status?: string;
+    deliveryStatus?: string | null;
+    pickupCoords?: { lat: number; lng: number };
+    dropCoords?: { lat: number; lng: number };
+    riderInfo?: any;
+  }) => void,
+  onStatusUpdate?: (data: any) => void
 ) => {
   const s = await initSocket();
 

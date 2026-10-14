@@ -51,7 +51,13 @@ export function CheckoutScreen() {
   const { user, refreshProfile } = useAuth();
   
   const [loading, setLoading] = useState(false);
-  const [selectedPayment, setSelectedPayment] = useState<PaymentMethod | null>(null);
+  const isSubmittingRef = React.useRef(false);
+  const [selectedPayment, setSelectedPayment] = useState<PaymentMethod | null>({
+    id: 'cod',
+    name: 'Cash on Delivery',
+    icon: 'cash',
+    type: 'cod',
+  });
   const [walletBalance, setWalletBalance] = useState(0);
   const [useWallet, setUseWallet] = useState(false);
   const [razorpayModal, setRazorpayModal] = useState(false);
@@ -173,7 +179,7 @@ export function CheckoutScreen() {
   const payableAmount = total - walletAmount;
 
   const paymentMethods: PaymentMethod[] = [
-    { id: 'razorpay', name: 'Pay Online (Cards, UPI, NetBanking)', icon: 'card-outline', type: 'razorpay' },
+    // { id: 'razorpay', name: 'Pay Online (Cards, UPI, NetBanking)', icon: 'card-outline', type: 'razorpay' },
     { id: 'wallet', name: `Wallet (₹${walletBalance})`, icon: 'wallet-outline', type: 'wallet' },
     { id: 'cod', name: 'Cash on Delivery', icon: 'cash-outline', type: 'cod' },
   ];
@@ -290,7 +296,13 @@ export function CheckoutScreen() {
   }, [pendingOrderId, processPaymentSuccess]);
 
   const handlePlaceOrder = React.useCallback(async () => {
-    validateAddress();
+    if (isSubmittingRef.current || loading) {
+      return;
+    }
+
+    if (!validateAddress()) {
+      return;
+    }
 
     if (!selectedPayment) {
       Alert.alert('Payment Method Required', 'Please select a payment method');
@@ -305,7 +317,7 @@ export function CheckoutScreen() {
     // Block if location confirmed not serviceable (>12 km)
     if (deliveryPricing && !deliveryPricing.serviceable) {
       Alert.alert(
-        '🚫 Order Not Serviceable',
+        'Order Not Serviceable',
         `Your location is ${deliveryPricing.distanceKm} km away. We deliver only up to 12 km from the restaurant.`
       );
       return;
@@ -317,7 +329,7 @@ export function CheckoutScreen() {
       return;
     }
 
-
+    isSubmittingRef.current = true;
     setLoading(true);
 
     try {
@@ -358,7 +370,7 @@ export function CheckoutScreen() {
           await refreshProfile();
           clearCart();
           Alert.alert(
-            '🎉 Order Placed!',
+            'Order Placed',
             `Order placed! ₹${total} deducted from your subscription balance.`,
             [{ text: 'View Orders', onPress: () => navigation.navigate('MainTabs' as any, { screen: 'Orders' }) }]
           );
@@ -412,9 +424,10 @@ export function CheckoutScreen() {
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to place order');
     } finally {
+      isSubmittingRef.current = false;
       setLoading(false);
     }
-  }, [cartItems, deliveryAddress, selectedPayment, total, totalAmount, walletBalance, clearCart, navigation, processWalletPayment, user, deliveryPricing, userLocation]);
+  }, [cartItems, deliveryAddress, selectedPayment, total, totalAmount, walletBalance, clearCart, navigation, processWalletPayment, user, deliveryPricing, userLocation, loading]);
 
   const processPaymentFailure = (orderId: string) => {
     Alert.alert('Payment Failed', 'Your payment was not successful. Please try again.');
@@ -493,23 +506,23 @@ export function CheckoutScreen() {
               });
               if (!feeRes.serviceable) {
                 Alert.alert(
-                  '🚫 Not Serviceable',
+                  'Not Serviceable',
                   `Your location is ${feeRes.distanceKm} km from the restaurant. We currently deliver only up to 12 km.`
                 );
               } else {
-                Alert.alert('📍 Location Detected', `Address auto-filled! Delivery: ₹${feeRes.customerFee} (${feeRes.distanceKm} km)`);
+                Alert.alert('Location Detected', `Address auto-filled! Delivery: ₹${feeRes.customerFee} (${feeRes.distanceKm} km)`);
               }
             } else {
-              Alert.alert('📍 Location Detected', `Address auto-filled successfully!`);
+              Alert.alert('Location Detected', `Address auto-filled successfully!`);
             }
           } catch (feeErr) {
             console.log('[Checkout] Fee calc error:', feeErr);
-            Alert.alert('📍 Location Detected', `Address auto-filled successfully!`);
+            Alert.alert('Location Detected', `Address auto-filled successfully!`);
           } finally {
             setIsFetchingDeliveryFee(false);
           }
         } else {
-          Alert.alert('📍 Location Detected', `Address auto-filled successfully!`);
+          Alert.alert('Location Detected', `Address auto-filled successfully!`);
         }
         // ────────────────────────────────────────────────────────────────
       } else {
@@ -532,7 +545,7 @@ export function CheckoutScreen() {
             state: data.address.state || '',
             pincode: data.address.postcode || '',
           }));
-          Alert.alert('📍 Location Detected', `Address auto-filled successfully!`);
+          Alert.alert('Location Detected', `Address auto-filled successfully!`);
         }
       }
     } catch (error) {
@@ -578,7 +591,7 @@ export function CheckoutScreen() {
               <Ionicons name="location" size={16} color="#FF6B00" />
             )}
             <Text style={styles.locationButtonText}>
-              {isDetectingLocation ? '📍 Detecting location...' : '📍 Detect My Current Location'}
+              {isDetectingLocation ? 'Detecting location...' : 'Detect My Current Location'}
             </Text>
           </TouchableOpacity>
           <Text style={styles.locationHint}>Click to auto-fill your address using GPS location</Text>
@@ -705,7 +718,7 @@ export function CheckoutScreen() {
             )}
           </TouchableOpacity>
           
-          {/* Online Payment (UPI QR Code) */}
+          {/* Online Payment (Razorpay / UPI QR Code) - Commented out for now
           <TouchableOpacity
             style={[styles.paymentMethod, selectedPayment?.type === 'razorpay' && styles.selectedPayment]}
             onPress={() => setSelectedPayment({ id: 'razorpay', name: 'Online Payment', icon: 'qr-code', type: 'razorpay' })}
@@ -721,6 +734,7 @@ export function CheckoutScreen() {
               <Ionicons name="checkmark-circle" size={20} color="#FF6B00" />
             )}
           </TouchableOpacity>
+          */}
           
           {/* COD */}
           <TouchableOpacity
@@ -801,24 +815,36 @@ export function CheckoutScreen() {
             {/* Delivery Fee Breakdown */}
             {isFetchingDeliveryFee ? (
               <View style={styles.billRow}>
-                <Text style={[styles.billLabel, { color: '#FF6B00' }]}>🛵 Delivery Fee</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                  <Ionicons name="bicycle-outline" size={15} color="#FF6B00" />
+                  <Text style={[styles.billLabel, { color: '#FF6B00' }]}>Delivery Fee</Text>
+                </View>
                 <ActivityIndicator size="small" color="#FF6B00" />
               </View>
             ) : deliveryPricing ? (
               <View style={styles.billRow}>
-                <Text style={[styles.billLabel, { color: '#FF6B00' }]}>
-                  🛵 Delivery Fee
-                  {deliveryPricing.distanceKm > 0 ? ` (${deliveryPricing.distanceKm} km)` : ''}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                  <Ionicons name="bicycle-outline" size={15} color="#FF6B00" />
+                  <Text style={[styles.billLabel, { color: '#FF6B00' }]}>
+                    Delivery Fee
+                    {deliveryPricing.distanceKm > 0 ? ` (${deliveryPricing.distanceKm} km)` : ''}
+                  </Text>
+                </View>
                 {deliveryPricing.serviceable ? (
                   <Text style={[styles.billValue, { color: '#FF6B00', fontWeight: '700' }]}>₹{deliveryPricing.customerFee}</Text>
                 ) : (
-                  <Text style={[styles.billValue, { color: '#ef4444', fontWeight: '700' }]}>🚫 Not Serviceable</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Ionicons name="ban-outline" size={14} color="#ef4444" />
+                    <Text style={[styles.billValue, { color: '#ef4444', fontWeight: '700' }]}>Not Serviceable</Text>
+                  </View>
                 )}
               </View>
             ) : deliveryFee > 0 ? (
               <View style={styles.billRow}>
-                <Text style={[styles.billLabel, { color: '#FF6B00' }]}>🛵 Delivery Fee</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                  <Ionicons name="bicycle-outline" size={15} color="#FF6B00" />
+                  <Text style={[styles.billLabel, { color: '#FF6B00' }]}>Delivery Fee</Text>
+                </View>
                 <Text style={[styles.billValue, { color: '#FF6B00', fontWeight: '700' }]}>₹{deliveryFee}</Text>
               </View>
             ) : null}
@@ -879,8 +905,8 @@ export function CheckoutScreen() {
               )}
               <Text style={styles.subscriptionNote}>
                 {totalSubBalance >= total 
-                  ? '✅ Full amount covered by subscription balance'
-                  : `⚡ ₹${totalSubBalance} from subscription + ₹${total - totalSubBalance} via Razorpay`
+                  ? 'Full amount covered by subscription balance'
+                  : `₹${totalSubBalance} from subscription + ₹${total - totalSubBalance} via Razorpay`
                 }
               </Text>
             </View>
@@ -1016,7 +1042,7 @@ export function CheckoutScreen() {
               <Ionicons name="checkmark-circle" size={68} color="#22C55E" />
             </View>
 
-            <Text style={styles.successModalTitle}>🎉 Order Placed!</Text>
+            <Text style={styles.successModalTitle}>Order Placed!</Text>
             <Text style={styles.successModalSubtitle}>
               Your order has been placed successfully.
             </Text>
@@ -1046,7 +1072,7 @@ export function CheckoutScreen() {
               }}
             >
               <Ionicons name="bag-handle" size={18} color="#fff" />
-              <Text style={styles.successPrimaryBtnText}>View & Track Orders 📦</Text>
+              <Text style={styles.successPrimaryBtnText}>View & Track Orders</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -1056,7 +1082,10 @@ export function CheckoutScreen() {
                 navigation.navigate('MainTabs' as any, { screen: 'Home' });
               }}
             >
-              <Text style={styles.successSecondaryBtnText}>Back to Home 🏠</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <Ionicons name="home-outline" size={16} color="#4B5563" />
+                <Text style={styles.successSecondaryBtnText}>Back to Home</Text>
+              </View>
             </TouchableOpacity>
           </View>
         </View>

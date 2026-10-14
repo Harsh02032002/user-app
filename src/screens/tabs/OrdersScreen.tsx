@@ -25,7 +25,7 @@ import { AppFooter } from '../../components/common/AppFooter';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DeliveryMap } from '../../components/common/DeliveryMap';
 import { trackOrder, untrackOrder, onAnyOrderUpdate } from '../../services/socket';
-import { useIsFocused } from '@react-navigation/native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 
 const ORDERS_CACHE_KEY = 'orders_screen_cache';
 
@@ -126,6 +126,7 @@ const STEP_SUBLABELS: Record<string, string> = {
 };
 
 export function OrdersScreen() {
+  const navigation = useNavigation<any>();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -360,25 +361,25 @@ export function OrdersScreen() {
   const downloadInvoice = async (orderId: string) => {
     try {
       const url = await api.user.downloadInvoice(orderId);
-      if (url) {
-        Alert.alert(
-          '📄 Download Invoice PDF',
-          'Invoice download link generated!\nTap "Download PDF" to save the invoice directly to your device.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Download PDF 📥',
-              onPress: async () => {
-                try {
-                  await WebBrowser.openBrowserAsync(url);
-                } catch (e) {
-                  await Linking.openURL(url);
-                }
-              },
-            },
-          ]
-        );
+      if (!url) {
+        Alert.alert('Error', 'Could not generate invoice link');
+        return;
       }
+
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.open(url, '_blank', 'noopener,noreferrer');
+        return;
+      }
+
+      try {
+        const supported = await Linking.canOpenURL(url);
+        if (supported) {
+          await Linking.openURL(url);
+          return;
+        }
+      } catch (_) {}
+
+      await WebBrowser.openBrowserAsync(url);
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to download invoice');
     }
@@ -486,10 +487,10 @@ export function OrdersScreen() {
             <View style={styles.trackingHeader}>
               <Ionicons name="bicycle" size={16} color="#FF6B00" />
               <Text style={styles.trackingTitle}>
-                {order.status === 'out_for_delivery' ? '🛵 Your order is on the way!' :
-                 order.deliveryStatus ? '🛵 Delivery partner assigned' :
-                 order.status === 'ready' ? '✅ Food is ready!' :
-                 order.status === 'preparing' ? '👨‍🍳 Being prepared...' : '✅ Order confirmed!'}
+                {order.status === 'out_for_delivery' ? 'Your order is on the way!' :
+                 order.deliveryStatus ? 'Delivery partner assigned' :
+                 order.status === 'ready' ? 'Food is ready!' :
+                 order.status === 'preparing' ? 'Being prepared...' : 'Order confirmed!'}
               </Text>
             </View>
           </View>
@@ -625,7 +626,16 @@ export function OrdersScreen() {
             <Ionicons name="bag-outline" size={64} color="#ccc" />
             <Text style={styles.emptyTitle}>No orders found</Text>
             <Text style={styles.emptySubtitle}>Start ordering delicious food!</Text>
-            <TouchableOpacity style={styles.browseButton}>
+            <TouchableOpacity
+              style={styles.browseButton}
+              onPress={() => {
+                try {
+                  navigation.navigate('MainTabs', { screen: 'Home' });
+                } catch (_) {
+                  navigation.navigate('Home');
+                }
+              }}
+            >
               <Text style={styles.browseButtonText}>Browse Food</Text>
             </TouchableOpacity>
           </View>
@@ -672,14 +682,14 @@ export function OrdersScreen() {
             {trackingData?.riderInfo && (
               <View style={styles.trackingRiderCard}>
                 <View style={styles.trackingRiderAvatar}>
-                  <Text style={{ fontSize: 20 }}>🛵</Text>
+                  <Ionicons name="bicycle" size={20} color="#166534" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.trackingRiderName}>{trackingData.riderInfo.name}</Text>
                   <Text style={styles.trackingRiderVehicle}>
                     {trackingData.riderInfo.vehicleType ? String(trackingData.riderInfo.vehicleType).toUpperCase() : 'BIKE'}
                     {trackingData.riderInfo.vehicleNumber ? ` • ${trackingData.riderInfo.vehicleNumber}` : ''}
-                    {' '}| ⭐ {trackingData.riderInfo.rating || '5.0'}
+                    {' '}| Rating: {trackingData.riderInfo.rating || '5.0'}
                   </Text>
                 </View>
                 {trackingData.riderInfo.phone ? (

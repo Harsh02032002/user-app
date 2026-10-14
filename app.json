@@ -57,6 +57,11 @@
     ],
     "experiments": {
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "45d2828d-ffe8-4955-9805-2aa85632f51b"
+      }
     }
   }
 }

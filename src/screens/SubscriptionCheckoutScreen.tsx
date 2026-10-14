@@ -125,7 +125,7 @@ export default function SubscriptionCheckoutScreen() {
       await refreshProfile();
       
       Alert.alert(
-        'Subscription Activated! 🎉',
+        'Subscription Activated!',
         `Your ${planName} subscription with ${homeChefName} is now active!`,
         [
           {
@@ -152,7 +152,7 @@ export default function SubscriptionCheckoutScreen() {
 
       await refreshProfile();
       Alert.alert(
-        'Subscription Activated! 🎉',
+        'Subscription Activated!',
         `Your ${planName} subscription with ${homeChefName} is now active! Paid fully from wallet.`,
         [
           {
@@ -181,7 +181,7 @@ export default function SubscriptionCheckoutScreen() {
 
       await refreshProfile();
       Alert.alert(
-        'Subscription Activated! 🎉',
+        'Subscription Activated!',
         `Your ${planName} subscription with ${homeChefName} is now active!`,
         [
           {

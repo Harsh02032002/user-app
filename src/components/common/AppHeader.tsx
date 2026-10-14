@@ -100,9 +100,16 @@ export const AppHeader = React.memo(function AppHeader({ showSearch = true, show
               <View style={styles.sellerInfo}>
                 <Text style={styles.sellerName}>{sellerInfo.name}</Text>
                 <View style={styles.sellerMeta}>
-                  <Text style={styles.sellerType}>
-                    {sellerInfo.type === 'home_chef' ? '🏠 Home Chef' : '🍽️ Restaurant'}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Ionicons
+                      name={sellerInfo.type === 'home_chef' ? 'home-outline' : 'restaurant-outline'}
+                      size={12}
+                      color="#666"
+                    />
+                    <Text style={styles.sellerType}>
+                      {sellerInfo.type === 'home_chef' ? 'Home Chef' : 'Restaurant'}
+                    </Text>
+                  </View>
                   {sellerInfo.rating && (
                     <View style={styles.ratingContainer}>
                       <Ionicons name="star" size={12} color="#FFD700" />
@@ -160,9 +167,9 @@ export const AppHeader = React.memo(function AppHeader({ showSearch = true, show
           {/* User Profile Dropdown */}
           {user ? (
             <TouchableOpacity style={styles.userProfile} onPress={() => setShowUserMenu(!showUserMenu)}>
-              {user.profileImage ? (
+              {(user.profileImage || user.avatar) ? (
                 <Image 
-                  source={{ uri: getImageUrl(user.profileImage) }} 
+                  source={{ uri: getImageUrl(user.profileImage || user.avatar) }} 
                   style={styles.userAvatar}
                 />
               ) : (

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import api from '../../services/api';
 
 // Wishlist item type
@@ -26,6 +27,7 @@ interface WishlistItem {
 }
 
 export function WishlistScreen() {
+  const navigation = useNavigation<any>();
   const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -140,7 +142,16 @@ export function WishlistScreen() {
             <Text style={styles.emptySubtitle}>
               Save your favorite dishes and order them later
             </Text>
-            <TouchableOpacity style={styles.browseButton}>
+            <TouchableOpacity
+              style={styles.browseButton}
+              onPress={() => {
+                try {
+                  navigation.navigate('MainTabs', { screen: 'Home' });
+                } catch (_) {
+                  navigation.navigate('Home');
+                }
+              }}
+            >
               <Text style={styles.browseButtonText}>Browse Menu</Text>
             </TouchableOpacity>
           </View>

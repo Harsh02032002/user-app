@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
 import { registerForPushNotifications } from '../utils/pushNotifications';
+import { initSocket } from '../services/socket';
 
 interface User {
   _id: string;
@@ -21,6 +22,8 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   loginWithEmail: (email: string, password: string) => Promise<void>;
+  sendLoginOtp: (identifier: string, password?: string) => Promise<any>;
+  verifyLoginOtp: (identifier: string, otp: string) => Promise<void>;
   register: (data: RegisterData) => Promise<any>;
   verifyEmail: (email: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -55,15 +58,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const storedUser = await AsyncStorage.getItem('user');
       
       if (storedToken && storedUser) {
+        const parsed = JSON.parse(storedUser);
         setToken(storedToken);
-        setUser(JSON.parse(storedUser));
+        setUser({ ...parsed, profileImage: parsed.profileImage || parsed.avatar });
         
         // Verify token is still valid
         try {
           const response = await api.auth.getProfile();
-          setUser(response);
-          await AsyncStorage.setItem('user', JSON.stringify(response));
+          const normalizedUser = { ...response, profileImage: response.avatar || response.profileImage };
+          setUser(normalizedUser);
+          await AsyncStorage.setItem('user', JSON.stringify(normalizedUser));
           registerForPushNotifications(storedToken);
+          initSocket().catch(() => {});
         } catch (error) {
           // Token invalid, clear storage
           await logout();
@@ -94,7 +100,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error('No token received from server');
       }
       
-      const { token: authToken, user: userData } = response;
+      const { token: authToken, user: rawUser } = response;
+      const userData = { ...rawUser, profileImage: rawUser?.avatar || rawUser?.profileImage };
       
       await AsyncStorage.setItem('token', authToken);
       await AsyncStorage.setItem('user', JSON.stringify(userData));
@@ -102,9 +109,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToken(authToken);
       setUser(userData);
       registerForPushNotifications(authToken);
+      initSocket().catch(() => {});
     } catch (error: any) {
       console.error('Login error:', error);
       throw new Error(error.message || 'Login failed');
+    }
+  }, []);
+
+  const sendLoginOtp = React.useCallback(async (identifier: string, password?: string) => {
+    try {
+      return await api.auth.sendLoginOtp(identifier, password);
+    } catch (error: any) {
+      throw new Error(error.message || 'Could not send OTP');
+    }
+  }, []);
+
+  const verifyLoginOtp = React.useCallback(async (identifier: string, otp: string) => {
+    try {
+      const response = await api.auth.verifyLoginOtp(identifier, otp);
+      if (!response.token) {
+        throw new Error('No token received from server');
+      }
+      const { token: authToken, user: rawUser } = response;
+      const userData = { ...rawUser, profileImage: rawUser?.avatar || rawUser?.profileImage };
+
+      await AsyncStorage.setItem('token', authToken);
+      await AsyncStorage.setItem('user', JSON.stringify(userData));
+
+      setToken(authToken);
+      setUser(userData);
+      registerForPushNotifications(authToken);
+      initSocket().catch(() => {});
+    } catch (error: any) {
+      throw new Error(error.message || 'Invalid or expired OTP');
     }
   }, []);
 
@@ -131,7 +168,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const response = await api.auth.updateProfile(data);
       // API response could be { user: {...} } or directly the user object
       const updatedData = response?.user || response?.data || response;
-      const updatedUser = { ...user, ...updatedData } as User;
+      const merged = { ...user, ...updatedData };
+      const updatedUser = { ...merged, profileImage: merged.avatar || merged.profileImage } as User;
       await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
     } catch (error: any) {
@@ -180,6 +218,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     isLoading,
     isAuthenticated: !!token,
     loginWithEmail,
+    sendLoginOtp,
+    verifyLoginOtp,
     register,
     verifyEmail,
     logout,
@@ -187,7 +227,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     uploadAvatar,
     uploadBanner,
     refreshProfile,
-  }), [user, token, isLoading, loginWithEmail, register, verifyEmail, logout, updateProfile, uploadAvatar, uploadBanner, refreshProfile]);
+  }), [user, token, isLoading, loginWithEmail, sendLoginOtp, verifyLoginOtp, register, verifyEmail, logout, updateProfile, uploadAvatar, uploadBanner, refreshProfile]);
 
   return (
     <AuthContext.Provider value={value}>

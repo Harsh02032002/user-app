@@ -18,8 +18,8 @@ import { getImageUrl } from '../config/api';
 import api from '../services/api';
 
 export function CartScreen() {
-  const navigation = useNavigation();
-  const { items: cartItems, totalItems, totalAmount, updateQuantity, removeFromCart } = useCart();
+  const navigation = useNavigation<any>();
+  const { items: cartItems, totalItems, totalAmount, updateQuantity, removeFromCart, clearCart } = useCart();
   const [gstSettings, setGstSettings] = useState<any>(null);
   const [platformConfig, setPlatformConfig] = useState<any>(null);
 
@@ -53,21 +53,22 @@ export function CartScreen() {
   const total = totalAmount + deliveryFee + platformFee + gst;
 
   const handleQuantityChange = (id: string, change: number) => {
-    const item = cartItems.find(item => item.id === id);
+    const item = cartItems.find(i => String(i.id || (i as any)._id || i.name) === String(id));
     if (item) {
-      updateQuantity(id, item.quantity + change);
+      updateQuantity(String(id), item.quantity + change);
     }
   };
 
   const handleRemoveItem = (id: string) => {
-    Alert.alert(
-      'Remove Item',
-      'Are you sure you want to remove this item?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Remove', style: 'destructive', onPress: () => removeFromCart(id) }
-      ]
-    );
+    removeFromCart(String(id));
+  };
+
+  const handleBrowseFood = () => {
+    try {
+      navigation.navigate('MainTabs', { screen: 'Home' });
+    } catch (_) {
+      navigation.navigate('Home');
+    }
   };
 
   const handleCheckout = () => {
@@ -88,6 +89,11 @@ export function CartScreen() {
         </TouchableOpacity>
         <Text style={styles.pageTitle}>My Cart</Text>
         <Text style={styles.itemCount}>{totalItems} items</Text>
+        {cartItems.length > 0 && (
+          <TouchableOpacity onPress={() => clearCart()} style={{ marginLeft: 8, paddingVertical: 4, paddingHorizontal: 8, backgroundColor: '#FEE2E2', borderRadius: 6 }}>
+            <Text style={{ fontSize: 12, fontWeight: '600', color: '#DC2626' }}>Clear All</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {cartItems.length === 0 ? (
@@ -95,7 +101,7 @@ export function CartScreen() {
           <Ionicons name="cart-outline" size={80} color="#ccc" />
           <Text style={styles.emptyTitle}>Your cart is empty</Text>
           <Text style={styles.emptySubtitle}>Add some delicious food to get started</Text>
-          <TouchableOpacity style={styles.browseButton} onPress={() => navigation.navigate('Home' as never)}>
+          <TouchableOpacity style={styles.browseButton} onPress={handleBrowseFood}>
             <Text style={styles.browseButtonText}>Browse Food</Text>
           </TouchableOpacity>
         </View>
@@ -106,8 +112,10 @@ export function CartScreen() {
             contentContainerStyle={{ paddingBottom: 16 }}
             showsVerticalScrollIndicator={false}
           >
-            {cartItems.map(item => (
-              <View key={item.id} style={styles.cartItem}>
+            {cartItems.map((item, idx) => {
+              const itemId = String(item.id || (item as any)._id || (item as any).menuItemId || item.name || idx);
+              return (
+              <View key={itemId} style={styles.cartItem}>
                 <Image 
                   source={{ uri: getImageUrl(item.image) || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&fit=crop' }} 
                   style={styles.itemImage} 
@@ -135,26 +143,28 @@ export function CartScreen() {
                 <View style={styles.quantityControls}>
                   <TouchableOpacity 
                     style={styles.quantityButton} 
-                    onPress={() => handleQuantityChange(item.id, -1)}
+                    onPress={() => handleQuantityChange(itemId, -1)}
                   >
                     <Ionicons name="remove" size={16} color="#FF6B00" />
                   </TouchableOpacity>
                   <Text style={styles.quantity}>{item.quantity}</Text>
                   <TouchableOpacity 
                     style={styles.quantityButton} 
-                    onPress={() => handleQuantityChange(item.id, 1)}
+                    onPress={() => handleQuantityChange(itemId, 1)}
                   >
                     <Ionicons name="add" size={16} color="#FF6B00" />
                   </TouchableOpacity>
                 </View>
                 <TouchableOpacity 
                   style={styles.removeButton} 
-                  onPress={() => handleRemoveItem(item.id)}
+                  onPress={() => handleRemoveItem(itemId)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
                   <Ionicons name="trash-outline" size={20} color="#DC2626" />
                 </TouchableOpacity>
               </View>
-            ))}
+            );
+            })}
           </ScrollView>
 
           <View style={styles.checkoutSection}>

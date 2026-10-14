@@ -150,7 +150,7 @@ export default function RestaurantScreen() {
   const handleAddToCart = (item: MenuItem) => {
     if (isNotServiceable) {
       Alert.alert(
-        '🚫 Outside Delivery Range',
+        'Outside Delivery Range',
         `This seller is ${deliveryDistanceKm} km away. We deliver strictly within 12 km.`
       );
       return;

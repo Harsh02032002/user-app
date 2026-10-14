@@ -1,14 +1,68 @@
 import axios from 'axios';
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Live API Base URL
 export const BASE_URL = 'https://dabbanation.in/api';
 
+// Bundled subscription plan images for 7 Days, 14/15 Days, and 30 Days plans
+export const SUBSCRIPTION_PLAN_IMAGES = {
+  weekly: require('../../assets/images/weekly.png'),
+  fortnightly: require('../../assets/images/fortnightly.png'),
+  monthly: require('../../assets/images/monthly.png'),
+};
+
+/**
+ * Returns the image source for any subscription plan (7 Days, 14 Days, 30 Days).
+ * Uses bundled high-res assets so the 3 subscription cards always display their images
+ * on Web, Android APK, and iOS without broken URLs.
+ */
+export const getSubscriptionPlanImage = (plan: any): any => {
+  if (!plan) return SUBSCRIPTION_PLAN_IMAGES.weekly;
+  const name = String(plan.plan_name || plan.name || '').toLowerCase();
+  const days = Number(plan.total_days || plan.durationDays || 0);
+  const rawImg = String(plan.banner_image || plan.image || plan.plan_image || '').toLowerCase();
+
+  if (
+    rawImg.includes('monthly') ||
+    name.includes('monthly') ||
+    name.includes('30 day') ||
+    days > 15
+  ) {
+    return SUBSCRIPTION_PLAN_IMAGES.monthly;
+  }
+  if (
+    rawImg.includes('fortnightly') ||
+    name.includes('fortnightly') ||
+    name.includes('14 day') ||
+    name.includes('15 day') ||
+    (days > 7 && days <= 15)
+  ) {
+    return SUBSCRIPTION_PLAN_IMAGES.fortnightly;
+  }
+  return SUBSCRIPTION_PLAN_IMAGES.weekly;
+};
+
+const getBackendOrigin = (): string => {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return 'http://localhost:5000';
+    }
+  }
+  const hostUri = Constants.expoConfig?.hostUri;
+  if (hostUri) {
+    const ip = hostUri.split(':')[0];
+    if (ip) return `http://${ip}:5000`;
+  }
+  return 'https://dabbanation.in';
+};
+
 // Helper to get full image URL
 export const getImageUrl = (path: string | undefined): string => {
   if (!path) return '';
   
-  const backendBaseUrl = 'https://dabbanation.in';
+  const backendBaseUrl = getBackendOrigin();
   
   // Clean the path
   let cleanPath = path.trim();
