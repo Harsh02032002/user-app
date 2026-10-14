@@ -169,6 +169,7 @@ export const api = {
           email: identifier,
           phone: identifier,
           password,
+          role: 'user',
         }),
       }, false);
     },
@@ -182,6 +183,7 @@ export const api = {
           email: identifier,
           phone: identifier,
           otp,
+          role: 'user',
         }),
       }, false);
     },
