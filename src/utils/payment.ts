@@ -1,4 +1,4 @@
-import RazorpayCheckout from 'react-native-razorpay';
+import RazorpayCheckout from './razorpay';
 import { Alert } from 'react-native';
 import api from '../config/api';
 

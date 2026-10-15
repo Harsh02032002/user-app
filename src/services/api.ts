@@ -3,15 +3,18 @@ import { Alert, Platform } from 'react-native';
 import Toast from 'react-native-toast-message';
 import Constants from 'expo-constants';
 
+// Local backend port (override with EXPO_PUBLIC_API_PORT, e.g. to point at a demo backend)
+const API_PORT = process.env.EXPO_PUBLIC_API_PORT || '5000';
+
 // API Configuration
 const getApiBaseUrl = () => {
   if (Platform.OS === 'web') {
-    return 'http://localhost:5000/api';
+    return `http://localhost:${API_PORT}/api`;
   }
   const hostUri = Constants.expoConfig?.hostUri;
   if (hostUri) {
     const ip = hostUri.split(':')[0];
-    return `http://${ip}:5000/api`;
+    return `http://${ip}:${API_PORT}/api`;
   }
   return 'https://dabbanation.in/api';
 };
@@ -33,6 +36,7 @@ export const getImageUrl = (path: string | undefined | null) => {
 
 // Request timeout
 const REQUEST_TIMEOUT = 25000;
+const ORDER_PLACE_TIMEOUT = 45000;
 
 // Helper to add timeout to fetch
 async function fetchWithTimeout(url: string, options: RequestInit, timeout = REQUEST_TIMEOUT): Promise<Response> {
@@ -91,19 +95,11 @@ export const clearTokenCache = () => {
 };
 
 // Generic API request function with timeout and better error handling
-const apiRequest = async (endpoint: string, options: RequestInit = {}, requireAuth = true) => {
+const apiRequest = async (endpoint: string, options: RequestInit = {}, requireAuth = true, timeout = REQUEST_TIMEOUT) => {
   try {
     const url = `${API_BASE_URL}${endpoint}`;
     console.log(`[API Debug] Full URL: ${url} | Method: ${options.method || 'GET'}`);
-    if (endpoint.includes('cancel')) {
-      Toast.show({
-        type: 'info',
-        text1: 'API Debug',
-        text2: `Hitting: ${endpoint}`,
-        position: 'bottom',
-      });
-    }
-    
+
     const headers: Record<string, string> = {};
     
     // Don't set Content-Type for FormData (let fetch handle it)
@@ -134,7 +130,7 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}, requireAu
     const response = await fetchWithTimeout(url, {
       ...options,
       headers,
-    });
+    }, timeout);
     
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
@@ -201,6 +197,14 @@ export const api = {
       return apiRequest('/auth/verify-email', {
         method: 'POST',
         body: JSON.stringify({ email, code }),
+      }, false);
+    },
+
+    // Resend the email verification code (same endpoint the website uses)
+    resendVerification: async (email: string) => {
+      return apiRequest('/auth/resend-verification', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
       }, false);
     },
     
@@ -340,10 +344,11 @@ export const api = {
     },
     
     placeOrder: async (data: Record<string, unknown>) => {
+      // The backend responds only after notifications + invoice generation, which can exceed the default timeout
       return apiRequest('/user/orders/place', {
         method: 'POST',
         body: JSON.stringify(data),
-      });
+      }, true, ORDER_PLACE_TIMEOUT);
     },
     
     deleteOrder: async (id: string) => {
@@ -510,6 +515,29 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(data),
       });
+    },
+
+    // Address book — backend routes: POST /user/address, PUT|DELETE /user/address/:id, PATCH /user/address/:id/set-default
+    addAddress: async (data: Record<string, unknown>) => {
+      return apiRequest('/user/address', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+
+    updateAddress: async (id: string, data: Record<string, unknown>) => {
+      return apiRequest(`/user/address/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+    },
+
+    deleteAddress: async (id: string) => {
+      return apiRequest(`/user/address/${id}`, { method: 'DELETE' });
+    },
+
+    setDefaultAddress: async (id: string) => {
+      return apiRequest(`/user/address/${id}/set-default`, { method: 'PATCH' });
     },
     
     updateOrderStatus: async (orderId: string, status: string) => {

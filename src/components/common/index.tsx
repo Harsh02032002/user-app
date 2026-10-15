@@ -1,253 +1,578 @@
-import React from 'react';
+/**
+ * Dabba Nation UI kit (Customer app). All screens build on these primitives and src/theme tokens.
+ */
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
+  Pressable,
   ActivityIndicator,
   TextInput,
+  TextInputProps,
   ViewStyle,
   TextStyle,
+  StyleProp,
+  Modal,
+  Animated,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors, elevation, formatPrice, orderStatusColors, radius, sizes, spacing, type } from '../../theme';
 
-// Loading Component
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
+// ─── Loading ──────────────────────────────────────────────────────────
+
 interface LoadingProps {
   size?: 'small' | 'large';
   color?: string;
   text?: string;
+  style?: StyleProp<ViewStyle>;
 }
 
-export const Loading: React.FC<LoadingProps> = ({
-  size = 'large',
-  color = '#FF6B00',
-  text,
-}) => (
-  <View style={styles.loadingContainer}>
+export const Loading: React.FC<LoadingProps> = ({ size = 'large', color = colors.primary, text, style }) => (
+  <View style={[styles.loadingContainer, style]}>
     <ActivityIndicator size={size} color={color} />
-    {text && <Text style={styles.loadingText}>{text}</Text>}
+    {text ? <Text style={styles.loadingText}>{text}</Text> : null}
   </View>
 );
 
-// Button Component
+/** Pulsing placeholder block for skeleton layouts */
+export const Skeleton: React.FC<{ width?: ViewStyle['width']; height?: number; radius?: number; style?: StyleProp<ViewStyle> }> = ({
+  width = '100%',
+  height = 14,
+  radius: r = radius.sm,
+  style,
+}) => {
+  const opacity = useRef(new Animated.Value(0.5)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1, duration: 700, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.5, duration: 700, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [opacity]);
+  return <Animated.View style={[{ width, height, borderRadius: r, backgroundColor: colors.surfaceMuted, opacity }, style]} />;
+};
+
+/** Generic list skeleton: image block + two text lines */
+export const SkeletonList: React.FC<{ count?: number; imageSize?: number }> = ({ count = 3, imageSize = 64 }) => (
+  <View style={{ gap: spacing.md }}>
+    {Array.from({ length: count }).map((_, i) => (
+      <View key={i} style={[styles.card, styles.cardPadded, { flexDirection: 'row', gap: spacing.md }]}>
+        <Skeleton width={imageSize} height={imageSize} radius={radius.md} />
+        <View style={{ flex: 1, gap: spacing.sm, justifyContent: 'center' }}>
+          <Skeleton width="70%" height={14} />
+          <Skeleton width="45%" height={12} />
+          <Skeleton width="30%" height={12} />
+        </View>
+      </View>
+    ))}
+  </View>
+);
+
+// ─── Buttons ──────────────────────────────────────────────────────────
+
+type ButtonVariant = 'primary' | 'secondary' | 'tertiary' | 'destructive' | 'success' | 'outline';
+
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline';
+  variant?: ButtonVariant;
+  size?: 'md' | 'sm';
   disabled?: boolean;
   loading?: boolean;
-  icon?: string;
-  style?: ViewStyle;
-  textStyle?: TextStyle;
+  icon?: IconName;
+  iconRight?: IconName;
+  fullWidth?: boolean;
+  style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
+  accessibilityLabel?: string;
 }
+
+const buttonTone = (variant: ButtonVariant) => {
+  switch (variant) {
+    case 'secondary':
+    case 'outline':
+      return { bg: colors.surface, fg: colors.primary, border: colors.primary };
+    case 'tertiary':
+      return { bg: 'transparent', fg: colors.primary, border: 'transparent' };
+    case 'destructive':
+      return { bg: colors.danger, fg: colors.textInverse, border: colors.danger };
+    case 'success':
+      return { bg: colors.success, fg: colors.textInverse, border: colors.success };
+    default:
+      return { bg: colors.primary, fg: colors.textInverse, border: colors.primary };
+  }
+};
 
 export const Button: React.FC<ButtonProps> = ({
   title,
   onPress,
   variant = 'primary',
+  size = 'md',
   disabled = false,
   loading = false,
   icon,
+  iconRight,
+  fullWidth = false,
   style,
   textStyle,
+  accessibilityLabel,
 }) => {
-  const buttonStyles = [
-    styles.button,
-    variant === 'primary' && styles.buttonPrimary,
-    variant === 'secondary' && styles.buttonSecondary,
-    variant === 'outline' && styles.buttonOutline,
-    disabled && styles.buttonDisabled,
-    style,
-  ];
-
-  const textStyles = [
-    styles.buttonText,
-    variant === 'primary' && styles.buttonTextPrimary,
-    variant === 'secondary' && styles.buttonTextSecondary,
-    variant === 'outline' && styles.buttonTextOutline,
-    disabled && styles.buttonTextDisabled,
-    textStyle,
-  ];
-
+  const tone = buttonTone(variant);
+  const inactive = disabled || loading;
+  const isFilled = variant === 'primary' || variant === 'destructive' || variant === 'success';
   return (
-    <TouchableOpacity
-      style={buttonStyles}
+    <Pressable
       onPress={onPress}
-      disabled={disabled || loading}
-      activeOpacity={0.8}
+      disabled={inactive}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel || title}
+      accessibilityState={{ disabled: inactive, busy: loading }}
+      style={({ pressed }) => [
+        styles.button,
+        size === 'sm' && styles.buttonSm,
+        { backgroundColor: tone.bg, borderColor: tone.border },
+        variant === 'tertiary' && styles.buttonTertiary,
+        fullWidth && { alignSelf: 'stretch' },
+        pressed && !inactive && (isFilled ? { backgroundColor: variant === 'primary' ? colors.primaryPressed : tone.bg, opacity: variant === 'primary' ? 1 : 0.9 } : { backgroundColor: colors.primarySoft }),
+        disabled && (variant === 'primary' ? { backgroundColor: colors.primaryDisabled, borderColor: colors.primaryDisabled } : { opacity: 0.45 }),
+        style,
+      ]}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'outline' ? '#FF6B00' : '#fff'} />
+        <ActivityIndicator size="small" color={tone.fg} />
       ) : (
         <>
-          {icon && (
-            <Icon
-              name={icon}
-              size={20}
-              color={variant === 'outline' ? '#FF6B00' : '#fff'}
-              style={{ marginRight: 8 }}
-            />
-          )}
-          <Text style={textStyles}>{title}</Text>
+          {icon ? <Ionicons name={icon} size={size === 'sm' ? 16 : 18} color={tone.fg} /> : null}
+          <Text style={[styles.buttonText, size === 'sm' && styles.buttonTextSm, { color: tone.fg }, textStyle]} numberOfLines={1}>
+            {title}
+          </Text>
+          {iconRight ? <Ionicons name={iconRight} size={size === 'sm' ? 16 : 18} color={tone.fg} /> : null}
         </>
       )}
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 
-// Input Component
-interface InputProps {
-  placeholder?: string;
-  value: string;
-  onChangeText: (text: string) => void;
-  secureTextEntry?: boolean;
-  keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
-  icon?: string;
-  error?: string;
-  label?: string;
-  multiline?: boolean;
-  numberOfLines?: number;
-  style?: ViewStyle;
-  editable?: boolean;
-}
-
-export const Input: React.FC<InputProps> = ({
-  placeholder,
-  value,
-  onChangeText,
-  secureTextEntry = false,
-  keyboardType = 'default',
-  icon,
-  error,
-  label,
-  multiline = false,
-  numberOfLines = 1,
-  style,
-  editable = true,
-}) => (
-  <View style={[styles.inputContainer, style]}>
-    {label && <Text style={styles.inputLabel}>{label}</Text>}
-    <View style={[styles.inputWrapper, error && styles.inputError]}>
-      {icon && (
-        <Icon name={icon} size={20} color="#999" style={styles.inputIcon} />
-      )}
-      <TextInput
-        style={[styles.input, multiline && styles.inputMultiline]}
-        placeholder={placeholder}
-        placeholderTextColor="#999"
-        value={value}
-        onChangeText={onChangeText}
-        secureTextEntry={secureTextEntry}
-        keyboardType={keyboardType}
-        multiline={multiline}
-        numberOfLines={numberOfLines}
-        editable={editable}
-      />
-    </View>
-    {error && <Text style={styles.errorText}>{error}</Text>}
-  </View>
+export const IconButton: React.FC<{
+  icon: IconName;
+  onPress?: () => void;
+  color?: string;
+  size?: number;
+  badge?: number;
+  style?: StyleProp<ViewStyle>;
+  accessibilityLabel: string;
+  variant?: 'plain' | 'filled';
+}> = ({ icon, onPress, color = colors.text, size = sizes.iconLg, badge, style, accessibilityLabel, variant = 'plain' }) => (
+  <TouchableOpacity
+    onPress={onPress}
+    accessibilityRole="button"
+    accessibilityLabel={accessibilityLabel}
+    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+    style={[styles.iconButton, variant === 'filled' && styles.iconButtonFilled, style]}
+    activeOpacity={0.7}
+  >
+    <Ionicons name={icon} size={size} color={color} />
+    {badge ? (
+      <View style={styles.iconBadge}>
+        <Text style={styles.iconBadgeText}>{badge > 99 ? '99+' : badge}</Text>
+      </View>
+    ) : null}
+  </TouchableOpacity>
 );
 
-// Card Component
-interface CardProps {
-  children: React.ReactNode;
-  style?: ViewStyle;
-  onPress?: () => void;
+// ─── Inputs ───────────────────────────────────────────────────────────
+
+interface InputProps extends Omit<TextInputProps, 'style'> {
+  label?: string;
+  icon?: IconName;
+  error?: string;
+  helper?: string;
+  required?: boolean;
+  right?: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
+  inputStyle?: StyleProp<TextStyle>;
 }
 
-export const Card: React.FC<CardProps> = ({ children, style, onPress }) => {
+export const Input = React.forwardRef<TextInput, InputProps>(function Input(
+  { label, icon, error, helper, required, right, style, inputStyle, secureTextEntry, multiline, editable = true, onFocus, onBlur, ...rest },
+  ref,
+) {
+  const [focused, setFocused] = useState(false);
+  const [hidden, setHidden] = useState(!!secureTextEntry);
+  return (
+    <View style={[styles.inputContainer, style]}>
+      {label ? (
+        <Text style={styles.inputLabel}>
+          {label}
+          {required ? <Text style={{ color: colors.danger }}> *</Text> : null}
+        </Text>
+      ) : null}
+      <View
+        style={[
+          styles.inputWrapper,
+          multiline && styles.inputWrapperMultiline,
+          focused && styles.inputFocused,
+          !!error && styles.inputError,
+          !editable && styles.inputDisabled,
+        ]}
+      >
+        {icon ? <Ionicons name={icon} size={sizes.icon} color={focused ? colors.primary : colors.textTertiary} /> : null}
+        <TextInput
+          ref={ref}
+          style={[styles.input, multiline && styles.inputMultiline, inputStyle]}
+          placeholderTextColor={colors.textTertiary}
+          secureTextEntry={hidden}
+          multiline={multiline}
+          editable={editable}
+          onFocus={(e) => { setFocused(true); onFocus?.(e); }}
+          onBlur={(e) => { setFocused(false); onBlur?.(e); }}
+          {...rest}
+        />
+        {secureTextEntry ? (
+          <TouchableOpacity
+            onPress={() => setHidden((h) => !h)}
+            accessibilityRole="button"
+            accessibilityLabel={hidden ? 'Show password' : 'Hide password'}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name={hidden ? 'eye-outline' : 'eye-off-outline'} size={sizes.icon} color={colors.textTertiary} />
+          </TouchableOpacity>
+        ) : null}
+        {right}
+      </View>
+      {error ? (
+        <View style={styles.inputMessageRow}>
+          <Ionicons name="alert-circle" size={14} color={colors.danger} />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : helper ? (
+        <Text style={styles.helperText}>{helper}</Text>
+      ) : null}
+    </View>
+  );
+});
+
+// ─── Surfaces ─────────────────────────────────────────────────────────
+
+interface CardProps {
+  children: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
+  onPress?: () => void;
+  padded?: boolean;
+  variant?: 'elevated' | 'outlined' | 'flat';
+  selected?: boolean;
+  accessibilityLabel?: string;
+}
+
+export const Card: React.FC<CardProps> = ({ children, style, onPress, padded = true, variant = 'elevated', selected, accessibilityLabel }) => {
+  const cardStyle = [
+    styles.card,
+    padded && styles.cardPadded,
+    variant === 'elevated' && elevation.card,
+    variant === 'outlined' && styles.cardOutlined,
+    variant === 'flat' && styles.cardFlat,
+    selected && styles.cardSelected,
+    style,
+  ];
   if (onPress) {
     return (
-      <TouchableOpacity style={[styles.card, style]} onPress={onPress} activeOpacity={0.8}>
+      <TouchableOpacity style={cardStyle} onPress={onPress} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={accessibilityLabel}>
         {children}
       </TouchableOpacity>
     );
   }
-  return <View style={[styles.card, style]}>{children}</View>;
+  return <View style={cardStyle}>{children}</View>;
 };
 
-// Badge Component
+export const Divider: React.FC<{ style?: StyleProp<ViewStyle>; inset?: number }> = ({ style, inset = 0 }) => (
+  <View style={[styles.divider, inset ? { marginLeft: inset } : null, style]} />
+);
+
+// ─── Badges & chips ───────────────────────────────────────────────────
+
+type Tone = 'neutral' | 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'error';
+
+const toneColors = (tone: Tone) => {
+  switch (tone) {
+    case 'primary': return { bg: colors.primarySoft, fg: colors.primary };
+    case 'success': return { bg: colors.successSoft, fg: colors.successStrong };
+    case 'warning': return { bg: colors.warningSoft, fg: colors.warningStrong };
+    case 'danger':
+    case 'error': return { bg: colors.dangerSoft, fg: colors.danger };
+    case 'info': return { bg: colors.infoSoft, fg: colors.info };
+    default: return { bg: colors.surfaceMuted, fg: colors.textSecondary };
+  }
+};
+
 interface BadgeProps {
   text: string;
-  variant?: 'success' | 'warning' | 'error' | 'info';
-  style?: ViewStyle;
+  variant?: Tone;
+  icon?: IconName;
+  style?: StyleProp<ViewStyle>;
 }
 
-export const Badge: React.FC<BadgeProps> = ({ text, variant = 'info', style }) => {
-  const badgeStyles = [
-    styles.badge,
-    variant === 'success' && styles.badgeSuccess,
-    variant === 'warning' && styles.badgeWarning,
-    variant === 'error' && styles.badgeError,
-    variant === 'info' && styles.badgeInfo,
-    style,
-  ];
-
-  const textStyles = [
-    styles.badgeText,
-    variant === 'success' && styles.badgeTextSuccess,
-    variant === 'warning' && styles.badgeTextWarning,
-    variant === 'error' && styles.badgeTextError,
-    variant === 'info' && styles.badgeTextInfo,
-  ];
-
+export const Badge: React.FC<BadgeProps> = ({ text, variant = 'neutral', icon, style }) => {
+  const tone = toneColors(variant);
   return (
-    <View style={badgeStyles}>
-      <Text style={textStyles}>{text}</Text>
+    <View style={[styles.badge, { backgroundColor: tone.bg }, style]}>
+      {icon ? <Ionicons name={icon} size={12} color={tone.fg} /> : null}
+      <Text style={[styles.badgeText, { color: tone.fg }]} numberOfLines={1}>{text}</Text>
     </View>
   );
 };
 
-// Divider Component
-interface DividerProps {
-  style?: ViewStyle;
-}
+export const StatusBadge: React.FC<{ status: string; label?: string; style?: StyleProp<ViewStyle> }> = ({ status, label, style }) => {
+  const c = orderStatusColors[status] || { bg: colors.surfaceMuted, fg: colors.textSecondary, label: status };
+  return (
+    <View style={[styles.badge, { backgroundColor: c.bg }, style]}>
+      <Text style={[styles.badgeText, { color: c.fg }]} numberOfLines={1}>{label || c.label}</Text>
+    </View>
+  );
+};
 
-export const Divider: React.FC<DividerProps> = ({ style }) => (
-  <View style={[styles.divider, style]} />
+export const Chip: React.FC<{
+  label: string;
+  selected?: boolean;
+  onPress?: () => void;
+  icon?: IconName;
+  count?: number;
+  style?: StyleProp<ViewStyle>;
+}> = ({ label, selected, onPress, icon, count, style }) => (
+  <TouchableOpacity
+    onPress={onPress}
+    activeOpacity={0.8}
+    accessibilityRole="button"
+    accessibilityState={{ selected: !!selected }}
+    style={[styles.chip, selected && styles.chipSelected, style]}
+  >
+    {icon ? <Ionicons name={icon} size={14} color={selected ? colors.textInverse : colors.textSecondary} /> : null}
+    <Text style={[styles.chipText, selected && styles.chipTextSelected]} numberOfLines={1}>{label}</Text>
+    {count !== undefined ? (
+      <View style={[styles.chipCount, selected && styles.chipCountSelected]}>
+        <Text style={[styles.chipCountText, selected && { color: colors.primary }]}>{count}</Text>
+      </View>
+    ) : null}
+  </TouchableOpacity>
 );
 
-// Empty State Component
+export const ChipRow: React.FC<{ children: React.ReactNode; style?: StyleProp<ViewStyle> }> = ({ children, style }) => (
+  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.chipRow, style]}>
+    {children}
+  </ScrollView>
+);
+
+export const SegmentedControl = <K extends string>({
+  options,
+  value,
+  onChange,
+  style,
+}: {
+  options: { key: K; label: string }[];
+  value: K;
+  onChange: (key: K) => void;
+  style?: StyleProp<ViewStyle>;
+}) => (
+  <View style={[styles.segmented, style]} accessibilityRole="tablist">
+    {options.map((o) => {
+      const active = o.key === value;
+      return (
+        <TouchableOpacity
+          key={o.key}
+          onPress={() => onChange(o.key)}
+          activeOpacity={0.8}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: active }}
+          style={[styles.segment, active && styles.segmentActive]}
+        >
+          <Text style={[styles.segmentText, active && styles.segmentTextActive]} numberOfLines={1}>{o.label}</Text>
+        </TouchableOpacity>
+      );
+    })}
+  </View>
+);
+
+// ─── Headers & rows ───────────────────────────────────────────────────
+
+export const ScreenHeader: React.FC<{
+  title: string;
+  subtitle?: string;
+  onBack?: () => void;
+  showBack?: boolean;
+  right?: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
+}> = ({ title, subtitle, onBack, showBack = true, right, style }) => {
+  const navigation = useNavigation<any>();
+  return (
+    <View style={[styles.screenHeader, style]}>
+      {showBack ? (
+        <IconButton
+          icon="arrow-back"
+          accessibilityLabel="Go back"
+          onPress={onBack || (() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs')))}
+          style={{ marginLeft: -spacing.sm }}
+        />
+      ) : null}
+      <View style={{ flex: 1 }}>
+        <Text style={type.heading} numberOfLines={1} accessibilityRole="header">{title}</Text>
+        {subtitle ? <Text style={type.caption} numberOfLines={1}>{subtitle}</Text> : null}
+      </View>
+      {right}
+    </View>
+  );
+};
+
+export const SectionHeader: React.FC<{
+  title: string;
+  subtitle?: string;
+  actionLabel?: string;
+  onAction?: () => void;
+  style?: StyleProp<ViewStyle>;
+}> = ({ title, subtitle, actionLabel, onAction, style }) => (
+  <View style={[styles.sectionHeader, style]}>
+    <View style={{ flex: 1 }}>
+      <Text style={type.heading} accessibilityRole="header">{title}</Text>
+      {subtitle ? <Text style={[type.caption, { marginTop: 2 }]}>{subtitle}</Text> : null}
+    </View>
+    {actionLabel && onAction ? (
+      <TouchableOpacity onPress={onAction} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button">
+        <Text style={styles.sectionAction}>{actionLabel}</Text>
+      </TouchableOpacity>
+    ) : null}
+  </View>
+);
+
+export const ListRow: React.FC<{
+  icon?: IconName;
+  iconColor?: string;
+  title: string;
+  subtitle?: string;
+  value?: string;
+  right?: React.ReactNode;
+  onPress?: () => void;
+  destructive?: boolean;
+  showChevron?: boolean;
+  style?: StyleProp<ViewStyle>;
+}> = ({ icon, iconColor, title, subtitle, value, right, onPress, destructive, showChevron = !!onPress, style }) => {
+  const content = (
+    <>
+      {icon ? (
+        <View style={[styles.rowIcon, destructive && { backgroundColor: colors.dangerSoft }]}>
+          <Ionicons name={icon} size={sizes.icon} color={destructive ? colors.danger : iconColor || colors.primary} />
+        </View>
+      ) : null}
+      <View style={{ flex: 1 }}>
+        <Text style={[type.bodyStrong, destructive && { color: colors.danger }]} numberOfLines={1}>{title}</Text>
+        {subtitle ? <Text style={[type.caption, { marginTop: 2 }]} numberOfLines={2}>{subtitle}</Text> : null}
+      </View>
+      {value ? <Text style={[type.small, { color: colors.textSecondary }]}>{value}</Text> : null}
+      {right}
+      {showChevron ? <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} /> : null}
+    </>
+  );
+  return onPress ? (
+    <TouchableOpacity style={[styles.listRow, style]} onPress={onPress} activeOpacity={0.7} accessibilityRole="button">
+      {content}
+    </TouchableOpacity>
+  ) : (
+    <View style={[styles.listRow, style]}>{content}</View>
+  );
+};
+
+// ─── Feedback states ──────────────────────────────────────────────────
+
 interface EmptyStateProps {
-  icon: string;
+  icon: IconName;
   title: string;
   subtitle?: string;
   actionText?: string;
   onAction?: () => void;
+  style?: StyleProp<ViewStyle>;
 }
 
-export const EmptyState: React.FC<EmptyStateProps> = ({
-  icon,
-  title,
-  subtitle,
-  actionText,
-  onAction,
-}) => (
-  <View style={styles.emptyState}>
-    <Icon name={icon} size={80} color="#ddd" />
-    <Text style={styles.emptyStateTitle}>{title}</Text>
-    {subtitle && <Text style={styles.emptyStateSubtitle}>{subtitle}</Text>}
-    {actionText && onAction && (
-      <Button title={actionText} onPress={onAction} style={{ marginTop: 16 }} />
-    )}
+export const EmptyState: React.FC<EmptyStateProps> = ({ icon, title, subtitle, actionText, onAction, style }) => (
+  <View style={[styles.emptyState, style]}>
+    <View style={styles.emptyIcon}>
+      <Ionicons name={icon} size={32} color={colors.primary} />
+    </View>
+    <Text style={[type.heading, styles.centerText]}>{title}</Text>
+    {subtitle ? <Text style={[type.small, styles.centerText, { color: colors.textSecondary, marginTop: spacing.xs }]}>{subtitle}</Text> : null}
+    {actionText && onAction ? <Button title={actionText} onPress={onAction} style={{ marginTop: spacing.lg, minWidth: 180 }} /> : null}
   </View>
 );
 
-// Rating Stars Component
+export const ErrorState: React.FC<{ title?: string; message?: string; onRetry?: () => void; style?: StyleProp<ViewStyle> }> = ({
+  title = 'Something went wrong',
+  message = 'Please check your connection and try again.',
+  onRetry,
+  style,
+}) => (
+  <View style={[styles.emptyState, style]}>
+    <View style={[styles.emptyIcon, { backgroundColor: colors.dangerSoft }]}>
+      <Ionicons name="cloud-offline-outline" size={30} color={colors.danger} />
+    </View>
+    <Text style={[type.heading, styles.centerText]}>{title}</Text>
+    <Text style={[type.small, styles.centerText, { color: colors.textSecondary, marginTop: spacing.xs }]}>{message}</Text>
+    {onRetry ? <Button title="Try again" variant="secondary" icon="refresh" onPress={onRetry} style={{ marginTop: spacing.lg, minWidth: 160 }} /> : null}
+  </View>
+);
+
+/** Inline notice for warnings, errors and info inside a screen */
+export const Notice: React.FC<{
+  tone?: Tone;
+  icon?: IconName;
+  title?: string;
+  message: string;
+  actionLabel?: string;
+  onAction?: () => void;
+  style?: StyleProp<ViewStyle>;
+}> = ({ tone = 'info', icon, title, message, actionLabel, onAction, style }) => {
+  const c = toneColors(tone);
+  const defaultIcon: IconName = tone === 'danger' || tone === 'error' ? 'alert-circle' : tone === 'warning' ? 'warning' : tone === 'success' ? 'checkmark-circle' : 'information-circle';
+  return (
+    <View style={[styles.notice, { backgroundColor: c.bg }, style]}>
+      <Ionicons name={icon || defaultIcon} size={18} color={c.fg} style={{ marginTop: 1 }} />
+      <View style={{ flex: 1 }}>
+        {title ? <Text style={[type.label, { color: c.fg }]}>{title}</Text> : null}
+        <Text style={[type.small, { color: title ? colors.text : c.fg }]}>{message}</Text>
+      </View>
+      {actionLabel && onAction ? (
+        <TouchableOpacity onPress={onAction} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={[type.label, { color: c.fg }]}>{actionLabel}</Text>
+        </TouchableOpacity>
+      ) : null}
+    </View>
+  );
+};
+
+// ─── Commerce ─────────────────────────────────────────────────────────
+
 interface RatingProps {
   rating: number;
   size?: number;
   showValue?: boolean;
+  count?: number;
 }
 
-export const Rating: React.FC<RatingProps> = ({ rating, size = 16, showValue = true }) => (
+export const Rating: React.FC<RatingProps> = ({ rating, size = 14, showValue = true, count }) => (
   <View style={styles.ratingContainer}>
-    <Icon name="star" size={size} color="#FFD700" />
-    {showValue && <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>}
+    <Ionicons name="star" size={size} color={colors.rating} />
+    {showValue ? <Text style={styles.ratingText}>{Number(rating || 0).toFixed(1)}</Text> : null}
+    {count ? <Text style={[type.caption, { marginLeft: 2 }]}>({count})</Text> : null}
   </View>
 );
 
-// Price Component
 interface PriceProps {
   amount: number;
   originalAmount?: number;
@@ -255,214 +580,268 @@ interface PriceProps {
 }
 
 export const Price: React.FC<PriceProps> = ({ amount, originalAmount, size = 'medium' }) => {
-  const fontSize = size === 'small' ? 14 : size === 'large' ? 20 : 16;
-  
+  const fontSize = size === 'small' ? 13 : size === 'large' ? 20 : 15;
   return (
     <View style={styles.priceContainer}>
-      <Text style={[styles.priceText, { fontSize }]}>Rs. {amount}</Text>
-      {originalAmount && originalAmount > amount && (
-        <Text style={[styles.originalPrice, { fontSize: fontSize - 2 }]}>
-          Rs. {originalAmount}
-        </Text>
-      )}
+      <Text style={[type.price, { fontSize, lineHeight: fontSize + 6 }]}>{formatPrice(amount)}</Text>
+      {originalAmount && originalAmount > amount ? (
+        <Text style={[styles.originalPrice, { fontSize: fontSize - 2 }]}>{formatPrice(originalAmount)}</Text>
+      ) : null}
     </View>
   );
 };
 
+/** Bill line: label on the left, amount on the right */
+export const PriceRow: React.FC<{
+  label: string;
+  value: string;
+  hint?: string;
+  emphasis?: boolean;
+  tone?: 'default' | 'success' | 'danger' | 'muted';
+  style?: StyleProp<ViewStyle>;
+}> = ({ label, value, hint, emphasis, tone = 'default', style }) => {
+  const color = tone === 'success' ? colors.successStrong : tone === 'danger' ? colors.danger : tone === 'muted' ? colors.textSecondary : colors.text;
+  return (
+    <View style={[styles.priceRow, style]}>
+      <View style={{ flex: 1 }}>
+        <Text style={[emphasis ? type.bodyStrong : type.small, { color: emphasis ? colors.text : colors.textSecondary }]}>{label}</Text>
+        {hint ? <Text style={type.caption}>{hint}</Text> : null}
+      </View>
+      <Text style={[emphasis ? type.price : type.small, { color, fontVariant: ['tabular-nums'] }, emphasis && { fontSize: 17 }]}>{value}</Text>
+    </View>
+  );
+};
+
+export const VegIndicator: React.FC<{ isVeg?: boolean; size?: number }> = ({ isVeg = true, size = 14 }) => (
+  <View
+    accessibilityLabel={isVeg ? 'Vegetarian' : 'Non-vegetarian'}
+    style={[styles.vegBox, { width: size, height: size, borderColor: isVeg ? colors.veg : colors.nonVeg }]}
+  >
+    <View style={{ width: size / 2, height: size / 2, borderRadius: size, backgroundColor: isVeg ? colors.veg : colors.nonVeg }} />
+  </View>
+);
+
+export const QuantityStepper: React.FC<{
+  quantity: number;
+  onIncrement: () => void;
+  onDecrement: () => void;
+  disabled?: boolean;
+  size?: 'md' | 'sm';
+}> = ({ quantity, onIncrement, onDecrement, disabled, size = 'md' }) => (
+  <View style={[styles.stepper, size === 'sm' && styles.stepperSm, disabled && { opacity: 0.5 }]}>
+    <TouchableOpacity onPress={onDecrement} disabled={disabled} style={styles.stepperBtn} accessibilityLabel="Decrease quantity" hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+      <Ionicons name={quantity <= 1 ? 'trash-outline' : 'remove'} size={16} color={colors.primary} />
+    </TouchableOpacity>
+    <Text style={styles.stepperValue}>{quantity}</Text>
+    <TouchableOpacity onPress={onIncrement} disabled={disabled} style={styles.stepperBtn} accessibilityLabel="Increase quantity" hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+      <Ionicons name="add" size={16} color={colors.primary} />
+    </TouchableOpacity>
+  </View>
+);
+
+/** Compact "ADD" button that turns into a stepper once the item is in the cart */
+export const AddToCartButton: React.FC<{
+  quantity: number;
+  onAdd: () => void;
+  onIncrement: () => void;
+  onDecrement: () => void;
+  disabled?: boolean;
+}> = ({ quantity, onAdd, onIncrement, onDecrement, disabled }) =>
+  quantity > 0 ? (
+    <QuantityStepper quantity={quantity} onIncrement={onIncrement} onDecrement={onDecrement} disabled={disabled} size="sm" />
+  ) : (
+    <TouchableOpacity
+      onPress={onAdd}
+      disabled={disabled}
+      style={[styles.addButton, disabled && styles.addButtonDisabled]}
+      accessibilityRole="button"
+      accessibilityLabel={disabled ? 'Unavailable' : 'Add to cart'}
+    >
+      <Text style={[styles.addButtonText, disabled && { color: colors.textTertiary }]}>{disabled ? 'UNAVAILABLE' : 'ADD'}</Text>
+      {!disabled ? <Ionicons name="add" size={14} color={colors.primary} /> : null}
+    </TouchableOpacity>
+  );
+
+// ─── Layout helpers ───────────────────────────────────────────────────
+
+/** Bottom action bar that respects the home indicator */
+export const StickyFooter: React.FC<{ children: React.ReactNode; style?: StyleProp<ViewStyle> }> = ({ children, style }) => {
+  const insets = useSafeAreaInsets();
+  return <View style={[styles.stickyFooter, { paddingBottom: Math.max(insets.bottom, spacing.md) }, style]}>{children}</View>;
+};
+
+export const BottomSheet: React.FC<{
+  visible: boolean;
+  onClose: () => void;
+  title?: string;
+  subtitle?: string;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+  scrollable?: boolean;
+  maxHeight?: ViewStyle['maxHeight'];
+}> = ({ visible, onClose, title, subtitle, children, footer, scrollable = true, maxHeight = '88%' }) => {
+  const insets = useSafeAreaInsets();
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <Pressable style={styles.sheetBackdrop} onPress={onClose} accessibilityLabel="Close" />
+        <View style={[styles.sheet, { maxHeight, paddingBottom: footer ? 0 : Math.max(insets.bottom, spacing.lg) }]}>
+          <View style={styles.sheetHandle} />
+          {title ? (
+            <View style={styles.sheetHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={type.title}>{title}</Text>
+                {subtitle ? <Text style={[type.caption, { marginTop: 2 }]}>{subtitle}</Text> : null}
+              </View>
+              <IconButton icon="close" accessibilityLabel="Close" onPress={onClose} variant="filled" size={20} />
+            </View>
+          ) : null}
+          {scrollable ? (
+            <ScrollView contentContainerStyle={styles.sheetBody} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              {children}
+            </ScrollView>
+          ) : (
+            <View style={styles.sheetBody}>{children}</View>
+          )}
+          {footer ? <StickyFooter style={{ ...elevation.none, borderTopWidth: 0 }}>{footer}</StickyFooter> : null}
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+};
+
 const styles = StyleSheet.create({
-  // Loading
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#666',
-  },
+  centerText: { textAlign: 'center' },
 
-  // Button
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xxl, gap: spacing.md },
+  loadingText: { ...type.small, color: colors.textSecondary },
+
   button: {
+    height: sizes.buttonHeight,
+    paddingHorizontal: spacing.xl,
+    borderRadius: radius.md,
+    borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 8,
+    gap: spacing.sm,
   },
-  buttonPrimary: {
-    backgroundColor: '#FF6B00',
-  },
-  buttonSecondary: {
-    backgroundColor: '#333',
-  },
-  buttonOutline: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: '#FF6B00',
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  buttonTextPrimary: {
-    color: '#fff',
-  },
-  buttonTextSecondary: {
-    color: '#fff',
-  },
-  buttonTextOutline: {
-    color: '#FF6B00',
-  },
-  buttonTextDisabled: {
-    color: '#999',
-  },
+  buttonSm: { height: sizes.buttonHeightSm, paddingHorizontal: spacing.md, borderRadius: radius.sm },
+  buttonTertiary: { paddingHorizontal: spacing.sm },
+  buttonText: { fontSize: 15, lineHeight: 20, fontWeight: '600' },
+  buttonTextSm: { fontSize: 13, lineHeight: 18 },
 
-  // Input
-  inputContainer: {
-    marginBottom: 16,
+  iconButton: { width: sizes.iconButton, height: sizes.iconButton, borderRadius: sizes.iconButton / 2, alignItems: 'center', justifyContent: 'center' },
+  iconButtonFilled: { backgroundColor: colors.surfaceMuted, width: 36, height: 36, borderRadius: 18 },
+  iconBadge: {
+    position: 'absolute', top: 2, right: 0, minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9,
+    backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.surface,
   },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
-    marginBottom: 8,
-  },
+  iconBadgeText: { color: colors.textInverse, fontSize: 10, fontWeight: '700' },
+
+  inputContainer: { marginBottom: spacing.lg },
+  inputLabel: { ...type.label, marginBottom: spacing.xs + 2 },
   inputWrapper: {
+    minHeight: sizes.inputHeight,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
+    gap: spacing.sm + 2,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
-    paddingHorizontal: 12,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md + 2,
   },
-  inputError: {
-    borderColor: '#f44336',
-  },
-  inputIcon: {
-    marginRight: 8,
-  },
-  input: {
-    flex: 1,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: '#333',
-  },
-  inputMultiline: {
-    minHeight: 100,
-    textAlignVertical: 'top',
-  },
-  errorText: {
-    fontSize: 12,
-    color: '#f44336',
-    marginTop: 4,
-  },
+  inputWrapperMultiline: { alignItems: 'flex-start', paddingVertical: spacing.md },
+  inputFocused: { borderColor: colors.primary },
+  inputError: { borderColor: colors.danger },
+  inputDisabled: { backgroundColor: colors.surfaceMuted },
+  input: { flex: 1, fontSize: 15, color: colors.text, paddingVertical: Platform.OS === 'ios' ? spacing.md : spacing.sm },
+  inputMultiline: { minHeight: 88, textAlignVertical: 'top', paddingVertical: 0 },
+  inputMessageRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.xs + 2 },
+  errorText: { ...type.caption, color: colors.danger },
+  helperText: { ...type.caption, marginTop: spacing.xs + 2 },
 
-  // Card
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
+  card: { backgroundColor: colors.surface, borderRadius: radius.lg },
+  cardPadded: { padding: spacing.lg },
+  cardOutlined: { borderWidth: 1, borderColor: colors.border },
+  cardFlat: { backgroundColor: colors.surfaceMuted },
+  cardSelected: { borderWidth: 1.5, borderColor: colors.primary, backgroundColor: colors.primarySoft },
 
-  // Badge
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
+
   badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
+    flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4,
+    paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: radius.pill,
   },
-  badgeSuccess: {
-    backgroundColor: '#e8f5e9',
+  badgeText: { fontSize: 11, lineHeight: 14, fontWeight: '600' },
+
+  chipRow: { gap: spacing.sm, paddingHorizontal: spacing.screen },
+  chip: {
+    height: 36, paddingHorizontal: spacing.md + 2, borderRadius: radius.pill, flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
   },
-  badgeWarning: {
-    backgroundColor: '#fff3e0',
+  chipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { ...type.label, color: colors.textSecondary },
+  chipTextSelected: { color: colors.textInverse },
+  chipCount: { minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' },
+  chipCountSelected: { backgroundColor: colors.surface },
+  chipCountText: { fontSize: 11, fontWeight: '700', color: colors.textSecondary },
+
+  segmented: { flexDirection: 'row', backgroundColor: colors.surfaceMuted, borderRadius: radius.md, padding: 3 },
+  segment: { flex: 1, height: 36, borderRadius: radius.sm + 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.sm },
+  segmentActive: { backgroundColor: colors.surface, ...elevation.card },
+  segmentText: { ...type.label, color: colors.textSecondary },
+  segmentTextActive: { color: colors.text },
+
+  screenHeader: {
+    height: sizes.headerHeight, flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
+    paddingHorizontal: spacing.screen, backgroundColor: colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
   },
-  badgeError: {
-    backgroundColor: '#ffebee',
+  sectionHeader: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.md, marginBottom: spacing.md },
+  sectionAction: { ...type.label, color: colors.primary },
+
+  listRow: { minHeight: sizes.listRow, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md },
+  rowIcon: { width: 36, height: 36, borderRadius: radius.sm + 2, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+
+  emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.xxxl + spacing.lg, paddingHorizontal: spacing.xxl },
+  emptyIcon: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.lg },
+
+  notice: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm + 2, padding: spacing.md, borderRadius: radius.md },
+
+  ratingContainer: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  ratingText: { ...type.label, color: colors.text },
+
+  priceContainer: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm },
+  originalPrice: { color: colors.textTertiary, textDecorationLine: 'line-through' },
+  priceRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: 6 },
+
+  vegBox: { borderWidth: 1.5, borderRadius: 3, alignItems: 'center', justifyContent: 'center' },
+
+  stepper: {
+    height: 36, minWidth: 96, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderRadius: radius.sm, borderWidth: 1, borderColor: colors.primaryBorder, backgroundColor: colors.primarySoft, paddingHorizontal: 4,
   },
-  badgeInfo: {
-    backgroundColor: '#e3f2fd',
+  stepperSm: { height: 32, minWidth: 88 },
+  stepperBtn: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
+  stepperValue: { ...type.label, color: colors.primary, minWidth: 20, textAlign: 'center' },
+
+  addButton: {
+    height: 32, minWidth: 88, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2,
+    borderRadius: radius.sm, borderWidth: 1, borderColor: colors.primaryBorder, backgroundColor: colors.surface,
   },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  badgeTextSuccess: {
-    color: '#4caf50',
-  },
-  badgeTextWarning: {
-    color: '#ff9800',
-  },
-  badgeTextError: {
-    color: '#f44336',
-  },
-  badgeTextInfo: {
-    color: '#2196f3',
+  addButtonDisabled: { borderColor: colors.border, backgroundColor: colors.surfaceMuted },
+  addButtonText: { fontSize: 13, fontWeight: '700', color: colors.primary, letterSpacing: 0.3 },
+
+  stickyFooter: {
+    backgroundColor: colors.surface, paddingHorizontal: spacing.screen, paddingTop: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, ...elevation.sticky,
   },
 
-  // Divider
-  divider: {
-    height: 1,
-    backgroundColor: '#e0e0e0',
-    marginVertical: 16,
-  },
-
-  // Empty State
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-  emptyStateTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 16,
-    textAlign: 'center',
-  },
-  emptyStateSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-
-  // Rating
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  ratingText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginLeft: 4,
-  },
-
-  // Price
-  priceContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  priceText: {
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  originalPrice: {
-    color: '#999',
-    textDecorationLine: 'line-through',
-    marginLeft: 8,
-  },
+  sheetBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: colors.overlay },
+  sheet: { marginTop: 'auto', backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl },
+  sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginTop: spacing.sm },
+  sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.xl, paddingTop: spacing.md, paddingBottom: spacing.sm },
+  sheetBody: { paddingHorizontal: spacing.xl, paddingTop: spacing.sm, paddingBottom: spacing.lg },
 });

@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "dabbanation",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
@@ -29,7 +28,6 @@
         "POST_NOTIFICATIONS",
         "VIBRATE"
       ],
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.dabbnation.user",
       "googleServicesFile": "./google-services.json"
@@ -53,7 +51,10 @@
       ],
       "expo-location",
       "expo-web-browser",
-      "expo-notifications"
+      "expo-notifications",
+      "expo-font",
+      "expo-image",
+      "expo-status-bar"
     ],
     "experiments": {
       "reactCompiler": true

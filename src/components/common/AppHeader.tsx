@@ -1,20 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  Alert,
-  Modal,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { useNavigation } from '@react-navigation/native';
-import { DEFAULT_LOCATION_LABEL, getReadableLocation } from '../../utils/location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { DEFAULT_LOCATION_LABEL, getReadableLocation, LOCATION_NAME_KEY } from '../../utils/location';
 import { getImageUrl } from '../../config/api';
+import { colors, elevation, radius, spacing, type } from '../../theme';
+import { IconButton } from './index';
 
 interface AppHeaderProps {
   showSearch?: boolean;
@@ -31,225 +26,159 @@ interface AppHeaderProps {
 export const AppHeader = React.memo(function AppHeader({ showSearch = true, showBack = false, sellerInfo, title }: AppHeaderProps) {
   const { user, logout } = useAuth();
   const { totalItems } = useCart();
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [location, setLocation] = useState(DEFAULT_LOCATION_LABEL);
+  const [locating, setLocating] = useState(false);
   const fetchingLocation = React.useRef(false);
 
-  useEffect(() => {
-    let isMounted = true;
-    const fetch = async () => {
-      if (fetchingLocation.current) return;
-      fetchingLocation.current = true;
-      try {
-        const loc = await getReadableLocation();
-        if (isMounted) setLocation(loc);
-      } finally {
-        fetchingLocation.current = false;
-      }
-    };
-    fetch();
-    return () => { isMounted = false; };
-  }, []);
-
-  const handleRefreshLocation = async () => {
+  const refreshLocation = React.useCallback(async (isMounted: () => boolean = () => true) => {
     if (fetchingLocation.current) return;
     fetchingLocation.current = true;
+    setLocating(true);
     try {
+      // Show the last saved location immediately; GPS may be slow, denied or unavailable
+      const saved = await AsyncStorage.getItem(LOCATION_NAME_KEY);
+      if (saved && isMounted()) setLocation(saved);
       const loc = await getReadableLocation();
-      setLocation(loc);
+      if (!isMounted()) return;
+      if (loc && loc !== DEFAULT_LOCATION_LABEL) setLocation(loc);
+      else setLocation(saved || 'Set your location');
     } finally {
       fetchingLocation.current = false;
+      if (isMounted()) setLocating(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    refreshLocation(() => mounted);
+    return () => { mounted = false; };
+  }, [refreshLocation]);
+
+  const avatar = user?.profileImage || user?.avatar;
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        {showBack && (
-          <TouchableOpacity 
-            style={styles.backButton} 
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
+      <View style={styles.topRow}>
+        {showBack ? (
+          <IconButton icon="arrow-back" accessibilityLabel="Go back" onPress={() => navigation.goBack()} style={{ marginLeft: -spacing.sm }} />
+        ) : sellerInfo ? null : (
+          <TouchableOpacity onPress={() => navigation.navigate('Landing')} activeOpacity={0.7} accessibilityLabel="Dabba Nation home">
+            <Image source={require('../../../assets/images/logo.png')} style={styles.logo} contentFit="contain" />
           </TouchableOpacity>
-        )}
-        <View style={styles.logoContainer}>
-          {sellerInfo ? (
-            // Seller/Restaurant Header
-            <View style={styles.sellerHeader}>
-              {sellerInfo.image ? (
-                <Image 
-                  source={[
-                    { uri: getImageUrl(sellerInfo.image) },
-                    require('../../../assets/images/logo.png')
-                  ]} 
-                  style={styles.sellerImage}
-                  contentFit="cover"
-                />
-              ) : (
-                <View style={styles.sellerImagePlaceholder}>
-                  <Ionicons 
-                    name={sellerInfo.type === 'home_chef' ? 'home' : 'restaurant'} 
-                    size={24} 
-                    color="#FF6B00" 
-                  />
-                </View>
-              )}
-              <View style={styles.sellerInfo}>
-                <Text style={styles.sellerName}>{sellerInfo.name}</Text>
-                <View style={styles.sellerMeta}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Ionicons
-                      name={sellerInfo.type === 'home_chef' ? 'home-outline' : 'restaurant-outline'}
-                      size={12}
-                      color="#666"
-                    />
-                    <Text style={styles.sellerType}>
-                      {sellerInfo.type === 'home_chef' ? 'Home Chef' : 'Restaurant'}
-                    </Text>
-                  </View>
-                  {sellerInfo.rating && (
-                    <View style={styles.ratingContainer}>
-                      <Ionicons name="star" size={12} color="#FFD700" />
-                      <Text style={styles.ratingText}>{sellerInfo.rating}</Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-            </View>
-          ) : (
-            // Main App Logo
-            <TouchableOpacity 
-              style={styles.mainLogoContainer}
-              onPress={() => navigation.navigate('Landing' as never)}
-              activeOpacity={0.7}
-            >
-              <Image 
-                source={require('../../../assets/images/logo.png')} 
-                style={styles.logoImage}
-                contentFit="cover"
-              />
-            </TouchableOpacity>
-          )}
-        </View>
-        
-        {title && !sellerInfo && (
-          <View style={styles.titleContainer}>
-            <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
-          </View>
         )}
 
-        <View style={styles.headerActions}>
-          <TouchableOpacity 
-            style={styles.iconButton}
-            onPress={() => navigation.navigate('Search' as never)}
-          >
-            <Ionicons name="search-outline" size={24} color="#1a1a1a" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('Cart' as never)}>
-            <Ionicons name="cart-outline" size={24} color="#1a1a1a" />
-            {totalItems > 0 && (
-              <View style={styles.cartBadge}>
-                <Text style={styles.cartBadgeText}>{totalItems}</Text>
+        {sellerInfo ? (
+          <View style={styles.sellerHeader}>
+            {sellerInfo.image ? (
+              <Image
+                source={[{ uri: getImageUrl(sellerInfo.image) }, require('../../../assets/images/logo.png')]}
+                style={styles.sellerImage}
+                contentFit="cover"
+              />
+            ) : (
+              <View style={[styles.sellerImage, styles.sellerImagePlaceholder]}>
+                <Ionicons name={sellerInfo.type === 'home_chef' ? 'home-outline' : 'restaurant-outline'} size={20} color={colors.primary} />
               </View>
             )}
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.iconButton}
-            onPress={() => navigation.navigate('Notifications' as never)}
+            <View style={{ flex: 1 }}>
+              <Text style={type.subheading} numberOfLines={1}>{sellerInfo.name}</Text>
+              <Text style={type.caption} numberOfLines={1}>
+                {sellerInfo.type === 'home_chef' ? 'Home Chef' : 'Restaurant'}
+                {sellerInfo.rating ? `  ·  ★ ${sellerInfo.rating}` : ''}
+              </Text>
+            </View>
+          </View>
+        ) : title ? (
+          <Text style={[type.heading, styles.title]} numberOfLines={1} accessibilityRole="header">{title}</Text>
+        ) : (
+          <TouchableOpacity
+            style={styles.location}
+            onPress={() => refreshLocation()}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`Deliver to ${location}. Tap to refresh location`}
           >
-            <Ionicons name="notifications-outline" size={24} color="#1a1a1a" />
-            <View style={styles.notificationDot} />
+            <Text style={type.overline}>Deliver to</Text>
+            <View style={styles.locationValueRow}>
+              <Ionicons name="location" size={14} color={colors.primary} />
+              <Text style={styles.locationValue} numberOfLines={1}>{locating && location === DEFAULT_LOCATION_LABEL ? 'Detecting location…' : location}</Text>
+              <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
+            </View>
           </TouchableOpacity>
-          
-          {/* User Profile Dropdown */}
+        )}
+
+        <View style={styles.actions}>
+          <IconButton icon="bag-handle-outline" accessibilityLabel={`Cart, ${totalItems} items`} badge={totalItems} onPress={() => navigation.navigate('Cart')} />
+          <IconButton icon="notifications-outline" accessibilityLabel="Notifications" onPress={() => navigation.navigate('Notifications')} />
           {user ? (
-            <TouchableOpacity style={styles.userProfile} onPress={() => setShowUserMenu(!showUserMenu)}>
-              {(user.profileImage || user.avatar) ? (
-                <Image 
-                  source={{ uri: getImageUrl(user.profileImage || user.avatar) }} 
-                  style={styles.userAvatar}
-                />
+            <TouchableOpacity onPress={() => setShowUserMenu(true)} accessibilityLabel="Account menu" style={styles.avatarButton}>
+              {avatar ? (
+                <Image source={{ uri: getImageUrl(avatar) }} style={styles.avatar} contentFit="cover" />
               ) : (
-                <View style={styles.userAvatarPlaceholder}>
-                  <Ionicons name="person" size={20} color="#666" />
+                <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                  <Text style={styles.avatarInitial}>{(user.name || 'U').charAt(0).toUpperCase()}</Text>
                 </View>
               )}
-              <Ionicons name="chevron-down" size={16} color="#666" />
             </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={styles.loginButton}>
-              <Text style={styles.loginButtonText}>Login</Text>
-            </TouchableOpacity>
-          )}
+          ) : null}
         </View>
       </View>
 
-      {/* Search Bar */}
-      {showSearch && (
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search for dishes, cuisines, or restaurants..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholderTextColor="#999"
-          />
-        </View>
-      )}
-
-      {/* Location Button */}
-      <TouchableOpacity style={styles.locationButton} onPress={handleRefreshLocation}>
-        <Ionicons name="location" size={18} color="#FF6B00" />
-        <View style={styles.locationContent}>
-          <Text style={styles.locationLabel}>Deliver to</Text>
-          <Text style={styles.locationValue}>{location}</Text>
-        </View>
-        <Ionicons name="refresh" size={16} color="#999" />
-      </TouchableOpacity>
-
-      {/* User Dropdown Menu */}
-      <Modal
-        visible={showUserMenu && !!user}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowUserMenu(false)}
-      >
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1} 
-          onPress={() => setShowUserMenu(false)}
+      {showSearch ? (
+        <TouchableOpacity
+          style={styles.search}
+          onPress={() => navigation.navigate('Search')}
+          activeOpacity={0.8}
+          accessibilityRole="search"
+          accessibilityLabel="Search for dishes, cuisines or restaurants"
         >
-          <View style={styles.userDropdown}>
-            <View style={styles.userDropdownHeader}>
-              <Text style={styles.dropdownUserEmail}>{user?.email || 'user@example.com'}</Text>
+          <Ionicons name="search" size={18} color={colors.textTertiary} />
+          <Text style={styles.searchPlaceholder} numberOfLines={1}>Search for dishes, cuisines or restaurants</Text>
+        </TouchableOpacity>
+      ) : null}
+
+      <Modal visible={showUserMenu && !!user} transparent animationType="fade" onRequestClose={() => setShowUserMenu(false)}>
+        <Pressable style={styles.menuOverlay} onPress={() => setShowUserMenu(false)}>
+          <View style={styles.menu}>
+            <View style={styles.menuHeader}>
+              <Text style={type.subheading} numberOfLines={1}>{user?.name || 'My account'}</Text>
+              <Text style={type.caption} numberOfLines={1}>{user?.email}</Text>
             </View>
-            
-            <TouchableOpacity 
-              style={styles.dropdownMenuItem} 
+            <TouchableOpacity
+              style={styles.menuItem}
               onPress={() => {
                 setShowUserMenu(false);
                 navigation.navigate('MainTabs', { screen: 'Settings' });
               }}
             >
-              <Ionicons name="person-outline" size={18} color="#1a1a1a" />
-              <Text style={styles.dropdownMenuText}>Profile Settings</Text>
+              <Ionicons name="person-outline" size={18} color={colors.text} />
+              <Text style={type.body}>Account & Settings</Text>
             </TouchableOpacity>
-
-            <View style={styles.dropdownDivider} />
-            
-            <TouchableOpacity style={styles.dropdownMenuItem} onPress={() => {
-              setShowUserMenu(false);
-              logout();
-            }}>
-              <Ionicons name="log-out-outline" size={18} color="#DC2626" />
-              <Text style={[styles.dropdownMenuText, { color: '#DC2626' }]}>Logout</Text>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setShowUserMenu(false);
+                navigation.navigate('MainTabs', { screen: 'Orders' });
+              }}
+            >
+              <Ionicons name="receipt-outline" size={18} color={colors.text} />
+              <Text style={type.body}>My Orders</Text>
+            </TouchableOpacity>
+            <View style={styles.menuDivider} />
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setShowUserMenu(false);
+                logout();
+              }}
+            >
+              <Ionicons name="log-out-outline" size={18} color={colors.danger} />
+              <Text style={[type.body, { color: colors.danger }]}>Log out</Text>
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </Pressable>
       </Modal>
     </View>
   );
@@ -257,274 +186,55 @@ export const AppHeader = React.memo(function AppHeader({ showSearch = true, show
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    backgroundColor: colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    paddingBottom: spacing.md,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  backButton: {
-    marginRight: 12,
-    padding: 4,
-  },
-  logoContainer: {
-    flex: 1,
+  topRow: {
+    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.screen,
   },
-  mainLogoContainer: {
+  logo: { width: 40, height: 40 },
+  title: { flex: 1 },
+  location: { flex: 1 },
+  locationValueRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 },
+  locationValue: { ...type.subheading, flexShrink: 1 },
+  sellerHeader: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  sellerImage: { width: 40, height: 40, borderRadius: 20 },
+  sellerImagePlaceholder: { backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  actions: { flexDirection: 'row', alignItems: 'center', marginRight: -spacing.xs },
+  avatarButton: { marginLeft: spacing.xs },
+  avatar: { width: 32, height: 32, borderRadius: 16 },
+  avatarPlaceholder: { backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  avatarInitial: { ...type.label, color: colors.primary },
+  search: {
+    height: 44,
+    marginHorizontal: spacing.screen,
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.md + 2,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceMuted,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: spacing.sm,
   },
-  logoImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    elevation: 6,
-  },
-  sellerHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  sellerImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 2,
-    borderColor: '#FF6B00',
-  },
-  sellerImagePlaceholder: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(255, 107, 0, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#FF6B00',
-  },
-  sellerInfo: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  sellerName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-    marginBottom: 4,
-  },
-  titleContainer: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-  },
-  sellerMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  sellerType: {
-    fontSize: 12,
-    color: '#666',
-    fontWeight: '500',
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    backgroundColor: '#f0f9ff',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  ratingText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#1a1a1a',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  iconButton: {
-    position: 'relative',
-  },
-  cartBadge: {
+  searchPlaceholder: { ...type.small, color: colors.textTertiary, flex: 1 },
+  menuOverlay: { flex: 1, backgroundColor: 'rgba(17,17,17,0.15)' },
+  menu: {
     position: 'absolute',
-    top: -6,
-    right: -6,
-    backgroundColor: '#FF6B00',
-    borderRadius: 10,
-    width: 18,
-    height: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cartBadgeText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  notificationDot: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#FF4444',
-  },
-  userProfile: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 6,
-  },
-  userAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-  },
-  userAvatarPlaceholder: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 107, 0, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loginButton: {
-    backgroundColor: '#FF6B00',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  loginButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    marginHorizontal: 16,
-    marginBottom: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 25,
-  },
-  searchIcon: {
-    marginRight: 10,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: '#1a1a1a',
-  },
-  locationButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    marginHorizontal: 16,
-    marginBottom: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-  locationContent: {
-    flex: 1,
-    marginLeft: 10,
-  },
-  locationLabel: {
-    fontSize: 10,
-    color: '#999',
-    fontWeight: '600',
-  },
-  locationValue: {
-    fontSize: 14,
-    color: '#1a1a1a',
-    fontWeight: '500',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.1)',
-  },
-  userDropdown: {
-    position: 'absolute',
-    top: 80,
-    right: 16,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingVertical: 0,
+    top: 64,
+    right: spacing.screen,
     minWidth: 240,
-    elevation: 12,
-    zIndex: 1000,
-    borderWidth: 1,
-    borderColor: '#f0f0f0',
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    paddingVertical: spacing.xs,
+    ...elevation.raised,
   },
-  userDropdownHeader: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  dropdownAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  dropdownAvatarPlaceholder: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 107, 0, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  userDropdownInfo: {
-    flex: 1,
-  },
-  dropdownUserName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
-    marginBottom: 2,
-  },
-  dropdownUserEmail: {
-    fontSize: 14,
-    color: '#1a1a1a',
-    fontWeight: '500',
-  },
-  dropdownDivider: {
-    height: 1,
-    backgroundColor: '#f0f0f0',
-    marginHorizontal: 0,
-  },
-  dropdownMenuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 12,
-  },
-  dropdownMenuText: {
-    fontSize: 14,
-    color: '#1a1a1a',
-    fontWeight: '500',
-  },
+  menuHeader: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  menuItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, height: 48 },
+  menuDivider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginVertical: spacing.xs },
 });

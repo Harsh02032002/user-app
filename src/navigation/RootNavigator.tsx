@@ -34,6 +34,7 @@ import SelectHomeChefScreen from '../screens/SelectHomeChefScreen';
 import SubscriptionCheckoutScreen from '../screens/SubscriptionCheckoutScreen';
 import SubscriptionPlansScreen from '../screens/SubscriptionPlansScreen';
 import SubscriptionsScreen from '../screens/SubscriptionsScreen';
+import SubscriptionItemsScreen from '../screens/SubscriptionItemsScreen';
 import { WalletScreen } from '../screens/tabs/WalletScreen';
 import { WishlistScreen } from '../screens/tabs/WishlistScreen';
 import { SettingsScreen } from '../screens/tabs/SettingsScreen';
@@ -77,6 +78,7 @@ export type RootStackParamList = {
   Wallet: undefined;
   Orders: undefined;
   Subscriptions: undefined;
+  SubscriptionItems: { subscriptionId?: string } | undefined;
   StaticPage: { type: 'about' | 'help' | 'privacy' | 'terms' | 'contact' | 'refund' };
   AllMenus: undefined;
   AllPlans: undefined;
@@ -133,6 +135,7 @@ export default function RootNavigator() {
             <Stack.Screen name="Wallet" component={WalletScreen} options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="Orders" component={OrdersScreen} options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="Subscriptions" component={SubscriptionsScreen} options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="SubscriptionItems" component={SubscriptionItemsScreen} options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="StaticPage" component={StaticPageScreen} options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="AllMenus" component={AllMenusScreen} options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="AllPlans" component={AllPlansScreen} options={{ animation: 'slide_from_right' }} />

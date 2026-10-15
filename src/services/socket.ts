@@ -2,6 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
+// Local backend port (override with EXPO_PUBLIC_API_PORT, e.g. to point at a demo backend)
+const API_PORT = process.env.EXPO_PUBLIC_API_PORT || '5000';
+
 // Standalone, zero-dependency Socket.IO v4 client (UMD build copied from socket.io-client/dist).
 // Using this avoids needing engine.io-client & friends in node_modules.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -12,7 +15,7 @@ type Socket = any;
 const getSocketConfig = () => {
   if (Platform.OS === 'web') {
     return {
-      url: 'http://localhost:5000',
+      url: `http://localhost:${API_PORT}`,
       path: '/socket.io',
     };
   }
@@ -20,7 +23,7 @@ const getSocketConfig = () => {
   if (hostUri) {
     const ip = hostUri.split(':')[0];
     return {
-      url: `http://${ip}:5000`,
+      url: `http://${ip}:${API_PORT}`,
       path: '/socket.io',
     };
   }

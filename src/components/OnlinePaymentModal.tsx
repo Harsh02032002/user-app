@@ -1,19 +1,10 @@
 import React, { useState } from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  Image,
-  ScrollView,
-  ActivityIndicator,
-  Clipboard,
-  Alert,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Clipboard, Alert } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { Ionicons } from '@expo/vector-icons';
 import { PAYMENT_QR_DATA } from '../assets/qrCodeData';
+import { BottomSheet, Button, Input } from './common';
+import { colors, formatPrice, radius, spacing, type } from '../theme';
 
 interface OnlinePaymentModalProps {
   visible: boolean;
@@ -23,11 +14,13 @@ interface OnlinePaymentModalProps {
   onPaymentSuccess: (transactionId?: string) => Promise<void> | void;
 }
 
+const QR_NOTE: string | undefined = (PAYMENT_QR_DATA as { qrNote?: string }).qrNote;
+
 export function OnlinePaymentModal({
   visible,
   onClose,
   amount,
-  title = 'Pay Online via PhonePe / UPI',
+  title = 'Pay with UPI',
   onPaymentSuccess,
 }: OnlinePaymentModalProps) {
   const [transactionId, setTransactionId] = useState('');
@@ -37,7 +30,7 @@ export function OnlinePaymentModal({
   const handleCopyUpi = () => {
     Clipboard.setString(PAYMENT_QR_DATA.upiId);
     setCopied(true);
-    Alert.alert('Copied!', 'UPI ID copied to clipboard');
+    Toast.show({ type: 'success', text1: 'UPI ID copied' });
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -54,273 +47,78 @@ export function OnlinePaymentModal({
   };
 
   return (
-    <Modal
+    <BottomSheet
       visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={onClose}
-    >
-      <View style={styles.overlay}>
-        <View style={styles.container}>
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.titleRow}>
-              <Ionicons name="qr-code" size={24} color="#059669" />
-              <Text style={styles.title}>{title}</Text>
-            </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={24} color="#666" />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView contentContainerStyle={styles.content}>
-            {/* Amount Banner */}
-            <View style={styles.amountBox}>
-              <Text style={styles.amountLabel}>Total Amount Payable</Text>
-              <Text style={styles.amountText}>₹{amount.toLocaleString('en-IN')}</Text>
-            </View>
-
-            {/* QR Code Image */}
-            <View style={styles.qrWrapper}>
-              <Image
-                source={require('../../assets/images/payment_qr.jpg')}
-                style={styles.qrImage}
-                resizeMode="contain"
-              />
-            </View>
-            <Text style={styles.qrNote}>{PAYMENT_QR_DATA.qrNote}</Text>
-
-            {/* Payee Info */}
-            <View style={styles.infoBox}>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Account Name:</Text>
-                <Text style={styles.infoValue}>{PAYMENT_QR_DATA.payeeName}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>UPI ID:</Text>
-                <TouchableOpacity onPress={handleCopyUpi} style={styles.upiCopyRow}>
-                  <Text style={styles.upiText}>{PAYMENT_QR_DATA.upiId}</Text>
-                  <Ionicons name={copied ? "checkmark-circle" : "copy-outline"} size={16} color="#059669" />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* UTR Input */}
-            <View style={styles.inputBox}>
-              <Text style={styles.inputLabel}>UTR / Transaction ID / Reference No. (Optional)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. 423456789012"
-                placeholderTextColor="#999"
-                value={transactionId}
-                onChangeText={setTransactionId}
-                keyboardType="numeric"
-              />
-              <Text style={styles.inputHint}>Enter 12-digit UTR from your payment app receipt</Text>
-            </View>
-
-            {/* Action Buttons */}
-            <View style={styles.buttonRow}>
-              <TouchableOpacity
-                style={styles.cancelBtn}
-                onPress={onClose}
-                disabled={loading}
-              >
-                <Text style={styles.cancelText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.confirmBtn}
-                onPress={handleConfirm}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <>
-                    <Ionicons name="checkmark-done" size={20} color="#fff" />
-                    <Text style={styles.confirmText}>I Have Paid / Confirm</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
+      onClose={loading ? () => {} : onClose}
+      title={title}
+      subtitle="PhonePe, GPay, Paytm or any UPI app"
+      footer={
+        <View style={styles.footer}>
+          <Button title="Cancel" variant="secondary" onPress={onClose} disabled={loading} style={{ flex: 1 }} />
+          <Button title="I have paid" icon="checkmark-done" onPress={handleConfirm} loading={loading} style={{ flex: 2 }} />
         </View>
+      }
+    >
+      <View style={styles.amountBox}>
+        <Text style={type.overline}>Amount to pay</Text>
+        <Text style={styles.amount}>{formatPrice(Number(Number(amount).toFixed(2)))}</Text>
       </View>
-    </Modal>
+
+      <View style={styles.steps}>
+        {['Scan the QR code or copy the UPI ID', 'Pay the exact amount in your UPI app', 'Come back and tap "I have paid"'].map((s, i) => (
+          <View key={s} style={styles.step}>
+            <View style={styles.stepDot}><Text style={styles.stepDotText}>{i + 1}</Text></View>
+            <Text style={[type.small, { flex: 1 }]}>{s}</Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.qrWrapper}>
+        <Image source={require('../../assets/images/payment_qr.jpg')} style={styles.qrImage} resizeMode="contain" accessibilityLabel="UPI payment QR code" />
+      </View>
+      {QR_NOTE ? <Text style={[type.caption, { textAlign: 'center', marginBottom: spacing.md }]}>{QR_NOTE}</Text> : null}
+
+      <View style={styles.payee}>
+        <View style={styles.payeeRow}>
+          <Text style={type.caption}>Account name</Text>
+          <Text style={type.label}>{PAYMENT_QR_DATA.payeeName}</Text>
+        </View>
+        <View style={styles.payeeDivider} />
+        <TouchableOpacity style={styles.payeeRow} onPress={handleCopyUpi} accessibilityRole="button" accessibilityLabel="Copy UPI ID">
+          <Text style={type.caption}>UPI ID</Text>
+          <View style={styles.copyRow}>
+            <Text style={type.label}>{PAYMENT_QR_DATA.upiId}</Text>
+            <Ionicons name={copied ? 'checkmark-circle' : 'copy-outline'} size={16} color={colors.primary} />
+          </View>
+        </TouchableOpacity>
+      </View>
+
+      <Input
+        label="UTR / transaction reference (optional)"
+        placeholder="e.g. 423456789012"
+        value={transactionId}
+        onChangeText={setTransactionId}
+        keyboardType="numeric"
+        maxLength={22}
+        helper="The 12-digit UTR from your payment app receipt helps us confirm your payment faster."
+        style={{ marginTop: spacing.lg, marginBottom: 0 }}
+      />
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
-  },
-  container: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '90%',
-    paddingBottom: 24,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  closeBtn: {
-    padding: 4,
-  },
-  content: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  amountBox: {
-    backgroundColor: '#ECFDF5',
-    borderColor: '#A7F3D0',
-    borderWidth: 1,
-    borderRadius: 14,
-    width: '100%',
-    padding: 12,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  amountLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#059669',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  amountText: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#047857',
-    marginTop: 2,
-  },
-  qrWrapper: {
-    backgroundColor: '#000',
-    padding: 8,
-    borderRadius: 16,
-    width: 220,
-    height: 280,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  qrImage: {
-    width: '100%',
-    height: '100%',
-  },
-  qrNote: {
-    fontSize: 12,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  infoBox: {
-    backgroundColor: '#F9FAFB',
-    borderColor: '#E5E7EB',
-    borderWidth: 1,
-    borderRadius: 12,
-    width: '100%',
-    padding: 12,
-    gap: 8,
-    marginBottom: 16,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  infoLabel: {
-    fontSize: 12,
-    color: '#666',
-  },
-  infoValue: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  upiCopyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  upiText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  inputBox: {
-    width: '100%',
-    marginBottom: 20,
-  },
-  inputLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 6,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#111827',
-  },
-  inputHint: {
-    fontSize: 11,
-    color: '#9CA3AF',
-    marginTop: 4,
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: 12,
-    width: '100%',
-  },
-  cancelBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    alignItems: 'center',
-  },
-  cancelText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#4B5563',
-  },
-  confirmBtn: {
-    flex: 2,
-    backgroundColor: '#059669',
-    paddingVertical: 14,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  confirmText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#fff',
-  },
+  amountBox: { alignItems: 'center', paddingVertical: spacing.md, borderRadius: radius.md, backgroundColor: colors.primarySoft, marginBottom: spacing.lg },
+  amount: { ...type.display, color: colors.primary, fontVariant: ['tabular-nums'], marginTop: 2 },
+  steps: { gap: spacing.sm, marginBottom: spacing.lg },
+  step: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  stepDot: { width: 20, height: 20, borderRadius: 10, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' },
+  stepDotText: { fontSize: 11, fontWeight: '700', color: colors.textSecondary },
+  qrWrapper: { alignSelf: 'center', padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, marginBottom: spacing.md },
+  qrImage: { width: 220, height: 220 },
+  payee: { borderRadius: radius.md, borderWidth: 1, borderColor: colors.border },
+  payeeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, paddingHorizontal: spacing.md, height: 48 },
+  payeeDivider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
+  copyRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  footer: { flexDirection: 'row', gap: spacing.md },
 });

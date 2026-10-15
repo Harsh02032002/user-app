@@ -3,10 +3,12 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 
+// Local backend port (override with EXPO_PUBLIC_API_PORT, e.g. to point at a demo backend)
+const API_PORT = process.env.EXPO_PUBLIC_API_PORT || '5000';
+
 // Show notifications as banners even when the app is open
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
     shouldShowBanner: true,
     shouldShowList: true,
     shouldPlaySound: true,
@@ -15,9 +17,9 @@ Notifications.setNotificationHandler({
 });
 
 const getApiBaseUrl = () => {
-  if (Platform.OS === 'web') return 'http://localhost:5000/api';
+  if (Platform.OS === 'web') return `http://localhost:${API_PORT}/api`;
   const hostUri = Constants.expoConfig?.hostUri;
-  if (hostUri) return `http://${hostUri.split(':')[0]}:5000/api`;
+  if (hostUri) return `http://${hostUri.split(':')[0]}:${API_PORT}/api`;
   return 'https://dabbanation.in/api';
 };
 

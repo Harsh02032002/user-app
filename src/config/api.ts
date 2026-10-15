@@ -2,9 +2,22 @@ import axios from 'axios';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
-// Live API Base URL
-export const BASE_URL = 'https://dabbanation.in/api';
+// Local backend port (override with EXPO_PUBLIC_API_PORT, e.g. to point at a demo backend)
+const API_PORT = process.env.EXPO_PUBLIC_API_PORT || '5000';
+
+// Same resolution as services/api.ts so every screen talks to one backend:
+// web dev -> localhost:5000, Expo Go -> the dev machine on the LAN, release builds -> live API
+const getBaseUrl = () => {
+  if (Platform.OS === 'web') return `http://localhost:${API_PORT}/api`;
+  const hostUri = Constants.expoConfig?.hostUri;
+  if (hostUri) return `http://${hostUri.split(':')[0]}:${API_PORT}/api`;
+  return 'https://dabbanation.in/api';
+};
+
+export const BASE_URL = getBaseUrl();
 
 // Bundled subscription plan images for 7 Days, 14/15 Days, and 30 Days plans
 export const SUBSCRIPTION_PLAN_IMAGES = {
