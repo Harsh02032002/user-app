@@ -1,20 +1,16 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import RazorpayCheckout from 'react-native-razorpay';
+import RazorpayCheckout from '../utils/razorpay';
 import api, { API_ENDPOINTS } from '../config/api';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../navigation/RootNavigator';
+import { Button, Card, IconButton, Notice, StickyFooter } from '../components/common';
+import { colors, formatPrice, radius, spacing, type as typo } from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteType = RouteProp<RootStackParamList, 'Payment'>;
@@ -35,7 +31,7 @@ export default function PaymentScreen() {
       currency: 'INR',
       key: API_ENDPOINTS.RAZORPAY_KEY,
       amount: Math.round(amount * 100),
-      name: 'Dabba Delights',
+      name: 'Dabba Nation',
       order_id: razorpayOrderId,
       prefill: {
         email: user?.email || '',
@@ -107,201 +103,49 @@ export default function PaymentScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="close" size={24} color="#1a1a1a" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Payment</Text>
-        <View style={{ width: 24 }} />
+        <IconButton icon="close" accessibilityLabel="Close payment" onPress={() => navigation.goBack()} style={{ marginLeft: -spacing.sm }} />
+        <Text style={[typo.heading, { flex: 1, textAlign: 'center' }]}>Payment</Text>
+        <View style={{ width: 40 }} />
       </View>
 
       <View style={styles.content}>
-        {/* Amount Card */}
-        <View style={styles.amountCard}>
-          <View style={styles.amountIcon}>
-            <Ionicons name="wallet" size={32} color="#FF6B00" />
+        <Card style={styles.amountCard}>
+          <Text style={typo.overline}>Amount to pay</Text>
+          <Text style={styles.amountValue}>{formatPrice(amount)}</Text>
+          <Text style={typo.caption}>{type === 'subscription' ? 'Subscription plan purchase' : 'Payment for your order'}</Text>
+        </Card>
+
+        <Text style={[typo.overline, styles.label]}>Pay using</Text>
+        <TouchableOpacity style={styles.method} onPress={handlePayment} disabled={processing} activeOpacity={0.8} accessibilityRole="button">
+          <View style={styles.methodIcon}>
+            <Ionicons name="card" size={20} color={colors.primary} />
           </View>
-          <Text style={styles.amountLabel}>Amount to Pay</Text>
-          <Text style={styles.amountValue}>Rs. {amount}</Text>
-          <Text style={styles.amountHint}>
-            {type === 'subscription' ? 'For subscription plan' : 'For your order'}
-          </Text>
-        </View>
-
-        {/* Payment Methods */}
-        <View style={styles.methodsSection}>
-          <Text style={styles.methodsTitle}>Pay using</Text>
-
-          <TouchableOpacity style={styles.methodCard} onPress={handlePayment}>
-            <View style={styles.methodIcon}>
-              <Ionicons name="card" size={24} color="#2196F3" />
-            </View>
-            <View style={styles.methodInfo}>
-              <Text style={styles.methodName}>Razorpay</Text>
-              <Text style={styles.methodDesc}>UPI, Cards, Netbanking & more</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Security Note */}
-        <View style={styles.securityNote}>
-          <Ionicons name="shield-checkmark" size={20} color="#22C55E" />
-          <Text style={styles.securityText}>
-            Your payment is 100% secure. We use industry-standard encryption.
-          </Text>
-        </View>
-      </View>
-
-      {/* Bottom Button */}
-      <View style={styles.bottomContainer}>
-        <TouchableOpacity
-          style={styles.payBtn}
-          onPress={handlePayment}
-          disabled={processing}
-        >
-          {processing ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <Text style={styles.payBtnText}>Pay Rs. {amount}</Text>
-              <Ionicons name="arrow-forward" size={20} color="#fff" />
-            </>
-          )}
+          <View style={{ flex: 1 }}>
+            <Text style={typo.subheading}>Razorpay</Text>
+            <Text style={typo.caption}>UPI, cards, netbanking and more</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
         </TouchableOpacity>
+
+        <Notice tone="success" icon="shield-checkmark" message="Payments are processed securely by Razorpay." style={{ marginTop: spacing.lg }} />
       </View>
-    </View>
+
+      <StickyFooter>
+        <Button title={`Pay ${formatPrice(amount)}`} iconRight="arrow-forward" onPress={handlePayment} loading={processing} fullWidth />
+      </StickyFooter>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1a1a1a',
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
-  amountCard: {
-    alignItems: 'center',
-    backgroundColor: '#FFF5F0',
-    borderRadius: 16,
-    padding: 32,
-    marginBottom: 24,
-  },
-  amountIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#FFE5D6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  amountLabel: {
-    fontSize: 14,
-    color: '#888',
-    marginBottom: 4,
-  },
-  amountValue: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#FF6B00',
-    marginBottom: 4,
-  },
-  amountHint: {
-    fontSize: 13,
-    color: '#888',
-  },
-  methodsSection: {
-    marginBottom: 24,
-  },
-  methodsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
-    marginBottom: 12,
-  },
-  methodCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#f9f9f9',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#eee',
-  },
-  methodIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: '#E3F2FD',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  methodInfo: {
-    flex: 1,
-  },
-  methodName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1a1a1a',
-  },
-  methodDesc: {
-    fontSize: 12,
-    color: '#888',
-    marginTop: 2,
-  },
-  securityNote: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E8F5E9',
-    borderRadius: 12,
-    padding: 16,
-  },
-  securityText: {
-    flex: 1,
-    marginLeft: 12,
-    fontSize: 13,
-    color: '#1a1a1a',
-    lineHeight: 18,
-  },
-  bottomContainer: {
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-  },
-  payBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FF6B00',
-    borderRadius: 12,
-    padding: 16,
-  },
-  payBtnText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-    marginRight: 8,
-  },
+  container: { flex: 1, backgroundColor: colors.canvas },
+  header: { height: 56, flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.screen, backgroundColor: colors.surface, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  content: { flex: 1, padding: spacing.screen },
+  amountCard: { alignItems: 'center', paddingVertical: spacing.xxl },
+  amountValue: { ...typo.display, fontSize: 32, lineHeight: 40, color: colors.text, marginVertical: spacing.xs, fontVariant: ['tabular-nums'] },
+  label: { marginTop: spacing.xxl, marginBottom: spacing.sm, marginLeft: spacing.xs },
+  method: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  methodIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
 });
