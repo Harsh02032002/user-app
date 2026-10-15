@@ -1,28 +1,21 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  ActivityIndicator,
-  ScrollView,
-  Dimensions,
-  Image,
-} from 'react-native';
+import React, { useRef, useState } from 'react';
+import { Text, StyleSheet, TextInput } from 'react-native';
+import Toast from 'react-native-toast-message';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Ionicons, Feather } from '@expo/vector-icons';
 import { RootStackParamList } from '../../navigation/RootNavigator';
 import { useAuth } from '../../context/AuthContext';
-
-const { width, height } = Dimensions.get('window');
+import { AuthLayout } from '../../components/auth/AuthLayout';
+import { Button, Input, Notice } from '../../components/common';
+import { colors, spacing, type } from '../../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Register'>;
 type RouteType = RouteProp<RootStackParamList, 'Register'>;
+
+type FieldErrors = Partial<Record<'name' | 'email' | 'phone' | 'password', string>>;
+
+const validateEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
 export default function RegisterScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -34,293 +27,126 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [localPhone, setLocalPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const [formError, setFormError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const emailRef = useRef<TextInput>(null);
+  const phoneRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
 
-  const validateEmail = (email: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const clearError = (field: keyof FieldErrors) => {
+    if (errors[field]) setErrors((e) => ({ ...e, [field]: undefined }));
   };
 
   const handleRegister = async () => {
     const finalPhone = phone || localPhone;
-    
-    if (!name.trim()) return Alert.alert('Error', 'Please enter your full name');
-    if (!validateEmail(email)) return Alert.alert('Error', 'Please enter a valid email');
-    if (finalPhone.length !== 10) return Alert.alert('Error', 'Please enter a valid 10-digit phone number');
-    if (password.length < 6) return Alert.alert('Error', 'Password must be at least 6 characters');
+    const next: FieldErrors = {};
+    if (!name.trim()) next.name = 'Enter your full name';
+    if (!validateEmail(email.trim())) next.email = 'Enter a valid email address';
+    if (finalPhone.length !== 10) next.phone = 'Enter a valid 10-digit phone number';
+    if (password.length < 6) next.password = 'Use at least 6 characters';
+    setErrors(next);
+    setFormError(null);
+    if (Object.keys(next).length) return;
 
     setLoading(true);
     try {
-      await register({ 
-        name: name.trim(), 
-        email: email.trim(), 
+      await register({
+        name: name.trim(),
+        email: email.trim(),
         phone: finalPhone,
-        password: password,
-        role: 'user'
+        password,
+        role: 'user',
       });
       // After registration, redirect to verification screen
-      navigation.navigate('Otp', { 
-        phone: finalPhone,
-        email: email.trim()
-      });
-      Alert.alert('Success', 'Registration successful! Please verify the 6-digit code sent to your email.');
+      navigation.navigate('Otp', { phone: finalPhone, email: email.trim() });
+      Toast.show({ type: 'success', text1: 'Account created', text2: 'Enter the 6-digit code sent to your email.' });
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Registration failed');
+      setFormError(error?.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Back to Home Button */}
-          <TouchableOpacity 
-            style={styles.backButton} 
-            onPress={() => navigation.navigate('Home' as any)}
-          >
-            <Ionicons name="arrow-back" size={18} color="#666" />
-            <Text style={styles.backText}>Back to Home</Text>
-          </TouchableOpacity>
-
-          {/* Logo Section */}
-          <View style={styles.logoContainer}>
-            <View style={styles.logoCircle}>
-              <Image 
-                source={require('../../../assets/images/logo.png')} 
-                style={styles.logoImage}
-                resizeMode="contain"
-              />
-            </View>
-          </View>
-
-          {/* Header Text */}
-          <View style={styles.headerSection}>
-            <Text style={styles.title}>Create your account</Text>
-            <Text style={styles.subtitle}>Join Dabba Nation today</Text>
-          </View>
-
-          {/* Form Section */}
-          <View style={styles.formContainer}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Full Name</Text>
-              <View style={styles.inputWrapper}>
-                <Feather name="user" size={18} color="#999" />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your name"
-                  value={name}
-                  onChangeText={setName}
-                  placeholderTextColor="#999"
-                />
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email address</Text>
-              <View style={styles.inputWrapper}>
-                <Feather name="mail" size={18} color="#999" />
-                <TextInput
-                  style={styles.input}
-                  placeholder="name@example.com"
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  placeholderTextColor="#999"
-                />
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Phone Number</Text>
-              <View style={[styles.inputWrapper, phone ? styles.disabledInput : null]}>
-                <Feather name="phone" size={18} color="#999" />
-                <TextInput
-                  style={styles.input}
-                  value={phone || localPhone}
-                  onChangeText={setLocalPhone}
-                  keyboardType="phone-pad"
-                  maxLength={10}
-                  editable={!phone}
-                  placeholder="10 digit phone number"
-                  placeholderTextColor="#999"
-                />
-                {phone && <Ionicons name="checkmark-circle" size={18} color="#22C55E" />}
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Password</Text>
-              <View style={styles.inputWrapper}>
-                <Feather name="lock" size={18} color="#999" />
-                <TextInput
-                  style={styles.input}
-                  placeholder="••••••"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  placeholderTextColor="#999"
-                />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                  <Feather name={showPassword ? "eye-off" : "eye"} size={18} color="#999" />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={styles.registerButton}
-              onPress={handleRegister}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>Register</Text>
-              )}
-            </TouchableOpacity>
-
-            <View style={styles.loginLinkContainer}>
-              <Text style={styles.loginText}>Already have an account?</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                <Text style={styles.loginLink}>Signin</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </View>
+    <AuthLayout
+      title="Create your account"
+      subtitle="Join Dabba Nation today"
+      footer={
+        <Text style={styles.footerText}>
+          Already have an account?{' '}
+          <Text style={styles.link} onPress={() => navigation.navigate('Login')} accessibilityRole="link">
+            Sign in
+          </Text>
+        </Text>
+      }
+    >
+      {formError ? <Notice tone="danger" message={formError} style={{ marginBottom: spacing.lg }} /> : null}
+      <Input
+        label="Full name"
+        icon="person-outline"
+        placeholder="Enter your name"
+        autoComplete="name"
+        textContentType="name"
+        value={name}
+        onChangeText={(v) => { setName(v); clearError('name'); }}
+        error={errors.name}
+        returnKeyType="next"
+        onSubmitEditing={() => emailRef.current?.focus()}
+      />
+      <Input
+        ref={emailRef}
+        label="Email address"
+        icon="mail-outline"
+        placeholder="name@example.com"
+        keyboardType="email-address"
+        autoCapitalize="none"
+        autoComplete="email"
+        textContentType="emailAddress"
+        value={email}
+        onChangeText={(v) => { setEmail(v); clearError('email'); }}
+        error={errors.email}
+        returnKeyType="next"
+        onSubmitEditing={() => (phone ? passwordRef.current?.focus() : phoneRef.current?.focus())}
+      />
+      <Input
+        ref={phoneRef}
+        label="Phone number"
+        icon="call-outline"
+        placeholder="10-digit mobile number"
+        keyboardType="phone-pad"
+        maxLength={10}
+        autoComplete="tel"
+        textContentType="telephoneNumber"
+        value={phone || localPhone}
+        onChangeText={(v) => { setLocalPhone(v.replace(/\D/g, '')); clearError('phone'); }}
+        editable={!phone}
+        error={errors.phone}
+        right={phone ? <Ionicons name="checkmark-circle" size={18} color={colors.success} /> : undefined}
+        returnKeyType="next"
+        onSubmitEditing={() => passwordRef.current?.focus()}
+      />
+      <Input
+        ref={passwordRef}
+        label="Password"
+        icon="lock-closed-outline"
+        placeholder="At least 6 characters"
+        secureTextEntry
+        autoComplete="password-new"
+        textContentType="newPassword"
+        value={password}
+        onChangeText={(v) => { setPassword(v); clearError('password'); }}
+        error={errors.password}
+        returnKeyType="go"
+        onSubmitEditing={handleRegister}
+        style={{ marginBottom: spacing.xl }}
+      />
+      <Button title="Create account" onPress={handleRegister} loading={loading} fullWidth />
+    </AuthLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FDF8F1', // Exact website cream background
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 40,
-    paddingBottom: 40,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-end',
-    gap: 4,
-    marginBottom: 20,
-  },
-  backText: {
-    fontSize: 13,
-    color: '#666',
-  },
-  logoContainer: {
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  logoCircle: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...Platform.select({
-      web: { boxShadow: '0 4px 12px rgba(0,0,0,0.08)' },
-      default: { elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8 }
-    })
-  },
-  logoImage: {
-    width: 70,
-    height: 70,
-  },
-  headerSection: {
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-  },
-  formContainer: {
-    width: '100%',
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#1a1a1a',
-    marginBottom: 8,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEFCE8', // Light yellowish background from website
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    height: 50,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-  },
-  disabledInput: {
-    opacity: 0.7,
-  },
-  input: {
-    flex: 1,
-    paddingHorizontal: 12,
-    fontSize: 14,
-    color: '#1a1a1a',
-  },
-  registerButton: {
-    backgroundColor: '#E11D48', // Exact website red-orange button
-    height: 50,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 10,
-    ...Platform.select({
-      web: { boxShadow: '0 4px 12px rgba(225, 29, 72, 0.2)' }
-    })
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  loginLinkContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 30,
-  },
-  loginText: {
-    color: '#666',
-    fontSize: 13,
-  },
-  loginLink: {
-    color: '#E11D48',
-    fontSize: 13,
-    fontWeight: 'bold',
-  },
+  footerText: { ...type.small, color: colors.textSecondary },
+  link: { ...type.label, color: colors.primary },
 });
