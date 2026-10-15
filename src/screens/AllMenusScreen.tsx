@@ -1,16 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  Image,
-  ActivityIndicator,
-  TextInput,
-  Dimensions,
-  Alert,
-} from 'react-native';
+import { View, StyleSheet, FlatList, TextInput, TouchableOpacity, useWindowDimensions } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import * as Location from 'expo-location';
@@ -18,33 +8,42 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '../services/api';
 import { LOCATION_COORDS_KEY, LOCATION_NAME_KEY } from '../utils/location';
 import { useCart } from '../context/CartContext';
-import { AppFooter } from '../components/common/AppFooter';
-
-const { width } = Dimensions.get('window');
-const COLUMN_WIDTH = (width - 48) / 2;
+import { EmptyState, ErrorState, ScreenHeader, Skeleton } from '../components/common';
+import { FoodCard } from '../components/cards';
+import { colors, radius, spacing } from '../theme';
 
 export default function AllMenusScreen() {
   const navigation = useNavigation<any>();
-  const { addToCart } = useCart();
+  const { width } = useWindowDimensions();
+  const { addToCart, getItemQuantity, updateQuantity } = useCart();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<any[]>([]);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationName, setLocationName] = useState('');
   const [locationReady, setLocationReady] = useState(false);
+
+  const columnWidth = (Math.min(width, 600) - spacing.screen * 2 - spacing.md) / 2;
 
   // Get user's location on mount
   useEffect(() => {
     getUserLocation();
   }, []);
 
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
   // Fetch items when search or location changes (only after location is resolved,
   // otherwise we'd briefly show menus from every city)
   useEffect(() => {
     if (!locationReady) return;
     fetchItems();
-  }, [search, userLocation, locationReady]);
+  }, [debouncedSearch, userLocation, locationReady]);
 
   const getUserLocation = async () => {
     try {
@@ -63,56 +62,48 @@ export default function AllMenusScreen() {
       // 2. Fallback: device GPS
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        console.log('Location permission denied');
-        // Still fetch items without location filter
         return;
       }
 
       // Try last known location first (faster)
       let location = await Location.getLastKnownPositionAsync({});
-      
-      // If no last known location, get current position
       if (!location) {
-        location = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
+        location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       }
-
       if (location) {
-        setUserLocation({
-          lat: location.coords.latitude,
-          lng: location.coords.longitude,
-        });
+        setUserLocation({ lat: location.coords.latitude, lng: location.coords.longitude });
       }
-    } catch (error) {
-      console.error('Error getting location:', error);
+    } catch (err) {
+      console.error('Error getting location:', err);
     } finally {
       setLocationReady(true);
-      setLoading(false);
     }
   };
 
   const fetchItems = async () => {
     try {
       if (!userLocation?.lat || !userLocation?.lng) {
-        console.log('[AllMenusScreen] Location not ready yet, skipping fetch');
+        setLoading(false);
         return;
       }
+      setError(null);
       const params: any = {
         lat: userLocation.lat,
         lng: userLocation.lng,
         radius: 12000,
       };
-      if (search) params.search = search;
+      if (debouncedSearch) params.search = debouncedSearch;
       if (locationName) params.city = locationName;
-      
+
       const res = await api.user.getMenuItems(params);
       if (res.success) {
         setItems(res.products || []);
       }
-    } catch (error) {
-      console.error('Error fetching menu items:', error);
+    } catch (err: any) {
+      console.error('Error fetching menu items:', err);
+      setError('We could not load menus. Check your connection and try again.');
     } finally {
+      setLoading(false);
       setRefreshing(false);
     }
   };
@@ -134,253 +125,118 @@ export default function AllMenusScreen() {
     });
   };
 
-  const renderItem = ({ item }: { item: any }) => (
-    <View style={styles.card}>
-      <Image source={{ uri: item.image }} style={styles.cardImage} />
-      {item.isVeg && (
-        <View style={styles.vegBadge}>
-          <View style={styles.vegDot} />
+  const openSeller = (item: any) => {
+    const seller = typeof item.sellerId === 'object' ? item.sellerId : null;
+    const id = seller?._id || item.sellerId;
+    if (id) navigation.navigate('Restaurant', { sellerId: id, sellerName: seller?.businessName || '' });
+  };
+
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <View style={styles.skeletonGrid}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <View key={i} style={{ width: columnWidth, gap: spacing.sm }}>
+              <Skeleton height={columnWidth * 0.75} radius={radius.lg} />
+              <Skeleton width="80%" />
+              <Skeleton width="40%" />
+            </View>
+          ))}
         </View>
-      )}
-      <View style={styles.cardContent}>
-        <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
-        <Text style={styles.itemDesc} numberOfLines={2}>{item.description}</Text>
-        <View style={styles.priceRow}>
-          <View>
-            <Text style={styles.price}>₹{item.discountPrice || item.sellingPrice}</Text>
-            {item.discountPrice && (
-              <Text style={styles.originalPrice}>₹{item.sellingPrice}</Text>
-            )}
-          </View>
-          <TouchableOpacity 
-            style={styles.addBtn}
-            onPress={() => handleAddToCart(item)}
-          >
-            <Ionicons name="add" size={20} color="#fff" />
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  );
+      );
+    }
+    if (locationReady && !userLocation) {
+      return (
+        <EmptyState
+          icon="location-outline"
+          title="Location needed"
+          subtitle="Allow location access so we can show dishes from kitchens within 12 km."
+          actionText="Use my location"
+          onAction={() => { setLoading(true); setLocationReady(false); getUserLocation(); }}
+        />
+      );
+    }
+    if (error && items.length === 0) {
+      return <ErrorState message={error} onRetry={() => { setLoading(true); fetchItems(); }} />;
+    }
+    return (
+      <FlatList
+        data={items}
+        renderItem={({ item }) => {
+          const qty = getItemQuantity(item._id);
+          return (
+            <FoodCard
+              item={item}
+              width={columnWidth}
+              quantity={qty}
+              onAdd={() => handleAddToCart(item)}
+              onIncrement={() => updateQuantity(item._id, qty + 1)}
+              onDecrement={() => updateQuantity(item._id, qty - 1)}
+              onPress={() => openSeller(item)}
+            />
+          );
+        }}
+        keyExtractor={(item) => item._id}
+        numColumns={2}
+        columnWrapperStyle={{ gap: spacing.md }}
+        contentContainerStyle={styles.listContent}
+        onRefresh={() => {
+          setRefreshing(true);
+          fetchItems();
+        }}
+        refreshing={refreshing}
+        keyboardShouldPersistTaps="handled"
+        ListEmptyComponent={
+          <EmptyState
+            icon="restaurant-outline"
+            title={debouncedSearch ? `No dishes match "${debouncedSearch}"` : 'No dishes nearby yet'}
+            subtitle={debouncedSearch ? 'Try a different name.' : 'Kitchens within 12 km of you have not published dishes yet.'}
+          />
+        }
+      />
+    );
+  };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>All Menus</Text>
-        <TouchableOpacity 
-          onPress={getUserLocation}
-          style={styles.locationBtn}
-          disabled={loading}
-        >
-          <Ionicons 
-            name={userLocation ? "location" : "location-outline"} 
-            size={20} 
-            color={userLocation ? "#FF6B00" : "#666"} 
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <ScreenHeader title="All menus" subtitle={locationName ? `Within 12 km of ${locationName}` : 'Within 12 km of you'} />
+      <View style={styles.searchWrap}>
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={18} color={colors.textTertiary} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search dishes"
+            placeholderTextColor={colors.textTertiary}
+            value={search}
+            onChangeText={setSearch}
+            returnKeyType="search"
+            accessibilityLabel="Search dishes"
           />
-        </TouchableOpacity>
-      </View>
-
-      {userLocation && (
-        <View style={styles.locationBadge}>
-          <Ionicons name="location" size={14} color="#fff" />
-          <Text style={styles.locationText}>
-            Location-based results • {(userLocation.lat).toFixed(4)}, {(userLocation.lng).toFixed(4)}
-          </Text>
+          {search ? (
+            <TouchableOpacity onPress={() => setSearch('')} accessibilityLabel="Clear search">
+              <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
+            </TouchableOpacity>
+          ) : null}
         </View>
-      )}
-
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#888" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search for dishes..."
-          value={search}
-          onChangeText={setSearch}
-        />
       </View>
-
-      {loading && !refreshing ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color="#FF6B00" />
-        </View>
-      ) : (
-        <FlatList
-          data={items}
-          renderItem={renderItem}
-          keyExtractor={(item) => item._id}
-          numColumns={2}
-          contentContainerStyle={styles.listContent}
-          onRefresh={() => {
-            setRefreshing(true);
-            fetchItems();
-          }}
-          refreshing={refreshing}
-          ListFooterComponent={() => (
-            <>
-              <View style={{ height: 20 }} />
-              <AppFooter />
-              <View style={{ height: 120 }} />
-            </>
-          )}
-        />
-      )}
-    </View>
+      {renderContent()}
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  header: {
+  container: { flex: 1, backgroundColor: colors.canvas },
+  searchWrap: { paddingHorizontal: spacing.screen, paddingVertical: spacing.md, backgroundColor: colors.surface },
+  searchBar: {
+    height: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 60,
-    paddingBottom: 16,
-    backgroundColor: '#fff',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceMuted,
   },
-  backBtn: {
-    padding: 4,
-  },
-  locationBtn: {
-    padding: 8,
-  },
-  locationBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FF6B00',
-    marginHorizontal: 16,
-    marginBottom: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    gap: 6,
-  },
-  locationText: {
-    fontSize: 12,
-    color: '#fff',
-    fontWeight: '500',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1a1a1a',
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    height: 48,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#1a1a1a',
-  },
-  listContent: {
-    padding: 16,
-  },
-  card: {
-    width: COLUMN_WIDTH,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    marginBottom: 16,
-    marginHorizontal: 8,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#f0f0f0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  cardImage: {
-    width: '100%',
-    height: 120,
-    backgroundColor: '#f9f9f9',
-  },
-  vegBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    width: 16,
-    height: 16,
-    borderWidth: 1,
-    borderColor: '#4CAF50',
-    padding: 2,
-    backgroundColor: '#fff',
-  },
-  vegDot: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#4CAF50',
-    borderRadius: 10,
-  },
-  cardContent: {
-    padding: 12,
-  },
-  itemName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1a1a1a',
-    marginBottom: 4,
-  },
-  itemDesc: {
-    fontSize: 11,
-    color: '#888',
-    marginBottom: 8,
-    height: 28,
-  },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  price: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1a1a1a',
-  },
-  originalPrice: {
-    fontSize: 11,
-    color: '#888',
-    textDecorationLine: 'line-through',
-  },
-  addBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: '#FF6B00',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyCenter: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 100,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#888',
-  },
+  searchInput: { flex: 1, fontSize: 15, color: colors.text },
+  listContent: { padding: spacing.screen, gap: spacing.md, paddingBottom: spacing.xxxl },
+  skeletonGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, padding: spacing.screen },
 });

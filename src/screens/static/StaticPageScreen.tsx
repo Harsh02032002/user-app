@@ -1,18 +1,11 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  SafeAreaView,
-  Linking,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Linking } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../../navigation/RootNavigator';
-import { AppHeader } from '../../components/common/AppHeader';
-import { AppFooter } from '../../components/common/AppFooter';
+import { Button, Card, Divider, ScreenHeader } from '../../components/common';
+import { colors, spacing, type as typo } from '../../theme';
 
 type StaticPageScreenRouteProp = RouteProp<RootStackParamList, 'StaticPage'>;
 
@@ -154,156 +147,52 @@ export default function StaticPageScreen() {
   const config = getPageConfig();
 
   return (
-    <SafeAreaView style={styles.container}>
-      <AppHeader showSearch={false} showBack={true} />
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <ScreenHeader title={config.title} />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.heroSection}>
-          <View style={styles.heroIconContainer}>
-            <Ionicons name={config.icon as any || 'information-circle'} size={48} color="#FF6B00" />
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <View style={styles.hero}>
+          <View style={styles.heroIcon}>
+            <Ionicons name={(config as any).icon || 'information-circle'} size={28} color={colors.primary} />
           </View>
-          <Text style={styles.heroTitle}>{config.title}</Text>
-          <Text style={styles.heroSubtitle}>Last updated: April 2024</Text>
+          <Text style={[typo.title, { textAlign: 'center' }]}>{config.title}</Text>
+          <Text style={[typo.caption, { textAlign: 'center' }]}>Last updated: April 2024</Text>
         </View>
 
-        {config.sections.map((section, index) => (
-          <View key={index} style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.iconCircle}>
-                <Ionicons name={section.icon as any || 'ellipse'} size={20} color="#FF6B00" />
+        <Card padded={false}>
+          {config.sections.map((section: Section, index: number) => (
+            <View key={index}>
+              {index > 0 ? <Divider style={{ marginHorizontal: spacing.lg }} /> : null}
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Ionicons name={(section.icon as any) || 'ellipse'} size={18} color={colors.primary} />
+                  <Text style={typo.heading}>{section.title}</Text>
+                </View>
+                <Text style={[typo.body, { color: colors.textSecondary }]}>{section.content}</Text>
               </View>
-              <Text style={styles.sectionTitle}>{section.title}</Text>
             </View>
-            <Text style={styles.sectionContent}>{section.content}</Text>
-          </View>
-        ))}
+          ))}
+        </Card>
 
-        {type === 'contact' && (
-          <TouchableOpacity 
-            style={styles.ctaButton}
+        {type === 'contact' ? (
+          <Button
+            title="Call support"
+            icon="call"
             onPress={() => Linking.openURL('tel:+917303023539')}
-          >
-            <Ionicons name="call" size={20} color="#fff" />
-            <Text style={styles.ctaButtonText}>Call Support</Text>
-          </TouchableOpacity>
-        )}
-
-        <View style={{ height: 40 }} />
-        <AppFooter />
-        <View style={{ height: 120 }} />
+            fullWidth
+            style={{ marginTop: spacing.xl }}
+          />
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1a1a1a',
-  },
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  heroSection: {
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  heroIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#FFF5F0',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  heroTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#1a1a1a',
-    marginBottom: 4,
-  },
-  heroSubtitle: {
-    fontSize: 14,
-    color: '#888',
-  },
-  sectionCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#f0f0f0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  iconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FFF5F0',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1a1a1a',
-  },
-  sectionContent: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 22,
-  },
-  ctaButton: {
-    flexDirection: 'row',
-    backgroundColor: '#FF6B00',
-    borderRadius: 12,
-    padding: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 10,
-    gap: 10,
-  },
-  ctaButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  footer: {
-    marginTop: 40,
-    alignItems: 'center',
-  },
-  footerText: {
-    fontSize: 12,
-    color: '#aaa',
-    marginBottom: 4,
-  },
+  container: { flex: 1, backgroundColor: colors.canvas },
+  scroll: { padding: spacing.screen, paddingBottom: spacing.xxxl },
+  hero: { alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.xl },
+  heroIcon: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
+  section: { padding: spacing.lg, gap: spacing.sm },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
 });

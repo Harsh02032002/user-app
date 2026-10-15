@@ -1,54 +1,57 @@
-import React, { useState, useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  FlatList,
-  ActivityIndicator,
-  Image,
-} from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, Keyboard } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image } from 'expo-image';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import api, { API_ENDPOINTS } from '../config/api';
-import { RootStackParamList } from '../navigation/RootNavigator';
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import api, { API_ENDPOINTS, getImageUrl } from '../config/api';
+import { RootStackParamList } from '../navigation/RootNavigator';
 import { LOCATION_COORDS_KEY, LOCATION_NAME_KEY } from '../utils/location';
+import { useCart } from '../context/CartContext';
+import { AddToCartButton, Chip, Divider, EmptyState, ErrorState, IconButton, SkeletonList, VegIndicator } from '../components/common';
+import { getFoodPricing } from '../components/cards';
+import { colors, formatPrice, radius, spacing, type } from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+const RECENT_KEY = 'recent_searches';
+const MAX_RECENT = 8;
+const SUGGESTIONS = ['Thali', 'Paratha', 'Paneer', 'Dal', 'Biryani', 'South Indian', 'Desserts'];
 
 interface SearchResult {
   _id: string;
   name: string;
-  shopName?: string;
+  description?: string;
   image?: string;
-  type: 'restaurant' | 'dish';
-  sellerId?: string;
   price?: number;
-  rating?: number;
+  sellingPrice?: number;
+  discountPrice?: number;
+  isVeg?: boolean;
+  isAvailable?: boolean;
+  sellerId?: { _id: string; businessName?: string; type?: string } | string;
 }
+
+const sellerOf = (item: SearchResult) =>
+  typeof item.sellerId === 'object' && item.sellerId ? item.sellerId : { _id: (item.sellerId as string) || '', businessName: '' };
 
 export default function SearchScreen() {
   const navigation = useNavigation<NavigationProp>();
   const inputRef = useRef<TextInput>(null);
+  const { addToCart, getItemQuantity, updateQuantity } = useCart();
 
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<SearchResult[]>([]);
+  const [searched, setSearched] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationName, setLocationName] = useState('');
-  const [recentSearches, setRecentSearches] = useState<string[]>([
-    'Biryani',
-    'Pizza',
-    'Home Chef',
-    'North Indian',
-  ]);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
   useEffect(() => {
-    inputRef.current?.focus();
+    const t = setTimeout(() => inputRef.current?.focus(), 250);
     AsyncStorage.getItem(LOCATION_COORDS_KEY).then(savedCoords => {
       if (savedCoords) {
         try {
@@ -62,24 +65,32 @@ export default function SearchScreen() {
     AsyncStorage.getItem(LOCATION_NAME_KEY).then(name => {
       if (name) setLocationName(name);
     });
+    AsyncStorage.getItem(RECENT_KEY).then(saved => {
+      try { if (saved) setRecentSearches(JSON.parse(saved)); } catch (_) {}
+    });
+    return () => clearTimeout(t);
   }, []);
 
-  useEffect(() => {
-    const debounce = setTimeout(() => {
-      if (query.length >= 2) {
-        searchItems();
-      } else {
-        setResults([]);
-      }
-    }, 300);
+  const rememberSearch = useCallback((term: string) => {
+    const clean = term.trim();
+    if (clean.length < 2) return;
+    setRecentSearches((prev) => {
+      const next = [clean, ...prev.filter((s) => s.toLowerCase() !== clean.toLowerCase())].slice(0, MAX_RECENT);
+      AsyncStorage.setItem(RECENT_KEY, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+  }, []);
 
-    return () => clearTimeout(debounce);
-  }, [query, userLocation]);
+  const clearRecent = () => {
+    setRecentSearches([]);
+    AsyncStorage.removeItem(RECENT_KEY).catch(() => {});
+  };
 
-  const searchItems = async () => {
+  const searchItems = useCallback(async (term: string) => {
     setLoading(true);
+    setError(null);
     try {
-      let url = `${API_ENDPOINTS.SEARCH}?q=${encodeURIComponent(query)}&radius=12000`;
+      let url = `${API_ENDPOINTS.SEARCH}?q=${encodeURIComponent(term)}&radius=12000`;
       if (userLocation?.lat && userLocation?.lng) {
         url += `&lat=${userLocation.lat}&lng=${userLocation.lng}`;
       }
@@ -88,301 +99,189 @@ export default function SearchScreen() {
       }
       const response = await api.get(url);
       setResults(response.data.data || response.data.products || []);
-    } catch (error) {
-      console.error('Search error:', error);
+      setSearched(true);
+    } catch (err: any) {
+      console.error('Search error:', err);
+      setError('We could not search right now. Check your connection and try again.');
     } finally {
       setLoading(false);
     }
+  }, [userLocation, locationName]);
+
+  useEffect(() => {
+    const debounce = setTimeout(() => {
+      if (query.trim().length >= 2) {
+        searchItems(query.trim());
+      } else {
+        setResults([]);
+        setSearched(false);
+        setError(null);
+      }
+    }, 300);
+    return () => clearTimeout(debounce);
+  }, [query, searchItems]);
+
+  const openSeller = (item: SearchResult) => {
+    const seller = sellerOf(item);
+    if (!seller._id) return;
+    rememberSearch(query);
+    Keyboard.dismiss();
+    navigation.navigate('Restaurant', { sellerId: seller._id, sellerName: seller.businessName || '' });
   };
 
-  const handleResultPress = (item: SearchResult) => {
-    if (item.type === 'restaurant' || item.sellerId) {
-      navigation.navigate('Restaurant', {
-        sellerId: item._id || item.sellerId!,
-        sellerName: item.shopName || item.name,
-      });
-    }
+  const addItem = (item: SearchResult) => {
+    const seller = sellerOf(item);
+    rememberSearch(query);
+    addToCart({
+      id: item._id,
+      name: item.name,
+      price: item.sellingPrice || item.price || 0,
+      discountPrice: item.discountPrice,
+      image: item.image || '',
+      sellerId: seller._id,
+      sellerName: seller.businessName || 'Restaurant',
+      isVeg: !!item.isVeg,
+      description: item.description,
+    });
   };
 
-  const handleRecentSearch = (search: string) => {
-    setQuery(search);
-  };
-
-  const renderResultItem = ({ item }: { item: SearchResult }) => (
-    <TouchableOpacity style={styles.resultItem} onPress={() => handleResultPress(item)}>
-      <View style={styles.resultImageContainer}>
-        {item.image ? (
-          <Image source={{ uri: item.image }} style={styles.resultImage} />
-        ) : (
-          <View style={[styles.resultImage, styles.placeholderImage]}>
-            <Ionicons
-              name={item.type === 'restaurant' ? 'restaurant' : 'fast-food'}
-              size={24}
-              color="#ccc"
-            />
-          </View>
-        )}
-      </View>
-      <View style={styles.resultInfo}>
-        <Text style={styles.resultName}>{item.shopName || item.name}</Text>
-        <View style={styles.resultMeta}>
-          {item.type === 'restaurant' ? (
-            <>
-              <Ionicons name="star" size={12} color="#FFB800" />
-              <Text style={styles.resultMetaText}>{item.rating || '4.0'}</Text>
-            </>
-          ) : (
-            <Text style={styles.resultPrice}>Rs. {item.price}</Text>
-          )}
+  const renderResultItem = ({ item }: { item: SearchResult }) => {
+    const seller = sellerOf(item);
+    const { final, strike } = getFoodPricing(item);
+    const qty = getItemQuantity(item._id);
+    const img = getImageUrl(item.image);
+    return (
+      <TouchableOpacity style={styles.result} onPress={() => openSeller(item)} activeOpacity={0.8} accessibilityRole="button">
+        <View style={styles.resultImage}>
+          {img ? <Image source={{ uri: img }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Ionicons name="fast-food-outline" size={22} color={colors.primaryBorder} />}
         </View>
-      </View>
-      <View style={styles.resultTypeBadge}>
-        <Text style={styles.resultTypeText}>
-          {item.type === 'restaurant' ? 'Restaurant' : 'Dish'}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
+        <View style={{ flex: 1 }}>
+          <View style={styles.resultTitleRow}>
+            <VegIndicator isVeg={!!item.isVeg} size={12} />
+            <Text style={[type.subheading, { flex: 1 }]} numberOfLines={1}>{item.name}</Text>
+          </View>
+          {seller.businessName ? <Text style={type.caption} numberOfLines={1}>from {seller.businessName}</Text> : null}
+          <View style={styles.resultPriceRow}>
+            <Text style={type.price}>{formatPrice(final)}</Text>
+            {strike ? <Text style={styles.strike}>{formatPrice(strike)}</Text> : null}
+          </View>
+        </View>
+        <AddToCartButton
+          quantity={qty}
+          onAdd={() => addItem(item)}
+          onIncrement={() => updateQuantity(item._id, qty + 1)}
+          onDecrement={() => updateQuantity(item._id, qty - 1)}
+          disabled={item.isAvailable === false}
+        />
+      </TouchableOpacity>
+    );
+  };
+
+  const showIdle = query.trim().length < 2;
 
   return (
-    <View style={styles.container}>
-      {/* Search Header */}
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
-        </TouchableOpacity>
+        <IconButton icon="arrow-back" accessibilityLabel="Go back" onPress={() => navigation.goBack()} style={{ marginLeft: -spacing.sm }} />
         <View style={styles.searchBar}>
-          <Ionicons name="search" size={20} color="#888" />
+          <Ionicons name="search" size={18} color={colors.textTertiary} />
           <TextInput
             ref={inputRef}
             style={styles.searchInput}
-            placeholder="Search restaurants or dishes..."
-            placeholderTextColor="#888"
+            placeholder="Search dishes or kitchens"
+            placeholderTextColor={colors.textTertiary}
             value={query}
             onChangeText={setQuery}
             returnKeyType="search"
+            onSubmitEditing={() => rememberSearch(query)}
+            autoCorrect={false}
+            accessibilityLabel="Search"
           />
-          {query.length > 0 && (
-            <TouchableOpacity onPress={() => setQuery('')}>
-              <Ionicons name="close-circle" size={20} color="#888" />
+          {query.length > 0 ? (
+            <TouchableOpacity onPress={() => setQuery('')} accessibilityLabel="Clear search" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
             </TouchableOpacity>
-          )}
+          ) : null}
         </View>
       </View>
 
-      {/* Content */}
-      {query.length < 2 ? (
-        // Recent Searches
-        <View style={styles.recentContainer}>
-          <Text style={styles.recentTitle}>Recent Searches</Text>
-          <View style={styles.recentTags}>
-            {recentSearches.map((search, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.recentTag}
-                onPress={() => handleRecentSearch(search)}
-              >
-                <Ionicons name="time-outline" size={16} color="#888" />
-                <Text style={styles.recentTagText}>{search}</Text>
-              </TouchableOpacity>
+      {showIdle ? (
+        <View style={styles.idle}>
+          {recentSearches.length > 0 ? (
+            <>
+              <View style={styles.idleHeader}>
+                <Text style={type.overline}>Recent searches</Text>
+                <TouchableOpacity onPress={clearRecent} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={[type.label, { color: colors.primary }]}>Clear</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.tags}>
+                {recentSearches.map((s) => (
+                  <Chip key={s} label={s} icon="time-outline" onPress={() => setQuery(s)} />
+                ))}
+              </View>
+            </>
+          ) : null}
+          <Text style={[type.overline, { marginTop: recentSearches.length ? spacing.xxl : 0, marginBottom: spacing.md }]}>Try searching for</Text>
+          <View style={styles.tags}>
+            {SUGGESTIONS.map((s) => (
+              <Chip key={s} label={s} onPress={() => setQuery(s)} />
             ))}
           </View>
-
-          <Text style={[styles.recentTitle, { marginTop: 24 }]}>Popular Searches</Text>
-          <View style={styles.popularContainer}>
-            {['Thali', 'South Indian', 'Chinese', 'Desserts', 'Healthy'].map(
-              (item, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.popularItem}
-                  onPress={() => handleRecentSearch(item)}
-                >
-                  <Text style={styles.popularText}>{item}</Text>
-                </TouchableOpacity>
-              )
-            )}
-          </View>
         </View>
-      ) : loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF6B00" />
-        </View>
-      ) : results.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="search-outline" size={48} color="#ccc" />
-          <Text style={styles.emptyTitle}>No results found</Text>
-          <Text style={styles.emptyText}>Try searching with different keywords</Text>
-        </View>
+      ) : loading && results.length === 0 ? (
+        <View style={styles.idle}><SkeletonList count={4} imageSize={56} /></View>
+      ) : error ? (
+        <ErrorState message={error} onRetry={() => searchItems(query.trim())} />
       ) : (
         <FlatList
           data={results}
           renderItem={renderResultItem}
           keyExtractor={(item) => item._id}
-          contentContainerStyle={[styles.resultsList, { paddingBottom: 100 }]}
-          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.list}
+          ItemSeparatorComponent={() => <Divider inset={72} />}
+          ListHeaderComponent={searched && results.length ? <Text style={[type.caption, { marginBottom: spacing.sm }]}>{results.length} dishes within 12 km</Text> : null}
+          ListEmptyComponent={
+            searched ? (
+              <EmptyState icon="search-outline" title={`No results for "${query.trim()}"`} subtitle="Try a different dish name or a broader term like thali or paneer." />
+            ) : null
+          }
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
+  container: { flex: 1, backgroundColor: colors.surface },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.screen,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
   },
   searchBar: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    marginLeft: 12,
-    borderRadius: 12,
-    paddingHorizontal: 12,
     height: 44,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 15,
-    color: '#1a1a1a',
-  },
-  recentContainer: {
-    padding: 20,
-  },
-  recentTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
-    marginBottom: 12,
-  },
-  recentTags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  recentTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceMuted,
   },
-  recentTagText: {
-    marginLeft: 6,
-    fontSize: 14,
-    color: '#666',
-  },
-  popularContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  popularItem: {
-    backgroundColor: '#FFF5F0',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#FFE5D6',
-  },
-  popularText: {
-    fontSize: 14,
-    color: '#FF6B00',
-    fontWeight: '500',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1a1a1a',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#888',
-    textAlign: 'center',
-  },
-  resultsList: {
-    padding: 20,
-  },
-  resultItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  resultImageContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  resultImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  placeholderImage: {
-    backgroundColor: '#f5f5f5',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  resultInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  resultName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1a1a1a',
-    marginBottom: 4,
-  },
-  resultMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  resultMetaText: {
-    fontSize: 13,
-    color: '#888',
-    marginLeft: 4,
-  },
-  resultPrice: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#FF6B00',
-  },
-  resultTypeBadge: {
-    backgroundColor: '#f5f5f5',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  resultTypeText: {
-    fontSize: 11,
-    color: '#888',
-    fontWeight: '500',
-  },
+  searchInput: { flex: 1, fontSize: 15, color: colors.text },
+  idle: { padding: spacing.screen },
+  idleHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
+  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  list: { padding: spacing.screen, paddingBottom: spacing.xxxl },
+  result: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md },
+  resultImage: { width: 56, height: 56, borderRadius: radius.md, overflow: 'hidden', backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  resultTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  resultPriceRow: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm, marginTop: 2 },
+  strike: { ...type.caption, color: colors.textTertiary, textDecorationLine: 'line-through' },
 });

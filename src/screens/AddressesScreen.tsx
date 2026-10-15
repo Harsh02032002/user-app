@@ -1,373 +1,162 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  FlatList,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import { RootStackParamList } from '../navigation/RootNavigator';
-import { useAuth } from '../context/AuthContext';
-import { BASE_URL } from '../config/api';
+import api from '../services/api';
+import { Badge, Button, Card, EmptyState, ErrorState, ScreenHeader, SkeletonList, StickyFooter } from '../components/common';
+import { colors, radius, spacing, type } from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Addresses'>;
 
-interface Address {
+/** Backend Address document (models/Others.js) */
+export interface SavedAddress {
   _id: string;
-  fullName: string;
-  phone: string;
-  addressLine1: string;
-  addressLine2?: string;
+  label?: 'home' | 'work' | 'other';
+  fullAddress: string;
+  street?: string;
+  landmark?: string;
   city: string;
   state: string;
   pincode: string;
+  phone?: string;
+  contactName?: string;
   isDefault: boolean;
-  addressType: 'home' | 'work' | 'other';
 }
+
+const LABEL_ICON: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
+  home: 'home-outline',
+  work: 'briefcase-outline',
+  other: 'location-outline',
+};
 
 export default function AddressesScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { token } = useAuth();
-  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchAddresses();
-  }, []);
-
-  const fetchAddresses = async () => {
+  const fetchAddresses = useCallback(async () => {
     try {
-      const response = await fetch(`${BASE_URL}/addresses`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setAddresses(data.addresses || []);
-      } else {
-        Alert.alert('Error', data.message || 'Failed to fetch addresses');
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to fetch addresses');
+      setError(null);
+      const res = await api.user.getAddresses();
+      setAddresses(res?.addresses || []);
+    } catch (e: any) {
+      setError(e?.message || 'We could not load your addresses.');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const deleteAddress = async (addressId: string) => {
-    Alert.alert(
-      'Delete Address',
-      'Are you sure you want to delete this address?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const response = await fetch(`${BASE_URL}/addresses/${addressId}`, {
-                method: 'DELETE',
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                },
-              });
-              if (response.ok) {
-                setAddresses(addresses.filter(a => a._id !== addressId));
-              } else {
-                const data = await response.json();
-                Alert.alert('Error', data.message || 'Failed to delete address');
-              }
-            } catch (error) {
-              Alert.alert('Error', 'Failed to delete address');
-            }
-          },
-        },
-      ]
-    );
-  };
+  // Reload whenever we come back from Add / Edit
+  useFocusEffect(useCallback(() => { fetchAddresses(); }, [fetchAddresses]));
 
-  const setDefaultAddress = async (addressId: string) => {
-    try {
-      const response = await fetch(`${BASE_URL}/addresses/${addressId}/default`, {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (response.ok) {
-        setAddresses(addresses.map(a => ({
-          ...a,
-          isDefault: a._id === addressId,
-        })));
-      } else {
-        const data = await response.json();
-        Alert.alert('Error', data.message || 'Failed to set default address');
+  const deleteAddress = (address: SavedAddress) => {
+    const run = async () => {
+      setBusyId(address._id);
+      try {
+        await api.user.deleteAddress(address._id);
+        setAddresses((prev) => prev.filter((a) => a._id !== address._id));
+        Toast.show({ type: 'success', text1: 'Address deleted' });
+      } catch (e: any) {
+        Alert.alert('Could not delete address', e?.message || 'Please try again.');
+      } finally {
+        setBusyId(null);
       }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to set default address');
+    };
+    if (Platform.OS === 'web') {
+      if (window.confirm('Delete this address?')) run();
+      return;
+    }
+    Alert.alert('Delete this address?', address.fullAddress, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: run },
+    ]);
+  };
+
+  const setDefault = async (address: SavedAddress) => {
+    setBusyId(address._id);
+    try {
+      await api.user.setDefaultAddress(address._id);
+      setAddresses((prev) => prev.map((a) => ({ ...a, isDefault: a._id === address._id })));
+    } catch (e: any) {
+      Alert.alert('Could not update default', e?.message || 'Please try again.');
+    } finally {
+      setBusyId(null);
     }
   };
 
-  const renderAddressItem = ({ item }: { item: Address }) => (
-    <View style={styles.addressCard}>
-      <View style={styles.addressHeader}>
-        <View style={styles.addressTypeBadge}>
-          <Text style={styles.addressTypeText}>{item.addressType.toUpperCase()}</Text>
-        </View>
-        {item.isDefault && (
-          <View style={styles.defaultBadge}>
-            <Text style={styles.defaultText}>Default</Text>
-          </View>
-        )}
-      </View>
-      <Text style={styles.nameText}>{item.fullName}</Text>
-      <Text style={styles.phoneText}>{item.phone}</Text>
-      <Text style={styles.addressText}>{item.addressLine1}</Text>
-      {item.addressLine2 && <Text style={styles.addressText}>{item.addressLine2}</Text>}
-      <Text style={styles.cityText}>
-        {item.city}, {item.state} - {item.pincode}
-      </Text>
-      <View style={styles.actionButtons}>
-        <TouchableOpacity
-          style={styles.editButton}
-          onPress={() => navigation.navigate('AddAddress', { edit: true, addressId: item._id })}
-        >
-          <Ionicons name="create-outline" size={18} color="#FF6B00" />
-          <Text style={styles.editText}>Edit</Text>
-        </TouchableOpacity>
-        {!item.isDefault && (
-          <TouchableOpacity
-            style={styles.setDefaultButton}
-            onPress={() => setDefaultAddress(item._id)}
-          >
-            <Text style={styles.setDefaultText}>Set as Default</Text>
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={() => deleteAddress(item._id)}
-        >
-          <Ionicons name="trash-outline" size={18} color="#dc2626" />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  if (loading) {
+  const renderAddressItem = ({ item }: { item: SavedAddress }) => {
+    const label = item.label || 'other';
     return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
+      <Card>
+        <View style={styles.cardTop}>
+          <View style={styles.labelIcon}>
+            <Ionicons name={LABEL_ICON[label] || 'location-outline'} size={18} color={colors.primary} />
+          </View>
+          <Text style={[type.subheading, { flex: 1, textTransform: 'capitalize' }]}>{label}</Text>
+          {item.isDefault ? <Badge text="Default" variant="success" /> : null}
+        </View>
+        {item.contactName || item.phone ? (
+          <Text style={[type.label, { marginTop: spacing.md }]}>{[item.contactName, item.phone].filter(Boolean).join(' · ')}</Text>
+        ) : null}
+        <Text style={[type.small, { color: colors.textSecondary, marginTop: spacing.xs }]}>{item.fullAddress}</Text>
+        {item.street || item.landmark ? <Text style={type.caption}>{[item.street, item.landmark].filter(Boolean).join(', ')}</Text> : null}
+        <Text style={type.caption}>{item.city}, {item.state} {item.pincode}</Text>
+        <View style={styles.actions}>
+          <TouchableOpacity style={styles.action} onPress={() => navigation.navigate('AddAddress', { edit: true, addressId: item._id })} disabled={busyId === item._id}>
+            <Ionicons name="create-outline" size={16} color={colors.primary} />
+            <Text style={[type.label, { color: colors.primary }]}>Edit</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>My Addresses</Text>
-          <View style={{ width: 40 }} />
+          {!item.isDefault ? (
+            <TouchableOpacity style={styles.action} onPress={() => setDefault(item)} disabled={busyId === item._id}>
+              <Ionicons name="checkmark-circle-outline" size={16} color={colors.textSecondary} />
+              <Text style={[type.label, { color: colors.textSecondary }]}>Set as default</Text>
+            </TouchableOpacity>
+          ) : null}
+          <View style={{ flex: 1 }} />
+          <TouchableOpacity style={styles.action} onPress={() => deleteAddress(item)} disabled={busyId === item._id} accessibilityLabel="Delete address">
+            <Ionicons name="trash-outline" size={16} color={colors.danger} />
+          </TouchableOpacity>
         </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF6B00" />
-        </View>
-      </View>
+      </Card>
     );
-  }
+  };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Addresses</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
-      <FlatList
-        data={addresses}
-        renderItem={renderAddressItem}
-        keyExtractor={(item) => item._id}
-        contentContainerStyle={styles.listContainer}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="location-outline" size={64} color="#ccc" />
-            <Text style={styles.emptyText}>No addresses saved</Text>
-            <Text style={styles.emptySubtext}>Add an address to get started</Text>
-          </View>
-        }
-      />
-
-      <TouchableOpacity
-        style={styles.addButton}
-        onPress={() => navigation.navigate('AddAddress' as never)}
-      >
-        <Ionicons name="add" size={24} color="#fff" />
-        <Text style={styles.addButtonText}>Add New Address</Text>
-      </TouchableOpacity>
-    </View>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <ScreenHeader title="Saved addresses" />
+      {loading ? (
+        <View style={{ padding: spacing.screen }}><SkeletonList count={2} imageSize={36} /></View>
+      ) : error && addresses.length === 0 ? (
+        <ErrorState message={error} onRetry={() => { setLoading(true); fetchAddresses(); }} />
+      ) : (
+        <FlatList
+          data={addresses}
+          renderItem={renderAddressItem}
+          keyExtractor={(item) => item._id}
+          contentContainerStyle={styles.list}
+          ListEmptyComponent={
+            <EmptyState icon="location-outline" title="No saved addresses" subtitle="Save your home or work address for faster checkout." />
+          }
+        />
+      )}
+      <StickyFooter>
+        <Button title="Add new address" icon="add" onPress={() => navigation.navigate('AddAddress', {})} fullWidth />
+      </StickyFooter>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 50,
-    paddingBottom: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1a1a1a',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  listContainer: {
-    padding: 16,
-    paddingBottom: 100,
-  },
-  addressCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  addressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  addressTypeBadge: {
-    backgroundColor: '#FFF5ED',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  addressTypeText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#FF6B00',
-  },
-  defaultBadge: {
-    backgroundColor: '#22c55e',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  defaultText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  nameText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
-    marginBottom: 4,
-  },
-  phoneText: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
-  },
-  addressText: {
-    fontSize: 14,
-    color: '#333',
-    marginBottom: 2,
-  },
-  cityText: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    marginTop: 16,
-    gap: 12,
-  },
-  editButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  editText: {
-    fontSize: 14,
-    color: '#FF6B00',
-    fontWeight: '500',
-  },
-  setDefaultButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 6,
-  },
-  setDefaultText: {
-    fontSize: 12,
-    color: '#333',
-    fontWeight: '500',
-  },
-  deleteButton: {
-    marginLeft: 'auto',
-    padding: 6,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 100,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#666',
-    marginTop: 16,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#999',
-    marginTop: 8,
-  },
-  addButton: {
-    position: 'absolute',
-    bottom: 24,
-    left: 16,
-    right: 16,
-    backgroundColor: '#FF6B00',
-    borderRadius: 12,
-    paddingVertical: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  addButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  container: { flex: 1, backgroundColor: colors.canvas },
+  list: { padding: spacing.screen, gap: spacing.md, paddingBottom: spacing.xxl },
+  cardTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  labelIcon: { width: 32, height: 32, borderRadius: radius.sm, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg, marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  action: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4 },
 });
