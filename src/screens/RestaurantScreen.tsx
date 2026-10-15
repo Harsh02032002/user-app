@@ -21,6 +21,7 @@ import { api } from '../services/api';
 import { getImageUrl } from '../config/api';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { LOCATION_COORDS_KEY } from '../utils/location';
+import { SERVICE_RADIUS_KM } from '../config/serviceArea';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteType = RouteProp<RootStackParamList, 'Restaurant'>;
@@ -118,7 +119,7 @@ export default function RestaurantScreen() {
             }).catch(() => null);
             if (feeRes?.success) {
               setDeliveryDistanceKm(feeRes.distanceKm);
-              if (feeRes.serviceable === false || (feeRes.distanceKm != null && feeRes.distanceKm > 12)) {
+              if (feeRes.serviceable === false || (feeRes.distanceKm != null && feeRes.distanceKm > SERVICE_RADIUS_KM)) {
                 setIsNotServiceable(true);
               }
             }
@@ -151,7 +152,7 @@ export default function RestaurantScreen() {
     if (isNotServiceable) {
       Alert.alert(
         'Outside Delivery Range',
-        `This seller is ${deliveryDistanceKm} km away. We deliver strictly within 12 km.`
+        `This seller is ${deliveryDistanceKm} km away. We deliver strictly within ${SERVICE_RADIUS_KM} km.`
       );
       return;
     }
@@ -255,7 +256,7 @@ export default function RestaurantScreen() {
           </View>
         </View>
 
-        {/* 12km Service Radius Warning Banner */}
+        {/* Service radius warning banner */}
         {isNotServiceable && (
           <View style={{
             marginHorizontal: 16,
@@ -272,10 +273,10 @@ export default function RestaurantScreen() {
             <Ionicons name="warning" size={26} color="#DC2626" />
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 14, fontWeight: '700', color: '#DC2626' }}>
-                Outside 12 km Delivery Radius ({deliveryDistanceKm} km away)
+                Outside {SERVICE_RADIUS_KM} km Delivery Radius ({deliveryDistanceKm} km away)
               </Text>
               <Text style={{ fontSize: 12, color: '#991B1B', marginTop: 3, lineHeight: 16 }}>
-                We strictly deliver within 12 km of your location. You cannot place orders from this seller to your current address.
+                We strictly deliver within {SERVICE_RADIUS_KM} km of your location. You cannot place orders from this seller to your current address.
               </Text>
             </View>
           </View>
@@ -454,7 +455,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   bannerGradient: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.1)',
   },
   infoSection: {

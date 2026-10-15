@@ -67,6 +67,25 @@ interface OrderDetails {
   createdAt: string;
 }
 
+
+/** Shape of GET /api/invoice/receipt/:orderId (Dabba_Delight_Backend/services/order-receipt.service.js) */
+type OrderReceipt = {
+  orderNumber: string | null;
+  invoiceNumber: string | null;
+  items: { name: string; quantity: number; unitPrice: number; lineTotal: number }[];
+  summary: { itemTotal: number; taxTotal: number; deliveryFee: number; discount: number; grandTotal: number; subscriptionCredit: number; amountDue: number };
+  payment: { method: string | null; methodLabel: string | null; status: string; reference: string | null };
+};
+
+const PAYMENT_STATUS_LABEL: Record<string, string> = {
+  paid: 'Paid',
+  pending: 'Payment pending',
+  failed: 'Payment failed',
+  refunded: 'Refunded',
+};
+
+const formatRupees = (n: number) => `Rs. ${(Number(n) || 0).toFixed(2).replace(/\.00$/, '')}`;
+
 export default function OrderDetailsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteType>();
@@ -81,6 +100,17 @@ export default function OrderDetailsScreen() {
   const [deliveryStatus, setDeliveryStatus] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
+  const [receipt, setReceipt] = useState<OrderReceipt | null>(null);
+
+  // Bill figures come from the backend receipt so they always match the invoice and the website
+  useEffect(() => {
+    if (!orderId) return;
+    let alive = true;
+    api.user.getOrderReceipt(orderId as string)
+      .then((res: any) => { if (alive && res?.receipt) setReceipt(res.receipt); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [orderId, order?.paymentStatus]);
 
   useEffect(() => {
     fetchOrderDetails();
@@ -234,11 +264,11 @@ export default function OrderDetailsScreen() {
   const resolvedPickupCoords =
     trackedPickupCoords ||
     (order.sellerId?.address?.location?.coordinates
-      ? [order.sellerId.address.location.coordinates[0], order.sellerId.address.location.coordinates[1]]
+      ? [order.sellerId.address.location.coordinates[0], order.sellerId.address.location.coordinates[1]] as [number, number]
       : undefined);
   const resolvedDropCoords =
     trackedDropCoords ||
-    (deliveryCoordinates ? [deliveryCoordinates.longitude, deliveryCoordinates.latitude] : undefined);
+    (deliveryCoordinates ? [deliveryCoordinates.longitude, deliveryCoordinates.latitude] as [number, number] : undefined);
 
   const currentStage: 'to_restaurant' | 'to_customer' | 'delivered' =
     order.status === 'delivered' || deliveryStatus === 'delivered'
@@ -448,13 +478,17 @@ export default function OrderDetailsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Items Ordered</Text>
           <View style={styles.itemsCard}>
-            {(order.items || []).map((item, index) => (
+            {(receipt?.items || (order.items || []).map((item: any) => ({
+              name: item.name,
+              quantity: item.quantity,
+              lineTotal: (Number(item.sellingPrice ?? item.price) || 0) * (Number(item.quantity) || 0),
+            }))).map((item, index) => (
               <View key={index} style={styles.itemRow}>
                 <View style={styles.itemInfo}>
                   <Text style={styles.itemName}>{item.name}</Text>
                   <Text style={styles.itemQty}>x{item.quantity}</Text>
                 </View>
-                <Text style={styles.itemPrice}>Rs. {item.price * item.quantity}</Text>
+                <Text style={styles.itemPrice}>{formatRupees(item.lineTotal)}</Text>
               </View>
             ))}
           </View>
@@ -466,11 +500,17 @@ export default function OrderDetailsScreen() {
           <View style={styles.billCard}>
             <View style={styles.billRow}>
               <Text style={styles.billLabel}>Item Total</Text>
-              <Text style={styles.billValue}>Rs. {itemTotal}</Text>
+              <Text style={styles.billValue}>{formatRupees(receipt ? receipt.summary.itemTotal : itemTotal)}</Text>
             </View>
+            {receipt && receipt.summary.taxTotal > 0 && (
+              <View style={styles.billRow}>
+                <Text style={styles.billLabel}>GST</Text>
+                <Text style={styles.billValue}>{formatRupees(receipt.summary.taxTotal)}</Text>
+              </View>
+            )}
             <View style={styles.billRow}>
               <Text style={styles.billLabel}>Delivery Charges</Text>
-              <Text style={styles.billValue}>Rs. {delivCharges}</Text>
+              <Text style={styles.billValue}>{formatRupees(receipt ? receipt.summary.deliveryFee : delivCharges)}</Text>
             </View>
 
             {order.subscriptionAmountUsed > 0 && (
@@ -488,20 +528,24 @@ export default function OrderDetailsScreen() {
             <View style={styles.divider} />
 
             <View style={styles.billRow}>
-              <Text style={styles.totalLabel}>Total Paid</Text>
-              <Text style={styles.totalValue}>Rs. {totalPaid}</Text>
+              <Text style={styles.totalLabel}>
+                {(receipt?.payment.status || order.paymentStatus) === 'paid' ? 'Total Paid' : 'Order Total'}
+              </Text>
+              <Text style={styles.totalValue}>{formatRupees(receipt ? receipt.summary.grandTotal : totalPaid)}</Text>
             </View>
 
             <View style={styles.paymentMethod}>
               <Ionicons name="card" size={16} color="#888" />
               <Text style={styles.paymentMethodText}>
-                {order.paymentMethod === 'subscription'
+                {receipt
+                  ? `${receipt.payment.methodLabel || 'Payment'} · ${PAYMENT_STATUS_LABEL[receipt.payment.status] || receipt.payment.status}`
+                  : order.paymentMethod === 'subscription'
                   ? 'Paid via Subscription Balance'
-                  : order.paymentMethod === 'hybrid'
-                  ? 'Hybrid Payment (Subscription + Online)'
                   : order.paymentMethod === 'cod'
                   ? 'Cash on Delivery (COD)'
                   : 'Online Payment'}
+                {receipt?.invoiceNumber ? `
+Invoice ${receipt.invoiceNumber}` : ''}
               </Text>
             </View>
           </View>

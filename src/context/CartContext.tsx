@@ -2,6 +2,16 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+/**
+ * Unit price the backend charges (services/order-pricing.service.js → getUnitPrice):
+ * the discount price only when it is a real discount, otherwise the selling price.
+ */
+export const getCartUnitPrice = (item: { price: number; discountPrice?: number }) => {
+  const price = Number(item.price) || 0;
+  const discount = Number(item.discountPrice) || 0;
+  return discount > 0 && discount < price ? discount : price;
+};
+
 export interface CartItem {
   id: string;
   name: string;
@@ -178,7 +188,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const totalItems = Array.isArray(items) ? items.reduce((sum, item) => sum + item.quantity, 0) : 0;
   const totalAmount = Array.isArray(items) ? items.reduce((sum, item) => {
-    const price = item.discountPrice || item.price;
+    const price = getCartUnitPrice(item);
     return sum + (price * item.quantity);
   }, 0) : 0;
 

@@ -17,13 +17,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import * as Location from 'expo-location';
 import { AppHeader } from '../components/common/AppHeader';
-import { useCart } from '../context/CartContext';
+import { useCart, getCartUnitPrice } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { DeliveryMap } from '../components/common/DeliveryMap';
 import api from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LOCATION_COORDS_KEY, LOCATION_NAME_KEY } from '../utils/location';
 import { OnlinePaymentModal } from '../components/OnlinePaymentModal';
+import { SERVICE_RADIUS_KM } from '../config/serviceArea';
 // WebView is only available on native platforms
 const WebViewComponent = Platform.OS !== 'web' ? require('react-native-webview').WebView : null;
 
@@ -111,10 +112,11 @@ export function CheckoutScreen() {
             setUserLocation([parsed.lng, parsed.lat]);
             setDeliveryAddress(prev => ({
               ...prev,
-              street: prev.street || savedName || 'Buterla, Sector 41',
-              city: prev.city || 'Chandigarh',
-              state: prev.state || 'Punjab',
-              pincode: prev.pincode || '160041',
+              // Only prefill what we actually know; the customer completes the rest
+              street: prev.street || '',
+              city: prev.city || '',
+              state: prev.state || '',
+              pincode: prev.pincode || '',
             }));
 
             const sellerId = cartItems.length > 0 ? (typeof cartItems[0].sellerId === 'object' ? (cartItems[0].sellerId as any)?._id : cartItems[0].sellerId) : null;
@@ -173,8 +175,27 @@ export function CheckoutScreen() {
   const cgstAmount = foodGstEnabled ? (totalAmount * (cgstRate / 100)) : 0;
   const sgstAmount = foodGstEnabled ? (totalAmount * (sgstRate / 100)) : 0;
 
-  // Delivery & Platform fees are included in final total when configured by admin, but hidden from itemized breakdown UI
-  const total = totalAmount + totalGst + deliveryFee + platformFee;
+  // Authoritative totals from the backend (items, distance-based delivery fee, GST) — the same
+  // pricing used when the order is placed. The local figures above are only a loading fallback.
+  const [serverQuote, setServerQuote] = useState<{ subtotal: number; deliveryFee: number; taxTotal: number; grandTotal: number; distanceKm: number } | null>(null);
+  const [quoteProblem, setQuoteProblem] = useState<string | null>(null);
+  const quoteSellerId = cartItems.find(i => !!i.sellerId)?.sellerId;
+  const quoteKey = JSON.stringify(cartItems.map(i => [i.id, i.quantity]));
+  useEffect(() => {
+    if (!quoteSellerId || !userLocation || cartItems.length === 0) return;
+    let alive = true;
+    api.user.quoteOrder({
+      sellerId: typeof quoteSellerId === 'object' ? (quoteSellerId as any)?._id : quoteSellerId,
+      items: cartItems.map(i => ({ menuItemId: i.id, quantity: i.quantity })),
+      deliveryAddress: { state: deliveryAddress.state, location: { type: 'Point', coordinates: [userLocation[0], userLocation[1]] } },
+    })
+      .then((res: any) => { if (alive) { setServerQuote(res?.quote || null); setQuoteProblem(null); } })
+      .catch((e: any) => { if (alive) { setServerQuote(null); setQuoteProblem(e?.message || null); } });
+    return () => { alive = false; };
+  }, [quoteSellerId, quoteKey, userLocation?.[0], userLocation?.[1], deliveryAddress.state]);
+
+  // Platform fee is recorded for settlement only and never added to what the customer pays
+  const total = serverQuote?.grandTotal ?? (totalAmount + totalGst + deliveryFee);
   const walletAmount = useWallet ? Math.min(walletBalance, total) : 0;
   const payableAmount = total - walletAmount;
 
@@ -314,11 +335,11 @@ export function CheckoutScreen() {
       return;
     }
 
-    // Block if location confirmed not serviceable (>12 km)
+    // Block if location confirmed not serviceable (>SERVICE_RADIUS_KM)
     if (deliveryPricing && !deliveryPricing.serviceable) {
       Alert.alert(
         'Order Not Serviceable',
-        `Your location is ${deliveryPricing.distanceKm} km away. We deliver only up to 12 km from the restaurant.`
+        `Your location is ${deliveryPricing.distanceKm} km away. We deliver only up to ${SERVICE_RADIUS_KM} km from the restaurant.`
       );
       return;
     }
@@ -350,7 +371,7 @@ export function CheckoutScreen() {
             items: cartItems.map(item => ({
               menuItemId: item.id,
               name: item.name,
-              price: item.discountPrice || item.price,
+              price: getCartUnitPrice(item),
               quantity: item.quantity,
               image: item.image,
             })),
@@ -386,7 +407,7 @@ export function CheckoutScreen() {
         items: cartItems.map(item => ({
           menuItemId: item.id,
           name: item.name,
-          sellingPrice: item.discountPrice || item.price,
+          sellingPrice: getCartUnitPrice(item),
           quantity: item.quantity,
           image: item.image,
         })),
@@ -507,7 +528,7 @@ export function CheckoutScreen() {
               if (!feeRes.serviceable) {
                 Alert.alert(
                   'Not Serviceable',
-                  `Your location is ${feeRes.distanceKm} km from the restaurant. We currently deliver only up to 12 km.`
+                  `Your location is ${feeRes.distanceKm} km from the restaurant. We currently deliver only up to ${SERVICE_RADIUS_KM} km.`
                 );
               } else {
                 Alert.alert('Location Detected', `Address auto-filled! Delivery: ₹${feeRes.customerFee} (${feeRes.distanceKm} km)`);
@@ -761,7 +782,7 @@ export function CheckoutScreen() {
           {/* Cart Items */}
           <View style={styles.cartItemsContainer}>
             {cartItems.map(item => {
-              const itemTotal = (item.discountPrice || item.price) * item.quantity;
+              const itemTotal = getCartUnitPrice(item) * item.quantity;
               return (
                 <View key={item.id} style={{ marginBottom: 10 }}>
                   <View style={styles.orderItem}>
@@ -804,13 +825,16 @@ export function CheckoutScreen() {
 
             <View style={styles.billRow}>
               <Text style={[styles.billLabel, { color: '#15803d', fontWeight: '600' }]}>Total GST</Text>
-              <Text style={[styles.billValue, { color: '#15803d', fontWeight: '600' }]}>₹{totalGst.toFixed(2)}</Text>
+              <Text style={[styles.billValue, { color: '#15803d', fontWeight: '600' }]}>₹{(serverQuote?.taxTotal ?? totalGst).toFixed(2)}</Text>
             </View>
 
             <View style={[styles.billRow, styles.totalRow]}>
               <Text style={styles.totalLabel}>You pay</Text>
               <Text style={styles.totalValue}>₹{payableAmount.toFixed(2)}</Text>
             </View>
+            {quoteProblem ? (
+              <Text style={{ color: '#DC2626', fontSize: 12, marginTop: 6 }} accessibilityRole="alert">{quoteProblem}</Text>
+            ) : null}
 
             {/* Delivery Fee Breakdown */}
             {isFetchingDeliveryFee ? (
@@ -839,13 +863,13 @@ export function CheckoutScreen() {
                   </View>
                 )}
               </View>
-            ) : deliveryFee > 0 ? (
+            ) : (serverQuote?.deliveryFee ?? deliveryFee) > 0 ? (
               <View style={styles.billRow}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                   <Ionicons name="bicycle-outline" size={15} color="#FF6B00" />
                   <Text style={[styles.billLabel, { color: '#FF6B00' }]}>Delivery Fee</Text>
                 </View>
-                <Text style={[styles.billValue, { color: '#FF6B00', fontWeight: '700' }]}>₹{deliveryFee}</Text>
+                <Text style={[styles.billValue, { color: '#FF6B00', fontWeight: '700' }]}>₹{serverQuote?.deliveryFee ?? deliveryFee}</Text>
               </View>
             ) : null}
 
@@ -931,7 +955,7 @@ export function CheckoutScreen() {
             }}>
               <Ionicons name="warning-outline" size={18} color="#DC2626" />
               <Text style={{ flex: 1, color: '#DC2626', fontSize: 12, fontWeight: '600' }}>
-                Delivery unavailable ({deliveryPricing.distanceKm} km away). We deliver strictly within 12 km.
+                Delivery unavailable ({deliveryPricing.distanceKm} km away). We deliver strictly within {SERVICE_RADIUS_KM} km.
               </Text>
             </View>
           )}
@@ -951,7 +975,7 @@ export function CheckoutScreen() {
               <>
                 <Ionicons name="ban" size={20} color="#fff" />
                 <Text style={styles.payButtonText}>
-                  Not Serviceable ({deliveryPricing.distanceKm} km {'>'} 12 km)
+                  Not Serviceable ({deliveryPricing.distanceKm} km {'>'} {SERVICE_RADIUS_KM} km)
                 </Text>
               </>
             ) : (
@@ -993,7 +1017,7 @@ export function CheckoutScreen() {
               items: cartItems.map(item => ({
                 menuItemId: item.id,
                 name: item.name,
-                sellingPrice: item.discountPrice || item.price,
+                sellingPrice: getCartUnitPrice(item),
                 quantity: item.quantity,
                 image: item.image,
               })),
@@ -1021,7 +1045,8 @@ export function CheckoutScreen() {
             setSuccessOrderData({
               orderNumber: orderResponse.order?.orderNumber || 'DN-ORDER',
               total: total,
-              paymentMethodName: 'Online UPI Payment',
+              // Manual UPI payments are confirmed by Dabba Nation, so the order starts as payment-pending
+              paymentMethodName: orderResponse.order?.paymentStatus === 'paid' ? 'Online UPI Payment' : 'Online UPI · awaiting confirmation',
             });
           } catch (err: any) {
             Alert.alert('Error', err.message || 'Failed to place order');

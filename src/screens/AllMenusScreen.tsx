@@ -11,6 +11,7 @@ import { useCart } from '../context/CartContext';
 import { EmptyState, ErrorState, ScreenHeader, Skeleton } from '../components/common';
 import { FoodCard } from '../components/cards';
 import { colors, radius, spacing } from '../theme';
+import { SERVICE_RADIUS_KM } from '../config/serviceArea';
 
 export default function AllMenusScreen() {
   const navigation = useNavigation<any>();
@@ -90,7 +91,6 @@ export default function AllMenusScreen() {
       const params: any = {
         lat: userLocation.lat,
         lng: userLocation.lng,
-        radius: 12000,
       };
       if (debouncedSearch) params.search = debouncedSearch;
       if (locationName) params.city = locationName;
@@ -150,7 +150,7 @@ export default function AllMenusScreen() {
         <EmptyState
           icon="location-outline"
           title="Location needed"
-          subtitle="Allow location access so we can show dishes from kitchens within 12 km."
+          subtitle={`Allow location access so we can show dishes from kitchens within ${SERVICE_RADIUS_KM} km.`}
           actionText="Use my location"
           onAction={() => { setLoading(true); setLocationReady(false); getUserLocation(); }}
         />
@@ -190,7 +190,7 @@ export default function AllMenusScreen() {
           <EmptyState
             icon="restaurant-outline"
             title={debouncedSearch ? `No dishes match "${debouncedSearch}"` : 'No dishes nearby yet'}
-            subtitle={debouncedSearch ? 'Try a different name.' : 'Kitchens within 12 km of you have not published dishes yet.'}
+            subtitle={debouncedSearch ? 'Try a different name.' : `Kitchens within ${SERVICE_RADIUS_KM} km of you have not published dishes yet.`}
           />
         }
       />
@@ -199,7 +199,7 @@ export default function AllMenusScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <ScreenHeader title="All menus" subtitle={locationName ? `Within 12 km of ${locationName}` : 'Within 12 km of you'} />
+      <ScreenHeader title="All menus" subtitle={locationName ? `Within ${SERVICE_RADIUS_KM} km of ${locationName}` : `Within ${SERVICE_RADIUS_KM} km of you`} />
       <View style={styles.searchWrap}>
         <View style={styles.searchBar}>
           <Ionicons name="search" size={18} color={colors.textTertiary} />

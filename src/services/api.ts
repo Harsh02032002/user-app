@@ -254,7 +254,7 @@ export const api = {
       const query = new URLSearchParams({
         lat: String(params.lat),
         lng: String(params.lng),
-        radius: String(params.radius || 12000),
+        ...(params.radius ? { radius: String(params.radius) } : {}),
         ...(params.type ? { type: params.type } : {}),
         ...(params.city ? { city: params.city } : {}),
       }).toString();
@@ -339,10 +339,23 @@ export const api = {
       return apiRequest(`/user/orders/${id}`);
     },
 
+    /** Authoritative receipt for an order (same data the website and invoice PDF use) */
+    getOrderReceipt: async (id: string) => {
+      return apiRequest(`/invoice/receipt/${id}`);
+    },
+
     getOrderTracking: async (id: string) => {
       return apiRequest(`/user/orders/${id}/track`);
     },
     
+    /** Authoritative checkout totals (same pricing the backend uses to place the order) */
+    quoteOrder: async (data: Record<string, unknown>) => {
+      return apiRequest('/user/orders/quote', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+
     placeOrder: async (data: Record<string, unknown>) => {
       // The backend responds only after notifications + invoice generation, which can exceed the default timeout
       return apiRequest('/user/orders/place', {

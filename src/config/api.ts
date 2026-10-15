@@ -2,8 +2,6 @@ import axios from 'axios';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
-import { Platform } from 'react-native';
 
 // Local backend port (override with EXPO_PUBLIC_API_PORT, e.g. to point at a demo backend)
 const API_PORT = process.env.EXPO_PUBLIC_API_PORT || '5000';

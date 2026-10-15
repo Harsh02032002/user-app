@@ -12,6 +12,7 @@ import api, { API_ENDPOINTS, getImageUrl } from '../config/api';
 import { api as userServicesApi } from '../services/api';
 import { LOCATION_COORDS_KEY, LOCATION_NAME_KEY } from '../utils/location';
 import { RootStackParamList } from '../navigation/RootNavigator';
+import { SERVICE_RADIUS_KM } from '../config/serviceArea';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteType = RouteProp<RootStackParamList, 'SelectHomeChef'>;
@@ -71,7 +72,6 @@ export default function SelectHomeChefScreen() {
             const res = await userServicesApi.user.getNearbySellers({
               lat: parsed.lat,
               lng: parsed.lng,
-              radius: 12000,
               type: 'home_chef',
             });
             chefsData = res.sellers || [];
@@ -135,7 +135,7 @@ export default function SelectHomeChefScreen() {
 
         <Text style={[type.heading, { marginTop: spacing.xxl }]}>Who should cook for you?</Text>
         <Text style={[type.caption, { marginTop: 2, marginBottom: spacing.md }]}>
-          {locationName ? `Home chefs within 12 km of ${locationName}` : 'Home chefs near you'}
+          {locationName ? `Home chefs within ${SERVICE_RADIUS_KM} km of ${locationName}` : 'Home chefs near you'}
         </Text>
 
         {loading ? (

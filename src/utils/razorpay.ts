@@ -9,7 +9,7 @@ export const isRazorpayAvailable = () =>
   !!NativeModules.RNRazorpayCheckout && !!NativeModules.RazorpayEventEmitter;
 
 const RazorpayCheckout = {
-  open: async (options: Record<string, unknown>): Promise<any> => {
+  open: async (options: object): Promise<any> => {
     if (!isRazorpayAvailable()) {
       const error: any = new Error(
         'Online payment is not available in this build. Use the installed Dabba Nation app, or pay with wallet or cash on delivery.'

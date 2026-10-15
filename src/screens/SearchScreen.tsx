@@ -13,6 +13,7 @@ import { useCart } from '../context/CartContext';
 import { AddToCartButton, Chip, Divider, EmptyState, ErrorState, IconButton, SkeletonList, VegIndicator } from '../components/common';
 import { getFoodPricing } from '../components/cards';
 import { colors, formatPrice, radius, spacing, type } from '../theme';
+import { SERVICE_RADIUS_KM } from '../config/serviceArea';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -90,7 +91,7 @@ export default function SearchScreen() {
     setLoading(true);
     setError(null);
     try {
-      let url = `${API_ENDPOINTS.SEARCH}?q=${encodeURIComponent(term)}&radius=12000`;
+      let url = `${API_ENDPOINTS.SEARCH}?q=${encodeURIComponent(term)}`;
       if (userLocation?.lat && userLocation?.lng) {
         url += `&lat=${userLocation.lat}&lng=${userLocation.lng}`;
       }
@@ -241,7 +242,7 @@ export default function SearchScreen() {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <Divider inset={72} />}
-          ListHeaderComponent={searched && results.length ? <Text style={[type.caption, { marginBottom: spacing.sm }]}>{results.length} dishes within 12 km</Text> : null}
+          ListHeaderComponent={searched && results.length ? <Text style={[type.caption, { marginBottom: spacing.sm }]}>{results.length} dishes within {SERVICE_RADIUS_KM} km</Text> : null}
           ListEmptyComponent={
             searched ? (
               <EmptyState icon="search-outline" title={`No results for "${query.trim()}"`} subtitle="Try a different dish name or a broader term like thali or paneer." />

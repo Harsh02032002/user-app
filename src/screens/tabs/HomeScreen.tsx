@@ -40,7 +40,7 @@ interface Seller {
   description: string;
   rating: number;
   image: string;
-  type: 'home_chef' | 'restaurant';
+  type: 'home_chef' | 'restaurant' | 'home-chef' | string;
 }
 
 interface MenuItem {
@@ -229,13 +229,12 @@ export function HomeScreen() {
         return;
       }
 
-      // 1. Fetch sellers - strictly nearby within 12 km
+      // 1. Fetch sellers - strictly nearby (backend applies the service radius)
       let sellersResponse: any;
       try {
         sellersResponse = await api.user.getNearbySellers({
           lat,
           lng,
-          radius: 12000,
           city: locationName,
           type: selectedType !== 'all' ? selectedType : undefined
         });
@@ -247,7 +246,7 @@ export function HomeScreen() {
       const newAllSellers = sellersResponse?.sellers || (Array.isArray(sellersResponse) ? sellersResponse : []);
       setAllSellers(newAllSellers);
 
-      // 2. Fetch menu items location-wise (strictly from nearby sellers within 12 km)
+      // 2. Fetch menu items location-wise (strictly from nearby sellers)
       let menuResponse: any;
       try {
         let fetchedProducts: any[] = [];
@@ -257,13 +256,12 @@ export function HomeScreen() {
             sellerIds: sellerIdsStr,
             lat,
             lng,
-            radius: 12000,
             city: locationName,
             type: selectedType !== 'all' ? selectedType : undefined
           }).catch(() => null);
           fetchedProducts = menuResponse?.products || (Array.isArray(menuResponse) ? menuResponse : []);
         } else {
-          // No nearby sellers within 12 km -> keep menu strictly empty (never show distant food)
+          // No nearby sellers -> keep menu strictly empty (never show distant food)
           fetchedProducts = [];
         }
 
@@ -958,12 +956,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 1,
-  },
-  ratingText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-    marginLeft: 4,
   },
   locationText: {
     fontSize: 12,
