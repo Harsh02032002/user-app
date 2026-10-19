@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import api, { API_ENDPOINTS } from '../config/api';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { Badge, Button, Card, Divider, EmptyState, IconButton, ScreenHeader, SkeletonList } from '../components/common';
-import { colors, formatPrice, radius, spacing, type } from '../theme';
+import { colors, formatPrice, radius, spacing, type, fonts } from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -88,13 +88,13 @@ export default function SubscriptionsScreen() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active':
-        return '#22C55E';
+        return colors.success;
       case 'expired':
-        return '#EF4444';
+        return colors.danger;
       case 'exhausted':
         return '#F59E0B';
       default:
-        return '#888';
+        return colors.textTertiary;
     }
   };
 
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.canvas },
   scroll: { padding: spacing.screen, gap: spacing.md, paddingBottom: spacing.xxxl },
   balanceCard: { borderRadius: radius.lg, padding: spacing.xl, backgroundColor: colors.primary, gap: 2 },
-  balanceAmount: { ...type.display, fontSize: 30, lineHeight: 38, color: colors.textInverse, fontVariant: ['tabular-nums'] },
+  balanceAmount: { ...type.display, fontSize: 30, lineHeight: 38, color: colors.textInverse, fontVariant: ['tabular-nums'], },
   label: { marginTop: spacing.md, marginLeft: spacing.xs },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   stats: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
