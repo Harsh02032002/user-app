@@ -17,7 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import api from '../../services/api';
 import { BottomSheet, Button, Card, Chip, Divider, EmptyState, ErrorState, ScreenHeader, Skeleton, SkeletonList } from '../../components/common';
 import { TAB_BAR_HEIGHT } from '../../components/common/MobileNavBar';
-import { colors, formatPrice, radius, spacing, type } from '../../theme';
+import { colors, formatPrice, radius, spacing, type, fonts } from '../../theme';
 import { OnlinePaymentModal } from '../../components/OnlinePaymentModal';
 
 interface Transaction {
@@ -172,16 +172,16 @@ export function WalletScreen() {
         <View style={styles.balanceCard}>
           <View style={styles.balanceTop}>
             <View>
-              <Text style={[type.overline, { color: 'rgba(255,255,255,0.85)' }]}>Available balance</Text>
+              <Text style={[type.overline, { color: colors.textOnInkMuted }]}>Available balance</Text>
               <Text style={styles.balanceAmount}>{formatPrice(wallet?.balance || 0)}</Text>
             </View>
             <View style={styles.walletIcon}>
-              <Ionicons name="wallet" size={22} color={colors.primary} />
+              <Ionicons name="wallet" size={20} color={colors.textInverse} />
             </View>
           </View>
           <TouchableOpacity style={styles.addMoney} onPress={() => { setTopupAmount(''); setTopupModalVisible(true); }} accessibilityRole="button">
-            <Ionicons name="add" size={18} color={colors.primary} />
-            <Text style={[type.subheading, { color: colors.primary }]}>Add money</Text>
+            <Ionicons name="add" size={18} color={colors.textInverse} />
+            <Text style={[type.subheading, { color: colors.textInverse }]}>Add money</Text>
           </TouchableOpacity>
         </View>
 
@@ -290,11 +290,11 @@ export function WalletScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.canvas },
   scroll: { padding: spacing.screen, paddingBottom: TAB_BAR_HEIGHT + spacing.xxxl },
-  balanceCard: { borderRadius: radius.lg, padding: spacing.xl, backgroundColor: colors.primary },
+  balanceCard: { borderRadius: radius.xl, padding: spacing.xl, backgroundColor: colors.inkSurface },
   balanceTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  balanceAmount: { ...type.display, fontSize: 32, lineHeight: 40, color: colors.textInverse, marginTop: spacing.xs, fontVariant: ['tabular-nums'] },
-  walletIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
-  addMoney: { marginTop: spacing.lg, height: 44, borderRadius: radius.md, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs },
+  balanceAmount: { ...type.display, fontSize: 34, lineHeight: 42, color: colors.textOnInk, marginTop: spacing.xs, fontVariant: ['tabular-nums'], },
+  walletIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  addMoney: { marginTop: spacing.lg, height: 46, borderRadius: 12, backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs },
   label: { marginTop: spacing.xxl, marginBottom: spacing.sm, marginLeft: spacing.xs },
   quickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   quickChip: { flexGrow: 1, minWidth: 72, height: 44, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
@@ -302,5 +302,5 @@ const styles = StyleSheet.create({
   txIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   amountField: { flexDirection: 'row', alignItems: 'center', height: 64, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.lg, backgroundColor: colors.surface },
   currency: { ...type.title, color: colors.textSecondary, marginRight: spacing.sm },
-  amountInput: { flex: 1, fontSize: 28, fontWeight: '700', color: colors.text },
+  amountInput: { flex: 1, fontSize: 28, fontFamily: fonts.bold, color: colors.text },
 });
