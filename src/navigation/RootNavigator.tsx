@@ -38,7 +38,6 @@ import SubscriptionItemsScreen from '../screens/SubscriptionItemsScreen';
 import { WalletScreen } from '../screens/tabs/WalletScreen';
 import { WishlistScreen } from '../screens/tabs/WishlistScreen';
 import { SettingsScreen } from '../screens/tabs/SettingsScreen';
-import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { MobileNavBar } from '../components/common/MobileNavBar';
 
 export type RootStackParamList = {
@@ -84,7 +83,6 @@ export type RootStackParamList = {
   AllMenus: undefined;
   AllPlans: undefined;
   Settings: undefined;
-  EditProfile: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -142,7 +140,6 @@ export default function RootNavigator() {
             <Stack.Screen name="AllMenus" component={AllMenusScreen} options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="AllPlans" component={AllPlansScreen} options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="Settings" component={SettingsScreen} options={{ animation: 'slide_from_right' }} />
-            <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ animation: 'slide_from_right' }} />
           </Stack.Group>
         )}
       </Stack.Navigator>

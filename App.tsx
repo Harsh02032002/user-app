@@ -1,20 +1,7 @@
 import { NavigationContainer } from '@react-navigation/native';
-import { StatusBar } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { Platform } from 'react-native';
-import * as SplashScreen from 'expo-splash-screen';
-import { useFonts } from 'expo-font';
-import {
-  Fraunces_500Medium_Italic,
-  Fraunces_600SemiBold,
-  Fraunces_700Bold,
-} from '@expo-google-fonts/fraunces';
-import {
-  Manrope_500Medium,
-  Manrope_600SemiBold,
-  Manrope_700Bold,
-  Manrope_800ExtraBold,
-} from '@expo-google-fonts/manrope';
 import { AuthProvider } from './src/context/AuthContext';
 import { CartProvider } from './src/context/CartContext';
 import RootNavigator from './src/navigation/RootNavigator';
@@ -31,27 +18,8 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
   }
 }
 
-// Keep the native splash up until the brand fonts are ready (avoids a flash of system font)
-SplashScreen.preventAutoHideAsync().catch(() => {});
-
 export default function App() {
-  const [fontsLoaded, fontError] = useFonts({
-    Fraunces_500Medium_Italic,
-    Fraunces_600SemiBold,
-    Fraunces_700Bold,
-    Manrope_500Medium,
-    Manrope_600SemiBold,
-    Manrope_700Bold,
-    Manrope_800ExtraBold,
-  });
-
-  React.useEffect(() => {
-    if (fontsLoaded || fontError) SplashScreen.hideAsync().catch(() => {});
-  }, [fontsLoaded, fontError]);
-
-  // If fonts fail to load the app still works with system fonts
-  if (!fontsLoaded && !fontError) return null;
-
+  console.log('App rendering');
   return (
     <SafeAreaProvider>
       <AuthProvider>

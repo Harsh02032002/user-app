@@ -4,7 +4,7 @@ import Toast from 'react-native-toast-message';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { Button, Input, Notice } from '../common';
-import { colors, spacing, type, fonts } from '../../theme';
+import { colors, spacing, type } from '../../theme';
 import { AuthLayout } from './AuthLayout';
 
 const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
@@ -45,7 +45,7 @@ export default function SignInScreen() {
   return (
     <AuthLayout
       title="Welcome back"
-      subtitle="Sign in to order from home kitchens near you."
+      subtitle="Sign in to order delicious food"
       footer={
         <Text style={styles.footerText}>
           Don't have an account?{' '}

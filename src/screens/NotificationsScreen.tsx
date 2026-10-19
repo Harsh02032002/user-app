@@ -5,7 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../services/api';
 import { Divider, EmptyState, ErrorState, ScreenHeader, SkeletonList } from '../components/common';
-import { colors, spacing, type, fonts } from '../theme';
+import { colors, spacing, type } from '../theme';
 
 const ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
   order: 'receipt-outline',

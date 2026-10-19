@@ -8,7 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DEFAULT_LOCATION_LABEL, getReadableLocation, LOCATION_NAME_KEY } from '../../utils/location';
 import { getImageUrl } from '../../config/api';
-import { colors, elevation, fonts, radius, spacing, type } from '../../theme';
+import { colors, elevation, radius, spacing, type } from '../../theme';
 import { IconButton } from './index';
 
 interface AppHeaderProps {
@@ -84,10 +84,18 @@ export const AppHeader = React.memo(function AppHeader({ showSearch = true, show
             )}
             <View style={{ flex: 1 }}>
               <Text style={type.subheading} numberOfLines={1}>{sellerInfo.name}</Text>
-              <Text style={type.caption} numberOfLines={1}>
-                {sellerInfo.type === 'home_chef' ? 'Home Chef' : 'Restaurant'}
-                {sellerInfo.rating ? `  ·  ★ ${sellerInfo.rating}` : ''}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Text style={type.caption} numberOfLines={1}>
+                  {sellerInfo.type === 'home_chef' ? 'Home Chef' : 'Restaurant'}
+                </Text>
+                {sellerInfo.rating ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                    <Text style={type.caption}>·</Text>
+                    <Ionicons name="star" size={11} color="#F59E0B" />
+                    <Text style={type.caption}>{sellerInfo.rating}</Text>
+                  </View>
+                ) : null}
+              </View>
             </View>
           </View>
         ) : title ? (
@@ -102,7 +110,7 @@ export const AppHeader = React.memo(function AppHeader({ showSearch = true, show
           >
             <Text style={type.overline}>Deliver to</Text>
             <View style={styles.locationValueRow}>
-              <Ionicons name="location-sharp" size={14} color={colors.primary} />
+              <Ionicons name="location" size={14} color={colors.primary} />
               <Text style={styles.locationValue} numberOfLines={1}>{locating && location === DEFAULT_LOCATION_LABEL ? 'Detecting location…' : location}</Text>
               <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
             </View>
@@ -186,8 +194,10 @@ export const AppHeader = React.memo(function AppHeader({ showSearch = true, show
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.canvas,
-    paddingBottom: spacing.xs,
+    backgroundColor: colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    paddingBottom: spacing.md,
   },
   topRow: {
     height: 56,
@@ -196,28 +206,26 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingHorizontal: spacing.screen,
   },
-  logo: { width: 36, height: 36 },
+  logo: { width: 40, height: 40 },
   title: { flex: 1 },
   location: { flex: 1 },
   locationValueRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 },
-  locationValue: { fontFamily: fonts.bold, fontSize: 15, lineHeight: 20, color: colors.text, flexShrink: 1 },
+  locationValue: { ...type.subheading, flexShrink: 1 },
   sellerHeader: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   sellerImage: { width: 40, height: 40, borderRadius: 20 },
   sellerImagePlaceholder: { backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
   actions: { flexDirection: 'row', alignItems: 'center', marginRight: -spacing.xs },
   avatarButton: { marginLeft: spacing.xs },
-  avatar: { width: 34, height: 34, borderRadius: 17 },
-  avatarPlaceholder: { backgroundColor: colors.inkSurface, alignItems: 'center', justifyContent: 'center' },
-  avatarInitial: { fontFamily: fonts.display, fontSize: 15, color: colors.textOnInk },
+  avatar: { width: 32, height: 32, borderRadius: 16 },
+  avatarPlaceholder: { backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  avatarInitial: { ...type.label, color: colors.primary },
   search: {
     height: 44,
     marginHorizontal: spacing.screen,
     marginTop: spacing.xs,
     paddingHorizontal: spacing.md + 2,
-    borderRadius: 14,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceMuted,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
@@ -230,10 +238,8 @@ const styles = StyleSheet.create({
     right: spacing.screen,
     minWidth: 240,
     backgroundColor: colors.surface,
-    borderRadius: radius.lg,
+    borderRadius: radius.md,
     paddingVertical: spacing.xs,
-    borderWidth: 1,
-    borderColor: colors.border,
     ...elevation.raised,
   },
   menuHeader: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },

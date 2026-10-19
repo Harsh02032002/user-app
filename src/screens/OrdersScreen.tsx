@@ -15,7 +15,6 @@ import api, { API_ENDPOINTS } from '../config/api';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { DeliveryMap } from '../components/common/DeliveryMap';
 import { extractCoordinates } from '../utils/location';
-import { colors, fonts } from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -82,11 +81,11 @@ export default function OrdersScreen() {
       case 'out_for_delivery':
         return '#FF9800';
       case 'delivered':
-        return colors.success;
+        return '#22C55E';
       case 'cancelled':
-        return colors.danger;
+        return '#EF4444';
       default:
-        return colors.textTertiary;
+        return '#888';
     }
   };
 
@@ -236,7 +235,7 @@ export default function OrdersScreen() {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#FF6B00']} />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
@@ -259,32 +258,32 @@ export default function OrdersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.canvas,
+    backgroundColor: '#f5f5f5',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.canvas,
+    backgroundColor: '#f5f5f5',
   },
   header: {
     paddingHorizontal: 20,
     paddingTop: 60,
     paddingBottom: 16,
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
   },
   headerTitle: {
     fontSize: 28,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
   },
   tabs: {
     flexDirection: 'row',
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
     paddingHorizontal: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: '#f0f0f0',
   },
   tab: {
     flex: 1,
@@ -292,24 +291,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 8,
     marginHorizontal: 4,
-    backgroundColor: colors.canvas,
+    backgroundColor: '#f5f5f5',
   },
   activeTab: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#FF6B00',
   },
   tabText: {
     fontSize: 14,
-    fontFamily: fonts.bold,
-    color: colors.textTertiary,
+    fontWeight: '600',
+    color: '#888',
   },
   activeTabText: {
-    color: colors.surface,
+    color: '#fff',
   },
   listContent: {
     padding: 20,
   },
   orderCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
@@ -322,13 +321,13 @@ const styles = StyleSheet.create({
   },
   orderNumber: {
     fontSize: 16,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
   },
   sellerName: {
     fontSize: 14,
-    color: colors.textTertiary,
-    marginTop: 2, fontFamily: fonts.regular,
+    color: '#888',
+    marginTop: 2,
   },
   statusBadge: {
     paddingHorizontal: 10,
@@ -337,23 +336,23 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 11,
-    fontFamily: fonts.bold,
+    fontWeight: 'bold',
   },
   itemsList: {
     marginBottom: 12,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: '#f0f0f0',
   },
   itemText: {
     fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 4, fontFamily: fonts.regular,
+    color: '#666',
+    marginBottom: 4,
   },
   moreItems: {
     fontSize: 13,
-    color: colors.primary,
-    marginTop: 4, fontFamily: fonts.regular,
+    color: '#FF6B00',
+    marginTop: 4,
   },
   mapPreviewContainer: {
     marginBottom: 16,
@@ -362,8 +361,8 @@ const styles = StyleSheet.create({
   },
   mapTitle: {
     fontSize: 11,
-    fontFamily: fonts.bold,
-    color: colors.primary,
+    fontWeight: '700',
+    color: '#FF6B00',
     marginBottom: 4,
     textTransform: 'uppercase',
   },
@@ -375,8 +374,8 @@ const styles = StyleSheet.create({
   paymentInfo: {},
   totalAmount: {
     fontSize: 18,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
   },
   hybridBadge: {
     flexDirection: 'row',
@@ -385,12 +384,12 @@ const styles = StyleSheet.create({
   },
   hybridText: {
     fontSize: 11,
-    color: colors.primary,
-    marginLeft: 4, fontFamily: fonts.regular,
+    color: '#FF6B00',
+    marginLeft: 4,
   },
   orderDate: {
     fontSize: 12,
-    color: colors.textTertiary, fontFamily: fonts.regular,
+    color: '#888',
   },
   emptyContainer: {
     alignItems: 'center',
@@ -403,14 +402,14 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 18,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: '600',
+    color: '#1a1a1a',
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
-    color: colors.textTertiary,
-    textAlign: 'center', fontFamily: fonts.regular,
+    color: '#888',
+    textAlign: 'center',
   },
 });
 }

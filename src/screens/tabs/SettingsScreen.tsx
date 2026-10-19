@@ -1,170 +1,831 @@
-import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform, Linking } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  TextInput,
+  Switch,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  Modal,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Image } from 'expo-image';
-import Constants from 'expo-constants';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import Toast from 'react-native-toast-message';
 import { useAuth } from '../../context/AuthContext';
+import { AppHeader } from '../../components/common/AppHeader';
+import { AppFooter } from '../../components/common/AppFooter';
+
+import * as ImagePicker from 'expo-image-picker';
+import { useNavigation } from '@react-navigation/native';
+import { getImageUrl } from '../../services/api';
 import api from '../../services/api';
-import { getImageUrl } from '../../config/api';
-import { TAB_BAR_HEIGHT } from '../../components/common/MobileNavBar';
-import { colors, fonts, formatPrice, radius, spacing, type } from '../../theme';
 
-type IconName = React.ComponentProps<typeof Ionicons>['name'];
-
-// Published Dabba Nation support contacts (same as the Contact page)
-const SUPPORT_PHONE = '+917303023539';
-const SUPPORT_EMAIL = 'support@dabbanation.com';
+interface UserProfile {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  bio: string;
+  profileImage: string;
+  banner: string;
+}
 
 export function SettingsScreen() {
-  const navigation = useNavigation<any>();
-  const { user, logout } = useAuth();
-  const [walletBalance, setWalletBalance] = useState<number | null>(null);
-  const [activePlans, setActivePlans] = useState<number | null>(null);
+  const { user, updateProfile, refreshProfile, uploadAvatar, uploadBanner } = useAuth();
+  const navigation = useNavigation();
+  const [loading, setLoading] = useState(false);
+  const [uploadingType, setUploadingType] = useState<'profileImage' | 'banner' | null>(null);
+  const [pickerModalType, setPickerModalType] = useState<'profileImage' | 'banner' | null>(null);
+  const [avatarLoadError, setAvatarLoadError] = useState(false);
+  const [bannerLoadError, setBannerLoadError] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      api.user.getWalletTransactions()
-        .then((res: any) => setWalletBalance(Number(res?.data?.balance ?? res?.balance ?? 0) || 0))
-        .catch(() => setWalletBalance(null));
-      api.user.getActiveSubscription()
-        .then((res: any) => setActivePlans((res?.subscriptions || []).filter((s: any) => s.status === 'active').length))
-        .catch(() => setActivePlans(null));
-    }, []),
-  );
+  const [profile, setProfile] = useState<UserProfile>({
+    name: user?.name || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+    address: user?.address || '',
+    bio: user?.bio || '',
+    profileImage: user?.profileImage || user?.avatar || '',
+    banner: user?.banner || '',
+  });
 
-  const confirmLogout = () => {
-    if (Platform.OS === 'web') {
-      if (window.confirm('Log out of Dabba Nation?')) logout();
-      return;
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+
+  // Update profile when user data changes
+  useEffect(() => {
+    if (user) {
+      setProfile({
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        address: user.address || '',
+        bio: user.bio || '',
+        profileImage: user.profileImage || user.avatar || '',
+        banner: user.banner || '',
+      });
     }
-    Alert.alert('Log out?', 'You can sign back in any time.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Log out', style: 'destructive', onPress: () => logout() },
-    ]);
+  }, [user]);
+
+  const showMessage = (type: 'success' | 'error', title: string, message: string) => {
+    Toast.show({
+      type,
+      text1: title,
+      text2: message,
+      position: 'top',
+    });
+    if (Platform.OS !== 'web') {
+      Alert.alert(title, message);
+    }
   };
 
-  const avatar = (user as any)?.avatar || (user as any)?.profileImage;
-  const initials = String(user?.name || 'D').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
-  const version = Constants.expoConfig?.version || '1.0.0';
+  const handleSaveProfile = async () => {
+    setLoading(true);
+    try {
+      await updateProfile({
+        name: profile.name,
+        phone: profile.phone,
+        address: profile.address,
+        bio: profile.bio,
+      });
+      await refreshProfile();
+      showMessage('success', 'Success', 'Profile updated successfully');
+    } catch (error: any) {
+      showMessage('error', 'Error', error.message || 'Failed to update profile');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!passwordData.currentPassword) {
+      showMessage('error', 'Error', 'Please enter your current password');
+      return;
+    }
+    if (passwordData.newPassword.length < 6) {
+      showMessage('error', 'Error', 'New password must be at least 6 characters');
+      return;
+    }
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      showMessage('error', 'Error', 'Passwords do not match');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      await api.auth.changePassword(passwordData.currentPassword, passwordData.newPassword);
+      showMessage('success', 'Success', 'Password changed successfully');
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (error: any) {
+      showMessage('error', 'Error', error.message || 'Failed to change password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const launchGalleryPicker = async (type: 'profileImage' | 'banner') => {
+    setPickerModalType(null);
+    try {
+      if (Platform.OS !== 'web') {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          showMessage('error', 'Permission Denied', 'Camera roll permission is required to choose a photo.');
+          return;
+        }
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: type === 'profileImage' ? [1, 1] : [16, 9],
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        await handleImageUpload(type, result.assets[0]);
+      }
+    } catch (err: any) {
+      console.error('Gallery picker error:', err);
+      showMessage('error', 'Error', err.message || 'Could not open image picker');
+    }
+  };
+
+  const launchCameraPicker = async (type: 'profileImage' | 'banner') => {
+    setPickerModalType(null);
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        showMessage('error', 'Permission Denied', 'Camera permission is required to take a photo.');
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: type === 'profileImage' ? [1, 1] : [16, 9],
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        await handleImageUpload(type, result.assets[0]);
+      }
+    } catch (err: any) {
+      console.error('Camera picker error:', err);
+      showMessage('error', 'Error', err.message || 'Could not open camera');
+    }
+  };
+
+  const pickImage = async (type: 'profileImage' | 'banner') => {
+    // On Web, directly open the file chooser dialog (Alert.alert multi-button doesn't work on Web)
+    if (Platform.OS === 'web') {
+      await launchGalleryPicker(type);
+      return;
+    }
+    // On Mobile (Android/iOS), show custom modal for Camera or Gallery
+    setPickerModalType(type);
+  };
+
+  const handleImageUpload = async (type: 'profileImage' | 'banner', asset: any) => {
+    setUploadingType(type);
+    if (type === 'profileImage') {
+      setAvatarLoadError(false);
+    } else {
+      setBannerLoadError(false);
+    }
+
+    // Set local preview immediately
+    setProfile(prev => ({
+      ...prev,
+      [type]: asset.uri,
+    }));
+
+    try {
+      const formData = new FormData();
+      const fieldName = type === 'profileImage' ? 'avatar' : 'banner';
+      const defaultFileName = type === 'profileImage' ? 'avatar.jpg' : 'banner.jpg';
+
+      if (Platform.OS === 'web') {
+        if (asset.file) {
+          const validName =
+            asset.file.name && /\.(jpg|jpeg|png|gif|webp)$/i.test(asset.file.name)
+              ? asset.file.name
+              : defaultFileName;
+          formData.append(fieldName, asset.file, validName);
+        } else {
+          const response = await fetch(asset.uri);
+          const blob = await response.blob();
+          const mime = blob.type || asset.mimeType || 'image/jpeg';
+          const ext = mime.includes('png') ? 'png' : mime.includes('webp') ? 'webp' : 'jpg';
+          formData.append(fieldName, blob, `${fieldName}.${ext}`);
+        }
+      } else {
+        const rawName = asset.fileName || asset.uri.split('/').pop() || defaultFileName;
+        const fileName = /\.(jpg|jpeg|png|gif|webp)$/i.test(rawName) ? rawName : defaultFileName;
+        const ext = fileName.split('.').pop()?.toLowerCase() || 'jpg';
+        const fileType =
+          asset.mimeType ||
+          `image/${ext === 'png' ? 'png' : ext === 'webp' ? 'webp' : 'jpeg'}`;
+
+        formData.append(fieldName, {
+          uri: asset.uri,
+          name: fileName,
+          type: fileType,
+        } as any);
+      }
+
+      if (type === 'profileImage') {
+        await uploadAvatar(formData);
+      } else {
+        await uploadBanner(formData);
+      }
+
+      showMessage(
+        'success',
+        'Success',
+        `${type === 'profileImage' ? 'Profile photo' : 'Banner image'} updated successfully`
+      );
+    } catch (error: any) {
+      console.error('Image upload error:', error);
+      showMessage('error', 'Upload Failed', error.message || 'Failed to upload image');
+      // Revert to original user data on error
+      setProfile(prev => ({
+        ...prev,
+        [type]: (type === 'profileImage' ? user?.profileImage || user?.avatar : user?.banner) || '',
+      }));
+    } finally {
+      setUploadingType(null);
+    }
+  };
+
+  const resolvedAvatarUri = getImageUrl(profile.profileImage || user?.avatar || user?.profileImage);
+  const resolvedBannerUri = getImageUrl(profile.banner || user?.banner);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: TAB_BAR_HEIGHT + spacing.xxxl }]} showsVerticalScrollIndicator={false}>
-        <Text style={type.display}>Account</Text>
+    <SafeAreaView style={styles.container}>
+      <AppHeader showSearch={false} />
 
-        <TouchableOpacity style={styles.profile} onPress={() => navigation.navigate('EditProfile')} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Edit profile">
-          {avatar ? (
-            <Image source={{ uri: getImageUrl(avatar) }} style={styles.avatar} contentFit="cover" />
-          ) : (
-            <View style={[styles.avatar, styles.avatarFallback]}>
-              <Text style={styles.avatarText}>{initials}</Text>
-            </View>
-          )}
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={styles.name} numberOfLines={1}>{user?.name || 'Your profile'}</Text>
-            <Text style={type.caption} numberOfLines={1}>{[user?.phone, user?.email].filter(Boolean).join(' · ')}</Text>
-            <Text style={styles.editLink}>Edit profile</Text>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
+        {/* Profile Information Card */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="person-outline" size={20} color="#FF6B00" />
+            <Text style={styles.cardTitle}>Profile Information</Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
-        </TouchableOpacity>
 
-        <View style={styles.tiles}>
-          <Tile
-            icon="wallet-outline"
-            label="Wallet"
-            value={walletBalance != null ? formatPrice(walletBalance) : '—'}
-            onPress={() => navigation.navigate('MainTabs', { screen: 'Wallet' })}
-          />
-          <Tile icon="receipt-outline" label="Orders" value="History" onPress={() => navigation.navigate('MainTabs', { screen: 'Orders' })} />
-          <Tile
-            icon="calendar-outline"
-            label="Tiffin plans"
-            value={activePlans ? `${activePlans} active` : 'Explore'}
-            onPress={() => navigation.navigate('MainTabs', { screen: 'MyPlans' })}
-          />
+          {/* Profile Picture */}
+          <View style={styles.profileSection}>
+            <TouchableOpacity
+              onPress={() => pickImage('profileImage')}
+              style={styles.avatarContainer}
+              disabled={uploadingType === 'profileImage'}
+              activeOpacity={0.8}
+            >
+              {resolvedAvatarUri && !avatarLoadError ? (
+                <Image 
+                  source={{ uri: resolvedAvatarUri }} 
+                  style={styles.avatar}
+                  onError={() => setAvatarLoadError(true)}
+                />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Ionicons name="person" size={40} color="#FF6B00" />
+                </View>
+              )}
+              {uploadingType === 'profileImage' && (
+                <View style={styles.avatarLoadingOverlay}>
+                  <ActivityIndicator size="small" color="#fff" />
+                </View>
+              )}
+              <View style={styles.cameraButton}>
+                <Ionicons name="camera" size={16} color="#fff" />
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => pickImage('profileImage')}
+              style={styles.changePhotoButton}
+              disabled={uploadingType === 'profileImage'}
+              activeOpacity={0.8}
+            >
+              {uploadingType === 'profileImage' ? (
+                <ActivityIndicator size="small" color="#FF6B00" />
+              ) : (
+                <Ionicons name="camera-outline" size={16} color="#FF6B00" />
+              )}
+              <Text style={styles.changePhotoText}>
+                {uploadingType === 'profileImage' ? 'Uploading...' : 'Change Photo'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Banner Image */}
+          <View style={[styles.inputGroup, { marginBottom: 0 }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <Text style={[styles.label, { marginBottom: 0 }]}>Banner Image</Text>
+              <TouchableOpacity
+                onPress={() => pickImage('banner')}
+                disabled={uploadingType === 'banner'}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+              >
+                <Ionicons name="cloud-upload-outline" size={15} color="#FF6B00" />
+                <Text style={{ fontSize: 13, fontWeight: '600', color: '#FF6B00' }}>
+                  {uploadingType === 'banner'
+                    ? 'Uploading...'
+                    : resolvedBannerUri && !bannerLoadError
+                    ? 'Change Banner'
+                    : 'Upload Banner'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              onPress={() => pickImage('banner')}
+              style={[styles.bannerContainer, { marginBottom: 10 }]}
+              disabled={uploadingType === 'banner'}
+              activeOpacity={0.85}
+            >
+              {resolvedBannerUri && !bannerLoadError ? (
+                <>
+                  <Image 
+                    source={{ uri: resolvedBannerUri }} 
+                    style={styles.bannerImage}
+                    resizeMode="cover"
+                    onError={() => setBannerLoadError(true)}
+                  />
+                  <View style={styles.bannerEditBadge}>
+                    <Ionicons name="camera" size={14} color="#fff" />
+                    <Text style={styles.bannerEditBadgeText}>Tap to change</Text>
+                  </View>
+                </>
+              ) : (
+                <View style={styles.bannerPlaceholder}>
+                  <View style={styles.bannerUploadIconCircle}>
+                    <Ionicons name="camera-outline" size={24} color="#FF6B00" />
+                  </View>
+                  <Text style={styles.bannerPlaceholderText}>Tap to Upload Banner Photo</Text>
+                  <Text style={{ fontSize: 11, color: '#9CA3AF' }}>JPG, PNG or WEBP (16:9 recommended)</Text>
+                </View>
+              )}
+              {uploadingType === 'banner' && (
+                <View style={styles.bannerLoadingOverlay}>
+                  <ActivityIndicator size="large" color="#fff" />
+                  <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600', marginTop: 6 }}>
+                    Uploading Banner...
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Basic Info */}
+          <View style={[styles.inputGroup, { marginTop: 36 }]}>
+            <Text style={styles.label}>Full Name</Text>
+            <TextInput
+              style={styles.input}
+              value={profile.name}
+              onChangeText={(text) => setProfile(prev => ({ ...prev, name: text }))}
+              placeholder="Enter your name"
+            />
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              style={styles.input}
+              value={profile.email}
+              onChangeText={(text) => setProfile(prev => ({ ...prev, email: text }))}
+              placeholder="Enter your email"
+              keyboardType="email-address"
+            />
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Phone Number</Text>
+            <TextInput
+              style={styles.input}
+              value={profile.phone}
+              onChangeText={(text) => setProfile(prev => ({ ...prev, phone: text }))}
+              placeholder="Enter your phone"
+              keyboardType="phone-pad"
+            />
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Location</Text>
+            <TextInput
+              style={styles.input}
+              value={profile.address}
+              onChangeText={(text) => setProfile(prev => ({ ...prev, address: text }))}
+              placeholder="Enter your location"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Bio</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              value={profile.bio}
+              onChangeText={(text) => setProfile(prev => ({ ...prev, bio: text }))}
+              placeholder="Tell us about yourself..."
+              multiline
+              numberOfLines={3}
+            />
+          </View>
+
+          <TouchableOpacity style={styles.saveButton} onPress={handleSaveProfile} disabled={loading}>
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="save-outline" size={18} color="#fff" />
+                <Text style={styles.saveButtonText}>Save Changes</Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
 
-        <Group title="Your stuff">
-          <Row icon="location-outline" title="Saved addresses" onPress={() => navigation.navigate('Addresses')} />
-          <Row icon="card-outline" title="Payment methods" onPress={() => navigation.navigate('PaymentMethods')} />
-          <Row icon="heart-outline" title="Wishlist" onPress={() => navigation.navigate('Wishlist')} />
-          <Row icon="notifications-outline" title="Notifications" onPress={() => navigation.navigate('Notifications')} last />
-        </Group>
+        {/* Change Password */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="lock-closed-outline" size={20} color="#FF6B00" />
+            <Text style={styles.cardTitle}>Change Password</Text>
+          </View>
 
-        <Group title="Help">
-          <Row icon="call-outline" title="Call support" subtitle="+91 73030 23539" onPress={() => Linking.openURL(`tel:${SUPPORT_PHONE}`)} />
-          <Row icon="mail-outline" title="Email support" subtitle={SUPPORT_EMAIL} onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}`)} />
-          <Row icon="help-circle-outline" title="Help & FAQs" onPress={() => navigation.navigate('StaticPage', { type: 'help' })} last />
-        </Group>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Current Password</Text>
+            <TextInput
+              style={styles.input}
+              value={passwordData.currentPassword}
+              onChangeText={(text) => setPasswordData(prev => ({ ...prev, currentPassword: text }))}
+              placeholder="Enter current password"
+              secureTextEntry
+            />
+          </View>
 
-        <Group title="About">
-          <Row icon="information-circle-outline" title="About Dabba Nation" onPress={() => navigation.navigate('StaticPage', { type: 'about' })} />
-          <Row icon="document-text-outline" title="Terms of service" onPress={() => navigation.navigate('StaticPage', { type: 'terms' })} />
-          <Row icon="shield-checkmark-outline" title="Privacy policy" onPress={() => navigation.navigate('StaticPage', { type: 'privacy' })} />
-          <Row icon="return-down-back-outline" title="Refund policy" onPress={() => navigation.navigate('StaticPage', { type: 'refund' })} last />
-        </Group>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>New Password</Text>
+            <TextInput
+              style={styles.input}
+              value={passwordData.newPassword}
+              onChangeText={(text) => setPasswordData(prev => ({ ...prev, newPassword: text }))}
+              placeholder="Enter new password"
+              secureTextEntry
+            />
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Confirm Password</Text>
+            <TextInput
+              style={styles.input}
+              value={passwordData.confirmPassword}
+              onChangeText={(text) => setPasswordData(prev => ({ ...prev, confirmPassword: text }))}
+              placeholder="Confirm new password"
+              secureTextEntry
+            />
+          </View>
 
-        <TouchableOpacity style={styles.logout} onPress={confirmLogout} accessibilityRole="button">
-          <Ionicons name="log-out-outline" size={20} color={colors.danger} />
-          <Text style={styles.logoutText}>Log out</Text>
-        </TouchableOpacity>
-        <Text style={[type.caption, { textAlign: 'center', marginTop: spacing.md }]}>Dabba Nation · version {version}</Text>
+          <TouchableOpacity style={styles.saveButton} onPress={handleChangePassword} disabled={loading}>
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.saveButtonText}>Update Password</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ height: 20 }} />
+        <AppFooter />
       </ScrollView>
+
+      {/* Camera / Gallery Picker Modal for Mobile */}
+      <Modal
+        visible={pickerModalType !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPickerModalType(null)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setPickerModalType(null)}
+        >
+          <View style={styles.pickerModalSheet}>
+            <Text style={styles.pickerModalTitle}>
+              {pickerModalType === 'profileImage' ? 'Update Profile Photo' : 'Update Banner Image'}
+            </Text>
+            <Text style={styles.pickerModalSubtitle}>Choose an image source</Text>
+
+            <TouchableOpacity
+              style={styles.pickerOptionBtn}
+              onPress={() => pickerModalType && launchCameraPicker(pickerModalType)}
+            >
+              <View style={[styles.pickerOptionIcon, { backgroundColor: '#FFF5F0' }]}>
+                <Ionicons name="camera" size={22} color="#FF6B00" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.pickerOptionTitle}>Take Photo</Text>
+                <Text style={styles.pickerOptionDesc}>Use your camera to capture a new photo</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.pickerOptionBtn}
+              onPress={() => pickerModalType && launchGalleryPicker(pickerModalType)}
+            >
+              <View style={[styles.pickerOptionIcon, { backgroundColor: '#EFF6FF' }]}>
+                <Ionicons name="images" size={22} color="#3B82F6" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.pickerOptionTitle}>Choose from Gallery</Text>
+                <Text style={styles.pickerOptionDesc}>Select an existing photo from your device</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.pickerCancelBtn}
+              onPress={() => setPickerModalType(null)}
+            >
+              <Text style={styles.pickerCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
 
-const Tile: React.FC<{ icon: IconName; label: string; value: string; onPress: () => void }> = ({ icon, label, value, onPress }) => (
-  <TouchableOpacity style={styles.tile} onPress={onPress} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={`${label}, ${value}`}>
-    <Ionicons name={icon} size={20} color={colors.text} />
-    <Text style={styles.tileValue} numberOfLines={1}>{value}</Text>
-    <Text style={type.caption} numberOfLines={1}>{label}</Text>
-  </TouchableOpacity>
-);
-
-const Group: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <View style={{ marginTop: spacing.xl }}>
-    <Text style={[type.overline, { marginBottom: spacing.sm }]}>{title}</Text>
-    <View style={styles.group}>{children}</View>
-  </View>
-);
-
-const Row: React.FC<{ icon: IconName; title: string; subtitle?: string; onPress: () => void; last?: boolean }> = ({ icon, title, subtitle, onPress, last }) => (
-  <TouchableOpacity style={[styles.row, !last && styles.rowBorder]} onPress={onPress} activeOpacity={0.7} accessibilityRole="button">
-    <Ionicons name={icon} size={20} color={colors.text} />
-    <View style={{ flex: 1 }}>
-      <Text style={type.bodyStrong}>{title}</Text>
-      {subtitle ? <Text style={type.caption}>{subtitle}</Text> : null}
-    </View>
-    <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
-  </TouchableOpacity>
-);
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.canvas },
-  scroll: { paddingHorizontal: spacing.screen, paddingTop: spacing.md },
-  profile: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.lg, marginTop: spacing.lg,
-    padding: spacing.lg, borderRadius: radius.xl, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+  container: {
+    flex: 1,
+    backgroundColor: '#F5F2E8',
   },
-  avatar: { width: 64, height: 64, borderRadius: 32 },
-  avatarFallback: { backgroundColor: colors.inkSurface, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontFamily: fonts.display, fontSize: 24, color: colors.textOnInk },
-  name: { fontFamily: fonts.display, fontSize: 21, lineHeight: 27, color: colors.text },
-  editLink: { fontFamily: fonts.bold, fontSize: 13, color: colors.primaryInk, marginTop: 6 },
-  tiles: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
-  tile: { flex: 1, padding: spacing.md, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, gap: 4 },
-  tileValue: { fontFamily: fonts.heavy, fontSize: 15, color: colors.text, marginTop: spacing.xs },
-  group: { backgroundColor: colors.surface, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.lg },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 58, paddingVertical: spacing.sm },
-  rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.divider },
-  logout: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, marginTop: spacing.xxl, height: 52,
-    borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface,
+  header: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    backgroundColor: '#fff',
   },
-  logoutText: { fontFamily: fonts.bold, fontSize: 15, color: colors.danger },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+  },
+  scrollView: {
+    flex: 1,
+    padding: 16,
+  },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    gap: 8,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1a1a1a',
+  },
+  profileSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    gap: 16,
+  },
+  avatarContainer: {
+    position: 'relative',
+    width: 80,
+    height: 80,
+  },
+  avatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 2,
+    borderColor: '#FF6B00',
+    backgroundColor: '#FFF5F0',
+  },
+  avatarPlaceholder: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#FFF5F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFCFB3',
+  },
+  avatarLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cameraButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#FF6B00',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  changePhotoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF5F0',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#FFCFB3',
+    gap: 8,
+  },
+  changePhotoText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FF6B00',
+  },
+  bannerContainer: {
+    height: 140,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#FFF9F5',
+    borderWidth: 2,
+    borderColor: '#FFCFB3',
+    borderStyle: 'dashed',
+    position: 'relative',
+  },
+  bannerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  bannerPlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+  },
+  bannerUploadIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFF0E5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bannerPlaceholderText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FF6B00',
+  },
+  bannerEditBadge: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  bannerEditBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  bannerLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  pickerModalSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 22,
+    paddingBottom: 32,
+  },
+  pickerModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  pickerModalSubtitle: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginBottom: 18,
+  },
+  pickerOptionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: '#F9FAFB',
+    marginBottom: 10,
+    gap: 14,
+  },
+  pickerOptionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pickerOptionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  pickerOptionDesc: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  pickerCancelBtn: {
+    marginTop: 6,
+    paddingVertical: 13,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+  },
+  pickerCancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  formRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  inputGroup: {
+    marginBottom: 14,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 4,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    fontSize: 15,
+    color: '#111827',
+    backgroundColor: '#fff',
+  },
+  textArea: {
+    height: 80,
+    textAlignVertical: 'top',
+  },
+  saveButton: {
+    backgroundColor: '#FF6B00',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });
-
-export default SettingsScreen;

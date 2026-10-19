@@ -9,7 +9,7 @@ import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { Button, Card, Input, ScreenHeader, SkeletonList, StickyFooter } from '../components/common';
-import { colors, radius, spacing, type, fonts } from '../theme';
+import { colors, radius, spacing, type } from '../theme';
 import type { SavedAddress } from './AddressesScreen';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;

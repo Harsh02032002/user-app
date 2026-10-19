@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import api from '../services/api';
 import { Card, Divider, ListRow, Notice, ScreenHeader } from '../components/common';
-import { colors, formatPrice, spacing, type, fonts } from '../theme';
+import { colors, formatPrice, spacing, type } from '../theme';
 
 export default function PaymentMethodsScreen() {
   const navigation = useNavigation<any>();

@@ -1,33 +1,124 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, StatusBar } from 'react-native';
-import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  Dimensions,
+  StatusBar,
+  Animated,
+  Platform,
+  ActivityIndicator,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Location from 'expo-location';
-import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../navigation/RootNavigator';
-import { DEFAULT_LOCATION_LABEL, getReadableLocation, LOCATION_NAME_KEY } from '../utils/location';
-import { SERVICE_RADIUS_KM } from '../config/serviceArea';
-import { colors, fonts, radius, spacing, type } from '../theme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../context/AuthContext';
+import { DEFAULT_LOCATION_LABEL, getReadableLocation, getCurrentCoordinates, LOCATION_COORDS_KEY, LOCATION_NAME_KEY } from '../utils/location';
+import * as Location from 'expo-location';
+import { Alert } from 'react-native';
+
+const { width, height } = Dimensions.get('window');
+
+const PRIMARY = "#FF6B00";
+
+// Static image sources (module-level so their identity never changes between renders)
+const heroBg     = require('../../assets/images/hero-bg.jpg');
+const logo       = require('../../assets/images/logo.png');
+const leftChar   = require('../../assets/images/chef-character.png');
+const rightChar  = require('../../assets/images/traditional-woman.png');
+const homeChef   = require('../../assets/images/home-chef.jpg');
+const restaurant = require('../../assets/images/restaurant.jpg');
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-const logo = require('../../assets/images/logo.png');
-const homeChefPhoto = require('../../assets/images/home-chef.jpg');
-const restaurantPhoto = require('../../assets/images/restaurant.jpg');
+interface AnimatedCharacterProps {
+  side: 'left' | 'right';
+  imageSource: any;
+  delay?: number;
+  onLoad?: () => void;
+}
+
+const AnimatedCharacter = ({ side, imageSource, delay = 0, onLoad }: AnimatedCharacterProps) => {
+  const translateY = useRef(new Animated.Value(0)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.sequence([
+      Animated.delay(delay),
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: false, // Fixed for web compatibility
+      }),
+    ]).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(translateY, {
+          toValue: -10,
+          duration: 2000,
+          useNativeDriver: false, // Fixed for web compatibility
+        }),
+        Animated.timing(translateY, {
+          toValue: 0,
+          duration: 2000,
+          useNativeDriver: false, // Fixed for web compatibility
+        }),
+      ])
+    ).start();
+  }, []);
+
+  return (
+    <Animated.View
+      style={[
+        styles.animatedChar,
+        side === 'left' ? styles.charLeft : styles.charRight,
+        { opacity, transform: [{ translateY }] },
+      ]}
+    >
+      <Image
+        source={imageSource}
+        style={styles.charImage}
+        resizeMode="contain"
+        onLoad={onLoad}
+      />
+    </Animated.View>
+  );
+};
 
 export default function LandingScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [location, setLocation] = useState('');
   const [detecting, setDetecting] = useState(false);
+  const [imagesLoaded, setImagesLoaded] = useState(false);
+  const tabBarHeight = 65; // Height of the bottom tab bar
 
+  // Fallback: never block the landing UI for more than 2.5s even if the hero image is slow/fails
   useEffect(() => {
-    AsyncStorage.getItem(LOCATION_NAME_KEY).then((name) => name && setLocation(name)).catch(() => {});
+    const t = setTimeout(() => setImagesLoaded(true), 2500);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Load previously saved location on mount
+  useEffect(() => {
+    AsyncStorage.getItem(LOCATION_NAME_KEY).then(name => {
+      if (name) setLocation(name);
+    });
+  }, []);
+
+  // Stable callback: react-native-web's Image re-runs its load effect whenever the
+  // onLoad identity changes. A new function every render + setState = infinite loop
+  // ("Maximum update depth exceeded"). Setting `true` repeatedly is a no-op for React.
+  const handleImageLoad = useCallback(() => {
+    setImagesLoaded(true);
   }, []);
 
   const detectLocation = async () => {
@@ -35,121 +126,440 @@ export default function LandingScreen() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Location permission needed', 'Allow location access so we can show kitchens that deliver to you.');
+        Alert.alert('Permission Denied', 'Please allow location access.');
         return;
       }
-      const next = await getReadableLocation(); // also saves coordinates + name
-      setLocation(next && next !== DEFAULT_LOCATION_LABEL ? next : '');
+      const coords = await getCurrentCoordinates();
+      const nextLocation = await getReadableLocation();
+      setLocation(nextLocation);
+      // getReadableLocation already saves to AsyncStorage via location.ts
     } catch {
-      Alert.alert('Could not get your location', 'Please try again in a moment.');
+      setLocation(DEFAULT_LOCATION_LABEL);
     } finally {
       setDetecting(false);
     }
   };
 
-  const go = async (preferred: 'home_chef' | 'restaurant' | 'all') => {
-    await AsyncStorage.setItem('preferredFoodType', preferred).catch(() => {});
-    if (user) navigation.navigate('MainTabs' as any);
-    else navigation.navigate('SimpleLogin' as any);
+  const handleSelectType = async (type: string) => {
+    await AsyncStorage.setItem('preferredFoodType', type);
+    if (user) {
+      // Already logged in, go back to home
+      navigation.navigate('MainTabs');
+    } else {
+      // Not logged in, go to login
+      navigation.navigate('SimpleLogin');
+    }
+  };
+
+  const handleBrowseAll = async () => {
+    await AsyncStorage.setItem('preferredFoodType', 'all');
+    if (user) {
+      navigation.navigate('MainTabs');
+    } else {
+      navigation.navigate('SimpleLogin');
+    }
   };
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-      <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: insets.top + spacing.sm, paddingBottom: insets.bottom + spacing.xxl }]} showsVerticalScrollIndicator={false}>
-        <View style={styles.topRow}>
-          <Image source={logo} style={styles.logo} contentFit="contain" accessibilityLabel="Dabba Nation" />
-          {!user ? (
-            <TouchableOpacity onPress={() => navigation.navigate('SimpleLogin' as any)} hitSlop={10} accessibilityRole="button">
-              <Text style={styles.signIn}>Sign in</Text>
+      <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
+
+      {/* Background */}
+      <Image 
+        source={heroBg} 
+        style={styles.bg} 
+        resizeMode="cover" 
+        onLoad={handleImageLoad}
+        onError={handleImageLoad}
+      />
+      <View style={styles.overlay} />
+
+      {!imagesLoaded ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={PRIMARY} />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      ) : (
+      <SafeAreaView style={{ flex: 1 }}>
+
+        {/* HEADER */}
+        <View style={styles.header}>
+          <Image 
+            source={logo} 
+            style={styles.logo}
+            resizeMode="cover"
+          />
+
+          {/* Join Us — only show if not logged in */}
+          {!user && (
+            <TouchableOpacity 
+              style={styles.joinBtnWrapper}
+              onPress={() => navigation.navigate('SimpleLogin')}
+            >
+              <LinearGradient
+                colors={['#FF6B00', '#4CAF50']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.joinBtn}
+              >
+                <Text style={styles.joinBtnText}>Join Us</Text>
+              </LinearGradient>
             </TouchableOpacity>
-          ) : null}
+          )}
         </View>
 
-        <Text style={styles.kicker}>DABBA NATION</Text>
-        <Text style={styles.headline}>
-          Ghar ka khana,{'\n'}
-          <Text style={styles.headlineAccent}>from a kitchen near you.</Text>
-        </Text>
-        <Text style={[type.body, styles.lede]}>
-          Fresh meals from home cooks and local restaurants within {SERVICE_RADIUS_KM} km, delivered hot.
-        </Text>
+        <ScrollView
+          contentContainerStyle={[styles.scroll, { paddingBottom: 120 }]}
+          showsVerticalScrollIndicator={false}
+        >
 
-        <TouchableOpacity style={styles.location} onPress={detectLocation} disabled={detecting} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={location ? `Delivering to ${location}. Tap to update` : 'Use my current location'}>
-          <View style={styles.locationPin}>
-            <Ionicons name="location-sharp" size={18} color={colors.primary} />
+          {/* LOCATION */}
+          <View style={{ width: '100%', alignItems: 'center' }}>
+            <TouchableOpacity style={styles.location} onPress={detectLocation}>
+              <Ionicons name="location" size={18} color={PRIMARY} />
+              <View style={{ marginHorizontal: 10 }}>
+                <Text style={styles.locLabel}>DELIVER TO</Text>
+                <Text style={styles.locValue}>
+                  {detecting ? 'Locating...' : location || 'Detect my location'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-down" size={16} color="#555" />
+            </TouchableOpacity>
+
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={type.overline}>Deliver to</Text>
-            <Text style={styles.locationValue} numberOfLines={1}>{detecting ? 'Finding you…' : location || 'Use my current location'}</Text>
+
+          {/* HERO TEXT */}
+          <View style={styles.hero}>
+            <Text style={styles.heroText}>
+              What are you{' '}
+              <Text style={{ color: PRIMARY, fontStyle: 'italic' }}>craving</Text>
+              {' '}today?
+            </Text>
+
+            {/* Fix: Added missing subtitle line from web */}
+            <Text style={styles.heroSub}>
+              From the warmth of a{' '}
+              <Text style={{ fontWeight: '700', color: PRIMARY }}>Home Kitchen</Text>
+              {' '}to the bold flavors of your{' '}
+              <Text style={{ fontWeight: '700', color: PRIMARY }}>Favorite Bistro</Text>
+            </Text>
           </View>
-          <Ionicons name={location ? 'refresh' : 'navigate-outline'} size={18} color={colors.textSecondary} />
-        </TouchableOpacity>
 
-        <Text style={[type.title, { marginTop: spacing.xxl, marginBottom: spacing.md }]}>What are you in the mood for?</Text>
+          {/* CARDS */}
+          <View style={styles.cards}>
 
-        <ChoiceTile
-          photo={homeChefPhoto}
-          title="Home kitchens"
-          subtitle="Daily dal-chawal, rotis and thalis from home cooks"
-          onPress={() => go('home_chef')}
-        />
-        <ChoiceTile
-          photo={restaurantPhoto}
-          title="Restaurants"
-          subtitle="Local favourites, cooked to order"
-          onPress={() => go('restaurant')}
-        />
+            {/* HOME CHEF */}
+            <TouchableOpacity 
+              style={styles.card} 
+              activeOpacity={0.9}
+              onPress={() => handleSelectType('home_chef')}
+            >
+              <Image 
+                source={homeChef} 
+                style={styles.cardImg} 
+                resizeMode="cover" 
+              />
+              <View style={styles.cardOverlay}>
+                <MaterialCommunityIcons name="home-heart" size={22} color="#fff" />
+                <Text style={styles.cardTitle}>Home Chef</Text>
+                <Text style={styles.cardSub}>Ghar jaisa swad. Fresh dabbas made with love.</Text>
+              </View>
+            </TouchableOpacity>
 
-        <TouchableOpacity style={styles.browseAll} onPress={() => go('all')} accessibilityRole="button">
-          <Text style={styles.browseAllText}>Show me everything</Text>
-          <Ionicons name="arrow-forward" size={16} color={colors.text} />
-        </TouchableOpacity>
-      </ScrollView>
+            {/* RESTAURANT */}
+            <TouchableOpacity 
+              style={styles.card} 
+              activeOpacity={0.9}
+              onPress={() => handleSelectType('restaurant')}
+            >
+              <Image 
+                source={restaurant} 
+                style={styles.cardImg} 
+                resizeMode="cover" 
+              />
+              <View style={styles.cardOverlay}>
+                <MaterialCommunityIcons name="store" size={22} color="#fff" />
+                <Text style={styles.cardTitle}>Restaurant</Text>
+                <Text style={styles.cardSub}>Signature dishes from top-rated restaurants.</Text>
+              </View>
+            </TouchableOpacity>
+
+          </View>
+
+          {/* BROWSE */}
+          <TouchableOpacity onPress={handleBrowseAll}>
+            <Text style={styles.browse}>
+              Can't decide?{' '}
+              <Text style={{ color: PRIMARY, textDecorationLine: 'underline' }}>
+                Browse everything
+              </Text>
+            </Text>
+          </TouchableOpacity>
+
+          {/* Spacer so characters don't overlap browse text */}
+          <View style={{ height: 100 }} />
+
+        </ScrollView>
+      </SafeAreaView>
+      )}
+
+      {/* Characters rendered OUTSIDE ScrollView so they stay fixed at bottom */}
+      {imagesLoaded && (
+        <>
+          <AnimatedCharacter side="left"  imageSource={leftChar}  delay={200} />
+          <AnimatedCharacter side="right" imageSource={rightChar} delay={400} />
+        </>
+      )}
     </View>
   );
 }
 
-const ChoiceTile: React.FC<{ photo: number; title: string; subtitle: string; onPress: () => void }> = ({ photo, title, subtitle, onPress }) => (
-  <TouchableOpacity style={styles.tile} onPress={onPress} activeOpacity={0.9} accessibilityRole="button" accessibilityLabel={`${title}. ${subtitle}`}>
-    <Image source={photo} style={styles.tilePhoto} contentFit="cover" />
-    <View style={styles.tileBody}>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.tileTitle}>{title}</Text>
-        <Text style={type.caption} numberOfLines={2}>{subtitle}</Text>
-      </View>
-      <View style={styles.tileArrow}>
-        <Ionicons name="arrow-forward" size={18} color={colors.textInverse} />
-      </View>
-    </View>
-  </TouchableOpacity>
-);
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.canvas },
-  scroll: { paddingHorizontal: spacing.screen },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 52 },
-  logo: { width: 48, height: 48 },
-  signIn: { fontFamily: fonts.bold, fontSize: 15, color: colors.text, textDecorationLine: 'underline' },
+  container: { flex: 1 },
 
-  kicker: { fontFamily: fonts.bold, fontSize: 11, letterSpacing: 2, color: colors.primaryInk, marginTop: spacing.xl },
-  headline: { fontFamily: fonts.display, fontSize: 36, lineHeight: 42, letterSpacing: -0.8, color: colors.text, marginTop: spacing.sm },
-  headlineAccent: { fontFamily: fonts.displayItalic, color: colors.primaryInk },
-  lede: { color: colors.textSecondary, marginTop: spacing.md },
+  bg: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    top: 0,
+    left: 0,
+  },
+
+  overlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(255,255,255,0.75)',
+  },
+
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    alignItems: 'center',
+  },
+
+  logo: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+  },
+
+  // Seller Portal — gradient border with transparent inner
+  sellerBtnWrapper: {
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+
+  sellerBtnGradientBorder: {
+    padding: 1.5,
+    borderRadius: 20,
+  },
+
+  sellerBtnInner: {
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 19,
+  },
+
+  sellerBtnText: {
+    fontWeight: '700',
+    fontSize: 13,
+    // gradient text effect via orange (closest we can do without extra lib)
+    color: '#FF6B00',
+  },
+
+  // Join Us — solid gradient fill
+  joinBtnWrapper: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#FF6B00',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.35,
+        shadowRadius: 6,
+      },
+      android: {
+        elevation: 5,
+      },
+      web: {
+        boxShadow: '0px 3px 6px rgba(255, 107, 0, 0.35)',
+      },
+    }),
+  },
+
+  joinBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    borderRadius: 20,
+  },
+
+  joinBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+
+  scroll: {
+    alignItems: 'center',
+    paddingTop: 20,
+    paddingHorizontal: 16,
+  },
 
   location: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.xl,
-    padding: spacing.md, borderRadius: radius.xl, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 25,
+    marginBottom: 25,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+      web: {
+        boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.08)',
+      },
+    }),
   },
-  locationPin: { width: 42, height: 42, borderRadius: 13, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
-  locationValue: { fontFamily: fonts.bold, fontSize: 15, color: colors.text, marginTop: 2 },
 
-  tile: { borderRadius: radius.xl, overflow: 'hidden', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.md },
-  tilePhoto: { width: '100%', aspectRatio: 2.1, backgroundColor: colors.surfaceMuted },
-  tileBody: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg },
-  tileTitle: { fontFamily: fonts.display, fontSize: 20, lineHeight: 26, color: colors.text },
-  tileArrow: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.text, alignItems: 'center', justifyContent: 'center' },
+  locLabel: {
+    fontSize: 10,
+    color: '#888',
+    letterSpacing: 0.5,
+    fontWeight: '600',
+  },
 
-  browseAll: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: spacing.lg },
-  browseAllText: { fontFamily: fonts.bold, fontSize: 15, color: colors.text },
+  locValue: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+
+  hero: {
+    marginBottom: 24,
+    alignItems: 'center',
+  },
+
+  heroText: {
+    fontSize: 30,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    lineHeight: 38,
+  },
+
+  // New: subtitle matching web
+  heroSub: {
+    marginTop: 8,
+    fontSize: 13,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 20,
+    maxWidth: width * 0.75,
+  },
+
+  cards: {
+    alignItems: 'center',
+    gap: 14,
+  },
+
+  card: {
+    width: width * 0.72,
+    height: width * 0.46,
+    borderRadius: 22,
+    overflow: 'hidden',
+    position: 'relative',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.18,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 6,
+      },
+      web: {
+        boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.18)',
+      },
+    }),
+  },
+
+  cardImg: {
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
+  },
+
+  cardOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 14,
+    // gradient effect via semi-transparent black
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+
+  cardTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 2,
+  },
+
+  cardSub: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 11,
+    marginTop: 2,
+  },
+
+  browse: {
+    marginTop: 18,
+    color: '#666',
+    fontSize: 13,
+  },
+
+  // Fixed character positioning to prevent cutting and removed overflow: hidden
+  animatedChar: {
+    position: 'absolute',
+    width: width * 0.35,
+    height: width * 0.60,
+    zIndex: 10,
+    bottom: 45, // Moved up slightly
+  },
+
+  charLeft: {
+    left: -10,
+  },
+
+  charRight: {
+    right: -10,
+  },
+
+  charImage: {
+    width: '100%',
+    height: '100%',
+  },
+
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.95)',
+  },
+
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: PRIMARY,
+    fontWeight: '600',
+  },
 });

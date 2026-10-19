@@ -12,7 +12,7 @@ import api from '../config/api';
 import { useCart } from '../context/CartContext';
 import { Card, Divider, EmptyState, ErrorState, ScreenHeader, SkeletonList, StickyFooter } from '../components/common';
 import { FoodRow } from '../components/cards';
-import { colors, formatPrice, radius, spacing, type, fonts } from '../theme';
+import { colors, formatPrice, radius, spacing, type } from '../theme';
 
 interface SubscriptionSummary {
   _id: string;

@@ -14,7 +14,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { useAuth } from '../context/AuthContext';
-import { colors, fonts } from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Wishlist'>;
 
@@ -172,7 +171,7 @@ export default function WishlistScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.canvas,
+    backgroundColor: '#f8f9fa',
   },
   header: {
     flexDirection: 'row',
@@ -181,9 +180,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 50,
     paddingBottom: 16,
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: '#f0f0f0',
   },
   backButton: {
     width: 40,
@@ -193,8 +192,8 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: '600',
+    color: '#1a1a1a',
   },
   loadingContainer: {
     flex: 1,
@@ -209,27 +208,27 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 20,
-    fontFamily: fonts.bold,
-    color: colors.textSecondary,
+    fontWeight: '600',
+    color: '#666',
     marginTop: 16,
   },
   emptySubtext: {
     fontSize: 14,
-    color: colors.textTertiary,
+    color: '#999',
     marginTop: 8,
-    textAlign: 'center', fontFamily: fonts.regular,
+    textAlign: 'center',
   },
   browseButton: {
     marginTop: 24,
-    backgroundColor: colors.primary,
+    backgroundColor: '#FF6B00',
     paddingHorizontal: 24,
     paddingVertical: 14,
     borderRadius: 12,
   },
   browseButtonText: {
-    color: colors.surface,
+    color: '#fff',
     fontSize: 16,
-    fontFamily: fonts.bold,
+    fontWeight: '600',
   },
   listContainer: {
     padding: 16,
@@ -237,7 +236,7 @@ const styles = StyleSheet.create({
   },
   itemCard: {
     flexDirection: 'row',
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
@@ -259,18 +258,18 @@ const styles = StyleSheet.create({
   },
   itemName: {
     fontSize: 16,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: '600',
+    color: '#1a1a1a',
   },
   sellerName: {
     fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 2, fontFamily: fonts.regular,
+    color: '#666',
+    marginTop: 2,
   },
   itemPrice: {
     fontSize: 18,
-    fontFamily: fonts.bold,
-    color: colors.primary,
+    fontWeight: 'bold',
+    color: '#FF6B00',
     marginTop: 8,
   },
   itemActions: {
@@ -280,15 +279,15 @@ const styles = StyleSheet.create({
   },
   moveToCartButton: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: '#FF6B00',
     paddingVertical: 10,
     borderRadius: 8,
     alignItems: 'center',
   },
   moveToCartText: {
-    color: colors.surface,
+    color: '#fff',
     fontSize: 14,
-    fontFamily: fonts.bold,
+    fontWeight: '600',
   },
   removeButton: {
     padding: 10,

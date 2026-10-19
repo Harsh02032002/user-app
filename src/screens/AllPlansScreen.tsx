@@ -17,7 +17,6 @@ import { api } from '../services/api';
 import { getImageUrl, getSubscriptionPlanImage } from '../config/api';
 import { AppHeader } from '../components/common/AppHeader';
 import { AppFooter } from '../components/common/AppFooter';
-import { colors, fonts } from '../theme';
 
 const { width } = Dimensions.get('window');
 
@@ -194,7 +193,7 @@ const styles = StyleSheet.create({
   promoBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
     margin: 16,
     padding: 12,
     borderRadius: 12,
@@ -204,12 +203,12 @@ const styles = StyleSheet.create({
   },
   promoText: {
     fontSize: 14,
-    color: colors.primary,
-    fontFamily: fonts.bold,
+    color: '#FF6B00',
+    fontWeight: '600',
     flex: 1,
   },
   planCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
     marginHorizontal: 16,
     marginBottom: 24,
     borderRadius: 20,
@@ -220,7 +219,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#f0f0f0',
   },
   cardHeader: {
     height: 140,
@@ -247,9 +246,9 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   planNameTitle: {
-    color: colors.surface,
+    color: '#fff',
     fontSize: 22,
-    fontFamily: fonts.bold,
+    fontWeight: 'bold',
   },
   badgeContainer: {
     position: 'absolute',
@@ -260,14 +259,14 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   badgeText: {
-    color: colors.surface,
+    color: '#fff',
     fontSize: 11,
-    fontFamily: fonts.bold,
+    fontWeight: 'bold',
   },
   priceSection: {
     alignItems: 'center',
     paddingVertical: 20,
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
   },
   priceRow: {
     flexDirection: 'row',
@@ -276,19 +275,19 @@ const styles = StyleSheet.create({
   },
   currencySymbol: {
     fontSize: 24,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: '600',
+    color: '#1a1a1a',
     marginTop: 4,
   },
   mainPrice: {
     fontSize: 44,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
   },
   priceForDays: {
     fontSize: 16,
-    color: colors.textSecondary,
-    marginBottom: 12, fontFamily: fonts.regular,
+    color: '#666',
+    marginBottom: 12,
   },
   perDayBadge: {
     backgroundColor: '#eefdf5',
@@ -301,7 +300,7 @@ const styles = StyleSheet.create({
   perDayText: {
     color: '#16a34a',
     fontSize: 14,
-    fontFamily: fonts.bold,
+    fontWeight: '600',
   },
   featuresList: {
     paddingHorizontal: 20,
@@ -317,7 +316,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#475569',
     flex: 1,
-    lineHeight: 20, fontFamily: fonts.regular,
+    lineHeight: 20,
   },
   buttonContainer: {
     padding: 20,
@@ -331,9 +330,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   subscribeButtonText: {
-    color: colors.surface,
+    color: '#fff',
     fontSize: 16,
-    fontFamily: fonts.bold,
+    fontWeight: 'bold',
   },
   detailsButton: {
     height: 52,
@@ -345,8 +344,8 @@ const styles = StyleSheet.create({
     borderColor: '#ffe5d6',
   },
   detailsButtonText: {
-    color: colors.text,
+    color: '#1a1a1a',
     fontSize: 15,
-    fontFamily: fonts.bold,
+    fontWeight: '600',
   },
 });

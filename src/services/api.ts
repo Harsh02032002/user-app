@@ -125,7 +125,7 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}, requireAu
       Object.assign(headers, options.headers);
     }
     
-    console.log(`[API] ${endpoint}`, requireAuth ? '(with auth)' : '(no auth)', token ? '✓ token' : '✗ no token');
+    console.log(`[API] ${endpoint}`, requireAuth ? '(with auth)' : '(no auth)', token ? '[token present]' : '[no token]');
     
     const response = await fetchWithTimeout(url, {
       ...options,

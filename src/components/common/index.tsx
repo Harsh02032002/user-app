@@ -23,7 +23,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, elevation, fonts, formatPrice, orderStatusColors, radius, sizes, spacing, type } from '../../theme';
+import { colors, elevation, formatPrice, orderStatusColors, radius, sizes, spacing, type } from '../../theme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -102,11 +102,10 @@ interface ButtonProps {
 const buttonTone = (variant: ButtonVariant) => {
   switch (variant) {
     case 'secondary':
-      return { bg: colors.surface, fg: colors.text, border: colors.border };
     case 'outline':
-      return { bg: colors.surface, fg: colors.primaryInk, border: colors.primaryBorder };
+      return { bg: colors.surface, fg: colors.primary, border: colors.primary };
     case 'tertiary':
-      return { bg: 'transparent', fg: colors.primaryInk, border: 'transparent' };
+      return { bg: 'transparent', fg: colors.primary, border: 'transparent' };
     case 'destructive':
       return { bg: colors.danger, fg: colors.textInverse, border: colors.danger };
     case 'success':
@@ -146,7 +145,7 @@ export const Button: React.FC<ButtonProps> = ({
         { backgroundColor: tone.bg, borderColor: tone.border },
         variant === 'tertiary' && styles.buttonTertiary,
         fullWidth && { alignSelf: 'stretch' },
-        pressed && !inactive && (isFilled ? { backgroundColor: variant === 'primary' ? colors.primaryPressed : tone.bg, opacity: variant === 'primary' ? 1 : 0.9 } : { backgroundColor: colors.surfaceMuted }),
+        pressed && !inactive && (isFilled ? { backgroundColor: variant === 'primary' ? colors.primaryPressed : tone.bg, opacity: variant === 'primary' ? 1 : 0.9 } : { backgroundColor: colors.primarySoft }),
         disabled && (variant === 'primary' ? { backgroundColor: colors.primaryDisabled, borderColor: colors.primaryDisabled } : { opacity: 0.45 }),
         style,
       ]}
@@ -229,7 +228,7 @@ export const Input = React.forwardRef<TextInput, InputProps>(function Input(
           !editable && styles.inputDisabled,
         ]}
       >
-        {icon ? <Ionicons name={icon} size={sizes.icon} color={focused ? colors.text : colors.textTertiary} /> : null}
+        {icon ? <Ionicons name={icon} size={sizes.icon} color={focused ? colors.primary : colors.textTertiary} /> : null}
         <TextInput
           ref={ref}
           style={[styles.input, multiline && styles.inputMultiline, inputStyle]}
@@ -281,7 +280,7 @@ export const Card: React.FC<CardProps> = ({ children, style, onPress, padded = t
   const cardStyle = [
     styles.card,
     padded && styles.cardPadded,
-    variant === 'elevated' && styles.cardOutlined, // flat paper cards: hairline instead of a drop shadow
+    variant === 'elevated' && elevation.card,
     variant === 'outlined' && styles.cardOutlined,
     variant === 'flat' && styles.cardFlat,
     selected && styles.cardSelected,
@@ -307,7 +306,7 @@ type Tone = 'neutral' | 'primary' | 'success' | 'warning' | 'danger' | 'info' | 
 
 const toneColors = (tone: Tone) => {
   switch (tone) {
-    case 'primary': return { bg: colors.primarySoft, fg: colors.primaryInk };
+    case 'primary': return { bg: colors.primarySoft, fg: colors.primary };
     case 'success': return { bg: colors.successSoft, fg: colors.successStrong };
     case 'warning': return { bg: colors.warningSoft, fg: colors.warningStrong };
     case 'danger':
@@ -358,11 +357,11 @@ export const Chip: React.FC<{
     accessibilityState={{ selected: !!selected }}
     style={[styles.chip, selected && styles.chipSelected, style]}
   >
-    {icon ? <Ionicons name={icon} size={14} color={selected ? colors.textInverse : colors.text} /> : null}
+    {icon ? <Ionicons name={icon} size={14} color={selected ? colors.textInverse : colors.textSecondary} /> : null}
     <Text style={[styles.chipText, selected && styles.chipTextSelected]} numberOfLines={1}>{label}</Text>
     {count !== undefined ? (
       <View style={[styles.chipCount, selected && styles.chipCountSelected]}>
-        <Text style={[styles.chipCountText, selected && { color: colors.text }]}>{count}</Text>
+        <Text style={[styles.chipCountText, selected && { color: colors.primary }]}>{count}</Text>
       </View>
     ) : null}
   </TouchableOpacity>
@@ -443,7 +442,7 @@ export const SectionHeader: React.FC<{
 }> = ({ title, subtitle, actionLabel, onAction, style }) => (
   <View style={[styles.sectionHeader, style]}>
     <View style={{ flex: 1 }}>
-      <Text style={type.title} accessibilityRole="header">{title}</Text>
+      <Text style={type.heading} accessibilityRole="header">{title}</Text>
       {subtitle ? <Text style={[type.caption, { marginTop: 2 }]}>{subtitle}</Text> : null}
     </View>
     {actionLabel && onAction ? (
@@ -470,7 +469,7 @@ export const ListRow: React.FC<{
     <>
       {icon ? (
         <View style={[styles.rowIcon, destructive && { backgroundColor: colors.dangerSoft }]}>
-          <Ionicons name={icon} size={sizes.icon} color={destructive ? colors.danger : iconColor || colors.text} />
+          <Ionicons name={icon} size={sizes.icon} color={destructive ? colors.danger : iconColor || colors.primary} />
         </View>
       ) : null}
       <View style={{ flex: 1 }}>
@@ -505,7 +504,7 @@ interface EmptyStateProps {
 export const EmptyState: React.FC<EmptyStateProps> = ({ icon, title, subtitle, actionText, onAction, style }) => (
   <View style={[styles.emptyState, style]}>
     <View style={styles.emptyIcon}>
-      <Ionicons name={icon} size={32} color={colors.text} />
+      <Ionicons name={icon} size={32} color={colors.primary} />
     </View>
     <Text style={[type.heading, styles.centerText]}>{title}</Text>
     {subtitle ? <Text style={[type.small, styles.centerText, { color: colors.textSecondary, marginTop: spacing.xs }]}>{subtitle}</Text> : null}
@@ -631,11 +630,11 @@ export const QuantityStepper: React.FC<{
 }> = ({ quantity, onIncrement, onDecrement, disabled, size = 'md' }) => (
   <View style={[styles.stepper, size === 'sm' && styles.stepperSm, disabled && { opacity: 0.5 }]}>
     <TouchableOpacity onPress={onDecrement} disabled={disabled} style={styles.stepperBtn} accessibilityLabel="Decrease quantity" hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-      <Ionicons name={quantity <= 1 ? 'trash-outline' : 'remove'} size={16} color={colors.textInverse} />
+      <Ionicons name={quantity <= 1 ? 'trash-outline' : 'remove'} size={16} color={colors.primary} />
     </TouchableOpacity>
     <Text style={styles.stepperValue}>{quantity}</Text>
     <TouchableOpacity onPress={onIncrement} disabled={disabled} style={styles.stepperBtn} accessibilityLabel="Increase quantity" hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-      <Ionicons name="add" size={16} color={colors.textInverse} />
+      <Ionicons name="add" size={16} color={colors.primary} />
     </TouchableOpacity>
   </View>
 );
@@ -659,7 +658,7 @@ export const AddToCartButton: React.FC<{
       accessibilityLabel={disabled ? 'Unavailable' : 'Add to cart'}
     >
       <Text style={[styles.addButtonText, disabled && { color: colors.textTertiary }]}>{disabled ? 'UNAVAILABLE' : 'ADD'}</Text>
-      {!disabled ? <Ionicons name="add" size={14} color={colors.primaryInk} /> : null}
+      {!disabled ? <Ionicons name="add" size={14} color={colors.primary} /> : null}
     </TouchableOpacity>
   );
 
@@ -720,25 +719,25 @@ const styles = StyleSheet.create({
   button: {
     height: sizes.buttonHeight,
     paddingHorizontal: spacing.xl,
-    borderRadius: 14,
+    borderRadius: radius.md,
     borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
   },
-  buttonSm: { height: sizes.buttonHeightSm, paddingHorizontal: spacing.md, borderRadius: radius.md },
+  buttonSm: { height: sizes.buttonHeightSm, paddingHorizontal: spacing.md, borderRadius: radius.sm },
   buttonTertiary: { paddingHorizontal: spacing.sm },
-  buttonText: { ...type.button },
+  buttonText: { fontSize: 15, lineHeight: 20, fontWeight: '600' },
   buttonTextSm: { fontSize: 13, lineHeight: 18 },
 
   iconButton: { width: sizes.iconButton, height: sizes.iconButton, borderRadius: sizes.iconButton / 2, alignItems: 'center', justifyContent: 'center' },
-  iconButtonFilled: { backgroundColor: colors.surface, width: 38, height: 38, borderRadius: 19, borderWidth: 1, borderColor: colors.border },
+  iconButtonFilled: { backgroundColor: colors.surfaceMuted, width: 36, height: 36, borderRadius: 18 },
   iconBadge: {
     position: 'absolute', top: 2, right: 0, minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9,
-    backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.canvas,
+    backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.surface,
   },
-  iconBadgeText: { color: colors.textInverse, fontSize: 10, fontFamily: fonts.heavy },
+  iconBadgeText: { color: colors.textInverse, fontSize: 10, fontWeight: '700' },
 
   inputContainer: { marginBottom: spacing.lg },
   inputLabel: { ...type.label, marginBottom: spacing.xs + 2 },
@@ -748,26 +747,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm + 2,
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: spacing.md + 2,
   },
   inputWrapperMultiline: { alignItems: 'flex-start', paddingVertical: spacing.md },
-  inputFocused: { borderColor: colors.text },
+  inputFocused: { borderColor: colors.primary },
   inputError: { borderColor: colors.danger },
   inputDisabled: { backgroundColor: colors.surfaceMuted },
-  input: { flex: 1, fontSize: 15, fontFamily: fonts.regular, color: colors.text, paddingVertical: Platform.OS === 'ios' ? spacing.md : spacing.sm },
+  input: { flex: 1, fontSize: 15, color: colors.text, paddingVertical: Platform.OS === 'ios' ? spacing.md : spacing.sm },
   inputMultiline: { minHeight: 88, textAlignVertical: 'top', paddingVertical: 0 },
   inputMessageRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.xs + 2 },
   errorText: { ...type.caption, color: colors.danger },
   helperText: { ...type.caption, marginTop: spacing.xs + 2 },
 
-  card: { backgroundColor: colors.surface, borderRadius: radius.xl },
+  card: { backgroundColor: colors.surface, borderRadius: radius.lg },
   cardPadded: { padding: spacing.lg },
   cardOutlined: { borderWidth: 1, borderColor: colors.border },
   cardFlat: { backgroundColor: colors.surfaceMuted },
-  cardSelected: { borderWidth: 1.5, borderColor: colors.text, backgroundColor: colors.surface },
+  cardSelected: { borderWidth: 1.5, borderColor: colors.primary, backgroundColor: colors.primarySoft },
 
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
 
@@ -775,40 +774,41 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4,
     paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: radius.pill,
   },
-  badgeText: { fontSize: 11, lineHeight: 14, fontFamily: fonts.bold },
+  badgeText: { fontSize: 11, lineHeight: 14, fontWeight: '600' },
 
   chipRow: { gap: spacing.sm, paddingHorizontal: spacing.screen },
   chip: {
     height: 36, paddingHorizontal: spacing.md + 2, borderRadius: radius.pill, flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
   },
-  chipSelected: { backgroundColor: colors.text, borderColor: colors.text },
-  chipText: { ...type.label, color: colors.text },
+  chipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { ...type.label, color: colors.textSecondary },
   chipTextSelected: { color: colors.textInverse },
   chipCount: { minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' },
   chipCountSelected: { backgroundColor: colors.surface },
-  chipCountText: { fontSize: 11, fontFamily: fonts.bold, color: colors.textSecondary },
+  chipCountText: { fontSize: 11, fontWeight: '700', color: colors.textSecondary },
 
-  segmented: { flexDirection: 'row', backgroundColor: colors.surfaceSunken, borderRadius: 14, padding: 4 },
-  segment: { flex: 1, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.sm },
+  segmented: { flexDirection: 'row', backgroundColor: colors.surfaceMuted, borderRadius: radius.md, padding: 3 },
+  segment: { flex: 1, height: 36, borderRadius: radius.sm + 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.sm },
   segmentActive: { backgroundColor: colors.surface, ...elevation.card },
   segmentText: { ...type.label, color: colors.textSecondary },
   segmentTextActive: { color: colors.text },
 
   screenHeader: {
     height: sizes.headerHeight, flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
-    paddingHorizontal: spacing.screen, backgroundColor: colors.canvas,
+    paddingHorizontal: spacing.screen, backgroundColor: colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
   },
   sectionHeader: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.md, marginBottom: spacing.md },
-  sectionAction: { ...type.label, color: colors.primaryInk },
+  sectionAction: { ...type.label, color: colors.primary },
 
   listRow: { minHeight: sizes.listRow, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md },
-  rowIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' },
+  rowIcon: { width: 36, height: 36, borderRadius: radius.sm + 2, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
 
   emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.xxxl + spacing.lg, paddingHorizontal: spacing.xxl },
-  emptyIcon: { width: 76, height: 76, borderRadius: 38, backgroundColor: colors.surfaceSunken, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.lg },
+  emptyIcon: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.lg },
 
-  notice: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm + 2, padding: spacing.md + 2, borderRadius: 14 },
+  notice: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm + 2, padding: spacing.md, borderRadius: radius.md },
 
   ratingContainer: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   ratingText: { ...type.label, color: colors.text },
@@ -817,30 +817,30 @@ const styles = StyleSheet.create({
   originalPrice: { color: colors.textTertiary, textDecorationLine: 'line-through' },
   priceRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: 6 },
 
-  vegBox: { borderWidth: 1.5, borderRadius: 3, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
+  vegBox: { borderWidth: 1.5, borderRadius: 3, alignItems: 'center', justifyContent: 'center' },
 
   stepper: {
     height: 36, minWidth: 96, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderRadius: 10, borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.primary, paddingHorizontal: 4,
+    borderRadius: radius.sm, borderWidth: 1, borderColor: colors.primaryBorder, backgroundColor: colors.primarySoft, paddingHorizontal: 4,
   },
   stepperSm: { height: 32, minWidth: 88 },
   stepperBtn: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
-  stepperValue: { ...type.label, color: colors.textInverse, minWidth: 20, textAlign: 'center' },
+  stepperValue: { ...type.label, color: colors.primary, minWidth: 20, textAlign: 'center' },
 
   addButton: {
     height: 32, minWidth: 88, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2,
-    borderRadius: 10, borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.surface, ...elevation.card,
+    borderRadius: radius.sm, borderWidth: 1, borderColor: colors.primaryBorder, backgroundColor: colors.surface,
   },
   addButtonDisabled: { borderColor: colors.border, backgroundColor: colors.surfaceMuted },
-  addButtonText: { fontSize: 13, fontFamily: fonts.heavy, color: colors.primaryInk, letterSpacing: 0.6 },
+  addButtonText: { fontSize: 13, fontWeight: '700', color: colors.primary, letterSpacing: 0.3 },
 
   stickyFooter: {
     backgroundColor: colors.surface, paddingHorizontal: spacing.screen, paddingTop: spacing.md,
-    borderTopWidth: 1, borderTopColor: colors.border,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, ...elevation.sticky,
   },
 
   sheetBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: colors.overlay },
-  sheet: { marginTop: 'auto', backgroundColor: colors.canvas, borderTopLeftRadius: 26, borderTopRightRadius: 26 },
+  sheet: { marginTop: 'auto', backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl },
   sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginTop: spacing.sm },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.xl, paddingTop: spacing.md, paddingBottom: spacing.sm },
   sheetBody: { paddingHorizontal: spacing.xl, paddingTop: spacing.sm, paddingBottom: spacing.lg },

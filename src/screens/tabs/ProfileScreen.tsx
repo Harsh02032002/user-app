@@ -14,7 +14,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 import { api } from '../../services/api';
-import { colors, fonts } from '../../theme';
 
 interface UserProfile {
   name: string;
@@ -159,7 +158,7 @@ export function ProfileScreen() {
           <Ionicons 
             name={item.icon as any} 
             size={20} 
-            color={item.danger ? '#FF4444' : colors.primary} 
+            color={item.danger ? '#FF4444' : '#FF6B00'} 
           />
         </View>
         <View style={styles.menuItemContent}>
@@ -180,8 +179,8 @@ export function ProfileScreen() {
           <Switch
             value={notificationsEnabled}
             onValueChange={setNotificationsEnabled}
-            trackColor={{ false: colors.border, true: '#FFB380' }}
-            thumbColor={notificationsEnabled ? colors.primary : colors.surface}
+            trackColor={{ false: '#e5e5e5', true: '#FFB380' }}
+            thumbColor={notificationsEnabled ? '#FF6B00' : '#fff'}
           />
         ) : (
           <Ionicons name="chevron-forward" size={20} color="#ccc" />
@@ -270,12 +269,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: '#f0f0f0',
   },
   headerTitle: {
     fontSize: 20,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
   },
   editButton: {
     padding: 8,
@@ -292,12 +291,12 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: colors.textSecondary, fontFamily: fonts.regular,
+    color: '#666',
   },
   profileHeader: {
     alignItems: 'center',
     padding: 20,
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
     margin: 16,
     borderRadius: 16,
     shadowColor: '#000',
@@ -314,14 +313,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: colors.primary,
+    backgroundColor: '#FF6B00',
     width: 32,
     height: 32,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: colors.surface,
+    borderColor: '#fff',
   },
   statsContainer: {
     flexDirection: 'row',
@@ -331,16 +330,16 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: '#f0f0f0',
   },
   statValue: {
     fontSize: 18,
-    fontFamily: fonts.bold,
-    color: colors.primary,
+    fontWeight: 'bold',
+    color: '#FF6B00',
     marginBottom: 4,
   },
   profileCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
     margin: 16,
     borderRadius: 16,
     padding: 20,
@@ -366,25 +365,25 @@ const styles = StyleSheet.create({
   },
   userName: {
     fontSize: 18,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
     marginBottom: 4,
   },
   userEmail: {
     fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 2, fontFamily: fonts.regular,
+    color: '#666',
+    marginBottom: 2,
   },
   userPhone: {
     fontSize: 14,
-    color: colors.textSecondary, fontFamily: fonts.regular,
+    color: '#666',
   },
   profileStats: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: '#f0f0f0',
   },
   statItem: {
     alignItems: 'center',
@@ -392,17 +391,17 @@ const styles = StyleSheet.create({
   },
   statNumber: {
     fontSize: 18,
-    fontFamily: fonts.bold,
-    color: colors.primary,
+    fontWeight: 'bold',
+    color: '#FF6B00',
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    color: colors.textSecondary, fontFamily: fonts.regular,
+    color: '#666',
   },
   statDivider: {
     width: 1,
-    backgroundColor: colors.border,
+    backgroundColor: '#f0f0f0',
   },
   quickActions: {
     flexDirection: 'row',
@@ -412,7 +411,7 @@ const styles = StyleSheet.create({
   },
   quickAction: {
     alignItems: 'center',
-    backgroundColor: colors.primarySoft,
+    backgroundColor: '#FFF5F0',
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderRadius: 12,
@@ -421,8 +420,8 @@ const styles = StyleSheet.create({
   },
   quickActionText: {
     fontSize: 12,
-    fontFamily: fonts.bold,
-    color: colors.primary,
+    fontWeight: '600',
+    color: '#FF6B00',
     marginTop: 8,
   },
   menuSection: {
@@ -435,7 +434,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 4,
     borderBottomWidth: 1,
-    borderBottomColor: colors.canvas,
+    borderBottomColor: '#f5f5f5',
   },
   menuItemLeft: {
     flexDirection: 'row',
@@ -446,7 +445,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.primarySoft,
+    backgroundColor: '#FFF5F0',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -459,8 +458,8 @@ const styles = StyleSheet.create({
   },
   menuItemTitle: {
     fontSize: 16,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: '600',
+    color: '#1a1a1a',
     marginBottom: 2,
   },
   dangerText: {
@@ -468,14 +467,14 @@ const styles = StyleSheet.create({
   },
   menuItemSubtitle: {
     fontSize: 12,
-    color: colors.textSecondary, fontFamily: fonts.regular,
+    color: '#666',
   },
   menuItemRight: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   badge: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#FF6B00',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -483,8 +482,8 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 10,
-    fontFamily: fonts.bold,
-    color: colors.surface,
+    fontWeight: 'bold',
+    color: '#fff',
   },
   versionContainer: {
     alignItems: 'center',
@@ -492,11 +491,11 @@ const styles = StyleSheet.create({
   },
   versionText: {
     fontSize: 12,
-    color: colors.textTertiary,
-    marginBottom: 4, fontFamily: fonts.regular,
+    color: '#999',
+    marginBottom: 4,
   },
   versionSubtext: {
     fontSize: 10,
-    color: '#ccc', fontFamily: fonts.regular,
+    color: '#ccc',
   },
 });

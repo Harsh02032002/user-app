@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, sizes, type, fonts } from '../../theme';
+import { colors, sizes, type } from '../../theme';
 
 /** Height of the bar above the safe-area inset — use for bottom content padding */
 export const TAB_BAR_HEIGHT = sizes.tabBarHeight;
@@ -65,7 +65,7 @@ export const MobileNavBar = () => {
     <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 8) }]} accessibilityRole="tablist">
       {TABS.map((tab) => {
         const isActive = currentScreen === tab.name;
-        const tint = isActive ? colors.text : colors.textTertiary;
+        const tint = isActive ? colors.primary : colors.textTertiary;
         return (
           <TouchableOpacity
             key={tab.name}
@@ -76,8 +76,7 @@ export const MobileNavBar = () => {
             accessibilityState={{ selected: isActive }}
             accessibilityLabel={tab.label}
           >
-            <View style={[styles.marker, isActive && styles.markerActive]} />
-            <Ionicons name={(isActive ? tab.icon : tab.outline) as any} size={23} color={tint} />
+            <Ionicons name={(isActive ? tab.icon : tab.outline) as any} size={24} color={tint} />
             <Text style={[styles.label, { color: tint }, isActive && styles.labelActive]}>{tab.label}</Text>
           </TouchableOpacity>
         );
@@ -94,11 +93,15 @@ const styles = StyleSheet.create({
     right: 0,
     flexDirection: 'row',
     backgroundColor: colors.surface,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
-    paddingTop: 2,
+    paddingTop: 6,
     zIndex: 1000,
     elevation: 12,
+    shadowColor: '#1A1A1A',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
   },
   tab: {
     flex: 1,
@@ -107,8 +110,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 2,
   },
-  label: { fontFamily: fonts.medium, fontSize: 11, lineHeight: 14 },
-  labelActive: { fontFamily: fonts.heavy },
-  marker: { width: 18, height: 3, borderRadius: 2, marginBottom: 5, backgroundColor: 'transparent' },
-  markerActive: { backgroundColor: colors.primary },
+  label: { ...type.caption, fontSize: 11, lineHeight: 14, fontWeight: '500' },
+  labelActive: { fontWeight: '600' },
 });
