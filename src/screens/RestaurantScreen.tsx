@@ -1,757 +1,333 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-  FlatList,
-  Alert,
-} from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import Toast from 'react-native-toast-message';
-import { AppHeader } from '../components/common/AppHeader';
-import { useCart } from '../context/CartContext';
+import { useCart, getCartUnitPrice } from '../context/CartContext';
 import { api } from '../services/api';
-import { getImageUrl } from '../config/api';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { LOCATION_COORDS_KEY } from '../utils/location';
 import { SERVICE_RADIUS_KM } from '../config/serviceArea';
+import { EmptyState, ErrorState, IconButton, Notice, Skeleton } from '../components/common';
+import { FoodRow, FoodItemData, KitchenMark, SellerTypeBadge, formatDistance, realImageUrl } from '../components/cards';
+import { colors, fonts, formatPrice, radius, spacing, type } from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteType = RouteProp<RootStackParamList, 'Restaurant'>;
 
-interface MenuItem {
-  _id: string;
-  name: string;
-  description?: string;
-  price: number;
-  sellingPrice?: number;
-  image?: string;
-  category?: string;
-  isVeg: boolean;
-  isAvailable?: boolean;
-  sellerId?: {
-    _id: string;
-    businessName: string;
-    type: 'home_chef' | 'restaurant';
-    rating: number;
-  };
-}
-
-interface SellerAddress {
-  area?: string;
-  city?: string;
-  street?: string;
-  fullAddress?: string;
-}
-
 interface SellerDetails {
   _id: string;
-  name: string;
-  shopName: string;
+  shopName?: string;
   businessName?: string;
-  image?: string;
+  description?: string;
   logo?: string;
   coverImage?: string;
-  rating: number;
+  image?: string;
+  rating?: number;
+  totalOrders?: number;
+  cuisines?: string[];
   cuisine?: string;
-  type: 'home_chef' | 'restaurant';
-  address?: SellerAddress | string;
+  type?: string;
+  address?: { area?: string; city?: string; street?: string; fullAddress?: string } | string;
 }
 
-const getSellerAddressText = (address?: SellerAddress | string): string => {
+const addressLine = (address?: SellerDetails['address']) => {
   if (!address) return '';
   if (typeof address === 'string') return address;
-  return address.city || address.area || address.fullAddress || address.street || '';
+  return address.city || address.area || '';
 };
 
 export default function RestaurantScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteType>();
-  const { sellerId, sellerName } = route.params;
-  const { items, totalItems, totalAmount, addToCart, updateQuantity } = useCart();
+  const insets = useSafeAreaInsets();
+  const { sellerId, sellerName } = route.params as { sellerId: string; sellerName?: string };
+  const { items, totalItems, addToCart, updateQuantity } = useCart();
 
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
   const [seller, setSeller] = useState<SellerDetails | null>(null);
-  const [menu, setMenu] = useState<MenuItem[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [deliveryDistanceKm, setDeliveryDistanceKm] = useState<number | null>(null);
-  const [isNotServiceable, setIsNotServiceable] = useState(false);
+  const [menu, setMenu] = useState<FoodItemData[]>([]);
+  const [category, setCategory] = useState('All');
+  const [vegOnly, setVegOnly] = useState(false);
+  const [distanceKm, setDistanceKm] = useState<number | null>(null);
+  const [notServiceable, setNotServiceable] = useState(false);
+  const [scrolledPastTitle, setScrolledPastTitle] = useState(false);
 
-  useEffect(() => {
-    console.log('RestaurantScreen mounted with sellerId:', sellerId);
-    fetchData();
-  }, [sellerId]);
-
-  const fetchData = async () => {
+  const fetchData = React.useCallback(async () => {
     try {
       setLoading(true);
-      console.log('Fetching data for seller:', sellerId);
-      const [sellerRes, menuRes] = await Promise.all([
+      setFailed(false);
+      const [sellerRes, menuRes]: any[] = await Promise.all([
         api.user.getSellerById(sellerId),
         api.user.getMenuItems(sellerId),
       ]);
-      console.log('Seller data:', sellerRes);
-      console.log('Menu data:', menuRes);
-      
-      const sellerData = sellerRes.seller || sellerRes;
-      const menuItems: MenuItem[] = menuRes?.products || [];
-      
-      setSeller(sellerData);
-      setMenu(menuItems);
+      setSeller(sellerRes?.seller || sellerRes);
+      setMenu(menuRes?.products || []);
 
-      // Check distance and serviceability from user's current location
       const savedCoords = await AsyncStorage.getItem(LOCATION_COORDS_KEY);
-      if (savedCoords) {
-        try {
-          const parsed = JSON.parse(savedCoords);
-          if (parsed?.lat && parsed?.lng) {
-            const feeRes = await api.user.calculateDeliveryFee({
-              sellerId,
-              customerLng: parsed.lng,
-              customerLat: parsed.lat,
-            }).catch(() => null);
-            if (feeRes?.success) {
-              setDeliveryDistanceKm(feeRes.distanceKm);
-              if (feeRes.serviceable === false || (feeRes.distanceKm != null && feeRes.distanceKm > SERVICE_RADIUS_KM)) {
-                setIsNotServiceable(true);
-              }
-            }
-          }
-        } catch (_) {}
+      const parsed = savedCoords ? JSON.parse(savedCoords) : null;
+      if (parsed?.lat && parsed?.lng) {
+        const feeRes: any = await api.user.calculateDeliveryFee({ sellerId, customerLng: parsed.lng, customerLat: parsed.lat }).catch(() => null);
+        if (feeRes?.success) {
+          setDistanceKm(feeRes.distanceKm);
+          setNotServiceable(feeRes.serviceable === false || (feeRes.distanceKm != null && feeRes.distanceKm > SERVICE_RADIUS_KM));
+        }
       }
-    } catch (error) {
-      console.error('Error fetching restaurant data:', error);
+    } catch {
+      setFailed(true);
     } finally {
       setLoading(false);
     }
-  };
+  }, [sellerId]);
 
-  const getCategories = () => {
-    const categories = ['All', ...new Set(menu.map((item) => item.category || 'Other'))];
-    return categories;
-  };
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  const filteredMenu =
-    selectedCategory === 'All'
-      ? menu
-      : menu.filter((item) => item.category === selectedCategory);
+  const visibleMenu = useMemo(() => menu.filter((m) => !vegOnly || m.isVeg), [menu, vegOnly]);
+  const categories = useMemo(() => ['All', ...Array.from(new Set(visibleMenu.map((m) => m.category || 'Other')))], [visibleMenu]);
+  const sections = useMemo(() => {
+    const list = category === 'All' ? visibleMenu : visibleMenu.filter((m) => (m.category || 'Other') === category);
+    const groups = new Map<string, FoodItemData[]>();
+    list.forEach((m) => {
+      const key = m.category || 'Other';
+      groups.set(key, [...(groups.get(key) || []), m]);
+    });
+    return Array.from(groups.entries());
+  }, [visibleMenu, category]);
 
-  const getItemQuantity = (itemId: string) => {
-    const cartItem = items.find((item) => item.id === itemId);
-    return cartItem?.quantity || 0;
-  };
+  const quantityOf = (id: string) => items.find((i) => i.id === id)?.quantity || 0;
+  const cartForThisKitchen = items.filter((i) => String(i.sellerId) === String(sellerId));
+  const kitchenTotal = cartForThisKitchen.reduce((sum, i) => sum + getCartUnitPrice(i) * i.quantity, 0);
+  const kitchenCount = cartForThisKitchen.reduce((n, i) => n + i.quantity, 0);
 
-  const handleAddToCart = (item: MenuItem) => {
-    if (isNotServiceable) {
-      Alert.alert(
-        'Outside Delivery Range',
-        `This seller is ${deliveryDistanceKm} km away. We deliver strictly within ${SERVICE_RADIUS_KM} km.`
-      );
+  const add = (item: FoodItemData) => {
+    if (notServiceable) {
+      Alert.alert('Outside delivery range', `This kitchen is ${distanceKm} km away. We deliver within ${SERVICE_RADIUS_KM} km of your location.`);
       return;
     }
-    console.log('Adding to cart:', item._id, item.name);
-    const cartItem = {
+    addToCart({
       id: item._id,
       name: item.name,
-      price: item.sellingPrice || item.price,
+      price: item.sellingPrice || item.price || 0,
+      discountPrice: item.discountPrice,
       image: item.image || '',
-      sellerId: typeof item.sellerId === 'object' ? item.sellerId._id : sellerId,
-      sellerName: typeof item.sellerId === 'object' ? item.sellerId.businessName : sellerName,
-      isVeg: item.isVeg,
+      sellerId,
+      sellerName: seller?.businessName || seller?.shopName || sellerName,
+      isVeg: !!item.isVeg,
       description: item.description,
-    };
-    console.log('Cart item:', cartItem);
-    addToCart(cartItem);
-    Toast.show({
-      type: 'success',
-      text1: 'Added to Cart',
-      text2: `${item.name} added successfully!`,
-      position: 'bottom',
-    });
-    console.log('Cart items after add:', items);
+    } as any);
   };
 
-  const handleUpdateQuantity = (itemId: string, change: number) => {
-    const currentQty = getItemQuantity(itemId);
-    updateQuantity(itemId, currentQty + change);
-  };
+  const name = seller?.shopName || seller?.businessName || sellerName || 'Kitchen';
+  const cover = realImageUrl(seller?.coverImage || seller?.image);
+  const cuisines = seller?.cuisines?.length ? seller.cuisines.join(' · ') : seller?.cuisine;
 
-  if (loading && !seller) {
+  if (loading && !seller) return <RestaurantSkeleton top={insets.top} />;
+  if (failed && !seller) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FF6B00" />
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <IconButton icon="arrow-back" accessibilityLabel="Go back" onPress={() => navigation.goBack()} style={{ margin: spacing.sm }} />
+        <ErrorState title="Couldn't open this kitchen" onRetry={fetchData} />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* Header - Transparent overlay on banner */}
-      <View style={styles.headerOverlay}>
-        <TouchableOpacity 
-          style={styles.backButton} 
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
-        </TouchableOpacity>
+      <View style={[styles.topBar, { paddingTop: insets.top }, scrolledPastTitle && styles.topBarSolid]}>
+        <IconButton icon="arrow-back" accessibilityLabel="Go back" variant="filled" size={20} onPress={() => navigation.goBack()} />
+        <Text style={[styles.topBarTitle, { opacity: scrolledPastTitle ? 1 : 0 }]} numberOfLines={1}>{name}</Text>
+        <IconButton icon="search" accessibilityLabel="Search dishes" variant="filled" size={18} onPress={() => navigation.navigate('Search' as any)} />
       </View>
-
-      <ScrollView 
+      <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: kitchenCount ? 120 : 48 }}
+        stickyHeaderIndices={[2]}
+        scrollEventThrottle={32}
+        onScroll={(e) => setScrolledPastTitle(e.nativeEvent.contentOffset.y > (cover ? 260 : 110))}
       >
-        {/* Banner Section */}
-        <View style={styles.bannerContainer}>
-          <Image 
-            source={{ uri: getImageUrl(seller?.image) || 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1000&h=400&fit=crop&q=80' }} 
-            style={styles.bannerImage} 
-            contentFit="cover"
-          />
-          <View style={styles.bannerGradient} />
+        {/* 0: kitchen cover photo, when the kitchen uploaded one */}
+        {cover ? <Image source={{ uri: cover }} style={styles.cover} contentFit="cover" /> : <View style={{ height: spacing.xs }} />}
+
+        {/* 1: kitchen identity */}
+        <View style={[styles.identity, cover && styles.identityOverCover]}>
+          <KitchenMark name={name} logo={seller?.logo} size={72} />
+          <Text style={[type.display, { marginTop: spacing.md }]} accessibilityRole="header">{name}</Text>
+          <View style={styles.identityTags}>
+            <SellerTypeBadge sellerType={seller?.type} />
+            {cuisines ? <Text style={type.caption} numberOfLines={1}>· {cuisines}</Text> : null}
+          </View>
+          {seller?.description ? <Text style={[type.body, styles.description]}>{seller.description}</Text> : null}
+
+          <View style={styles.stats}>
+            <Stat
+              value={seller?.rating ? Number(seller.rating).toFixed(1) : 'New'}
+              label={seller?.rating ? (seller.totalOrders ? `${seller.totalOrders}+ orders` : 'Rating') : 'No ratings yet'}
+              icon={seller?.rating ? 'star' : undefined}
+            />
+            <View style={styles.statDivider} />
+            <Stat value={distanceKm != null ? formatDistance(distanceKm) : '—'} label="From you" />
+            <View style={styles.statDivider} />
+            <Stat value={addressLine(seller?.address) || '—'} label="Kitchen in" />
+          </View>
+
+          {notServiceable ? (
+            <Notice
+              tone="danger"
+              title="Outside our delivery range"
+              message={`This kitchen is ${distanceKm} km from your delivery address. We deliver within ${SERVICE_RADIUS_KM} km.`}
+              style={{ marginTop: spacing.lg }}
+            />
+          ) : null}
         </View>
 
-        {/* Info Section - Overlapping Banner */}
-        <View style={styles.infoSection}>
-          <View style={styles.profileRow}>
-            <View style={styles.logoWrapper}>
-              <Image 
-                source={{ uri: getImageUrl(seller?.logo || seller?.image) || 'https://images.unsplash.com/photo-1495195129352-aec325b55b65?w=200&h=200&fit=crop&q=80' }} 
-                style={styles.profileLogo} 
-                contentFit="cover"
-              />
-            </View>
-            <View style={styles.nameBadgeContainer}>
-              <Text style={styles.businessName}>{seller?.shopName || seller?.businessName || sellerName}</Text>
-              <View style={[styles.typeBadge, seller?.type === 'home_chef' ? styles.homeChefBadge : styles.restaurantBadge]}>
-                <Ionicons 
-                  name={seller?.type === 'home_chef' ? 'home' : 'restaurant'} 
-                  size={14} 
-                  color={seller?.type === 'home_chef' ? '#059669' : '#C2410C'} 
-                />
-                <Text style={[styles.typeBadgeText, seller?.type === 'home_chef' ? styles.typeBadgeTextHome : styles.typeBadgeTextRest]}>
-                  {seller?.type === 'home_chef' ? 'Home-Cooked' : 'Restaurant'}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.metaRow}>
-            <View style={styles.ratingBox}>
-              <Ionicons name="star" size={14} color="#FFD700" />
-              <Text style={styles.ratingValue}>{seller?.rating?.toFixed(1) || '4.0'}</Text>
-            </View>
-            <View style={styles.locationBox}>
-              <Ionicons name="location" size={14} color="#666" />
-              <Text style={styles.locationValue}>
-                {getSellerAddressText(seller?.address)}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Service radius warning banner */}
-        {isNotServiceable && (
-          <View style={{
-            marginHorizontal: 16,
-            marginBottom: 16,
-            backgroundColor: '#FEE2E2',
-            borderWidth: 1,
-            borderColor: '#EF4444',
-            borderRadius: 12,
-            padding: 14,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 12,
-          }}>
-            <Ionicons name="warning" size={26} color="#DC2626" />
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, fontWeight: '700', color: '#DC2626' }}>
-                Outside {SERVICE_RADIUS_KM} km Delivery Radius ({deliveryDistanceKm} km away)
-              </Text>
-              <Text style={{ fontSize: 12, color: '#991B1B', marginTop: 3, lineHeight: 16 }}>
-                We strictly deliver within {SERVICE_RADIUS_KM} km of your location. You cannot place orders from this seller to your current address.
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* Categories */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.categoriesContainer}
-          contentContainerStyle={styles.categoriesContent}
-        >
-          {getCategories().map((category) => (
+        {/* 2: sticky category bar */}
+        <View style={styles.menuBar}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.menuBarContent}>
             <TouchableOpacity
-              key={category}
-              style={[
-                styles.categoryChip,
-                selectedCategory === category && styles.categoryChipActive,
-              ]}
-              onPress={() => setSelectedCategory(category)}
+              onPress={() => setVegOnly((v) => !v)}
+              style={[styles.pill, vegOnly && styles.vegPillActive]}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: vegOnly }}
             >
-              <Text
-                style={[
-                  styles.categoryText,
-                  selectedCategory === category && styles.categoryTextActive,
-                ]}
-              >
-                {category}
-              </Text>
+              <View style={styles.vegSquare}><View style={styles.vegDot} /></View>
+              <Text style={[styles.pillText, vegOnly && { color: colors.successStrong }]}>Veg</Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* Menu Title */}
-        <View style={styles.menuHeader}>
-          <Text style={styles.menuTitle}>Menu</Text>
-          <View style={styles.menuUnderline} />
+            {categories.map((c) => (
+              <TouchableOpacity
+                key={c}
+                onPress={() => setCategory(c)}
+                style={[styles.pill, category === c && styles.pillActive]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: category === c }}
+              >
+                <Text style={[styles.pillText, category === c && { color: colors.textInverse }]}>{c}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
-        <View style={styles.menuSection}>
-          {filteredMenu.length === 0 ? (
-            <Text style={styles.emptyText}>No menu items available</Text>
+
+        {/* 3: menu */}
+        <View style={styles.menu}>
+          {sections.length === 0 ? (
+            <EmptyState
+              icon="restaurant-outline"
+              title={menu.length ? 'Nothing matches' : 'Menu coming soon'}
+              subtitle={menu.length ? 'Try turning off the veg filter.' : 'This kitchen hasn’t published dishes yet.'}
+            />
           ) : (
-            filteredMenu.map((item) => {
-            const qty = getItemQuantity(item._id);
-            return (
-              <View key={item._id} style={styles.menuItem}>
-                <View style={styles.menuItemInfo}>
-                  <View style={styles.vegIndicator}>
-                    <View
-                      style={[
-                        styles.vegDot,
-                        { backgroundColor: item.isVeg ? '#22C55E' : '#EF4444' },
-                      ]}
+            sections.map(([title, dishes]) => (
+              <View key={title}>
+                <View style={styles.sectionTitleRow}>
+                  <Text style={type.title}>{title}</Text>
+                  <Text style={type.caption}>{dishes.length}</Text>
+                </View>
+                {dishes.map((item, i) => (
+                  <View key={item._id}>
+                    {i > 0 ? <View style={styles.rowDivider} /> : null}
+                    <FoodRow
+                      item={item}
+                      quantity={quantityOf(item._id)}
+                      onAdd={() => add(item)}
+                      onIncrement={() => updateQuantity(item._id, quantityOf(item._id) + 1)}
+                      onDecrement={() => updateQuantity(item._id, quantityOf(item._id) - 1)}
                     />
                   </View>
-                  <View style={styles.menuItemDetails}>
-                    <Text style={styles.menuItemName}>{item.name}</Text>
-                    {item.description && (
-                      <Text style={styles.menuItemDesc} numberOfLines={2}>
-                        {item.description}
-                      </Text>
-                    )}
-                    <Text style={styles.menuItemPrice}>Rs. {item.sellingPrice || item.price}</Text>
-                  </View>
-                </View>
-                <View style={styles.menuItemRight}>
-                  {item.image && (
-                    <Image 
-                      source={{ uri: getImageUrl(item.image) || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&fit=crop' }} 
-                      style={styles.menuItemImage} 
-                      contentFit="cover"
-                    />
-                  )}
-                  {item.isAvailable !== false ? (
-                    qty > 0 ? (
-                      <View style={styles.qtyControl}>
-                        <TouchableOpacity
-                          style={styles.qtyBtn}
-                          onPress={() => handleUpdateQuantity(item._id, -1)}
-                        >
-                          <Ionicons name="remove" size={18} color="#FF6B00" />
-                        </TouchableOpacity>
-                        <Text style={styles.qtyText}>{qty}</Text>
-                        <TouchableOpacity
-                          style={styles.qtyBtn}
-                          onPress={() => handleUpdateQuantity(item._id, 1)}
-                        >
-                          <Ionicons name="add" size={18} color="#FF6B00" />
-                        </TouchableOpacity>
-                      </View>
-                    ) : isNotServiceable ? (
-                      <View style={[styles.addBtn, { backgroundColor: '#F3F4F6', borderColor: '#E5E7EB', paddingHorizontal: 6 }]}>
-                        <Text style={[styles.addBtnText, { color: '#9CA3AF', fontSize: 10, fontWeight: '700' }]}>UNAVAILABLE</Text>
-                      </View>
-                    ) : (
-                      <TouchableOpacity
-                        style={styles.addBtn}
-                        onPress={() => {
-                          console.log('ADD button clicked for:', item.name);
-                          handleAddToCart(item);
-                        }}
-                      >
-                        <Text style={styles.addBtnText}>ADD</Text>
-                      </TouchableOpacity>
-                    )
-                  ) : (
-                    <Text style={styles.unavailableText}>Unavailable</Text>
-                  )}
-                </View>
+                ))}
               </View>
-            );
-          }))
-          }
+            ))
+          )}
         </View>
-
-        <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Cart Button */}
-      {totalItems > 0 && (
-        <TouchableOpacity
-          style={styles.cartButton}
-          onPress={() => navigation.navigate('Checkout')}
-        >
-          <View style={styles.cartInfo}>
-            <Text style={styles.cartItems}>{totalItems} Items</Text>
-            <Text style={styles.cartTotal}>Rs. {totalAmount}</Text>
-          </View>
-          <View style={styles.cartAction}>
-            <Text style={styles.cartActionText}>View Cart</Text>
-            <Ionicons name="arrow-forward" size={18} color="#fff" />
-          </View>
-        </TouchableOpacity>
-      )}
+      {kitchenCount > 0 ? (
+        <View style={[styles.cartBarWrap, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
+          <TouchableOpacity style={styles.cartBar} activeOpacity={0.9} onPress={() => navigation.navigate('Cart' as any)} accessibilityRole="button" accessibilityLabel={`View cart, ${kitchenCount} items, ${formatPrice(kitchenTotal)}`}>
+            <View>
+              <Text style={styles.cartBarCount}>{kitchenCount} {kitchenCount === 1 ? 'item' : 'items'}{totalItems > kitchenCount ? ' (+ other kitchen)' : ''}</Text>
+              <Text style={styles.cartBarTotal}>{formatPrice(kitchenTotal)}</Text>
+            </View>
+            <View style={styles.cartBarAction}>
+              <Text style={styles.cartBarActionText}>View cart</Text>
+              <Ionicons name="arrow-forward" size={18} color={colors.textInverse} />
+            </View>
+          </TouchableOpacity>
+        </View>
+      ) : null}
     </View>
   );
 }
 
+const Stat: React.FC<{ value: string; label: string; icon?: React.ComponentProps<typeof Ionicons>['name'] }> = ({ value, label, icon }) => (
+  <View style={styles.stat}>
+    <View style={styles.statValueRow}>
+      {icon ? <Ionicons name={icon} size={13} color={colors.rating} /> : null}
+      <Text style={styles.statValue} numberOfLines={1}>{value}</Text>
+    </View>
+    <Text style={type.caption} numberOfLines={1}>{label}</Text>
+  </View>
+);
+
+const RestaurantSkeleton = ({ top }: { top: number }) => (
+  <View style={[styles.container, { paddingTop: top + 64, paddingHorizontal: spacing.screen, gap: spacing.md }]}>
+    <Skeleton width={72} height={72} radius={20} />
+    <Skeleton width="70%" height={28} />
+    <Skeleton width="45%" height={14} />
+    <Skeleton height={64} radius={radius.lg} style={{ marginTop: spacing.md }} />
+    <Skeleton height={120} radius={radius.lg} style={{ marginTop: spacing.lg }} />
+    <Skeleton height={120} radius={radius.lg} />
+  </View>
+);
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FAF8F0',
+  container: { flex: 1, backgroundColor: colors.canvas },
+  cover: { width: '100%', height: 200, backgroundColor: colors.surfaceMuted },
+  identity: { paddingHorizontal: spacing.screen, paddingBottom: spacing.lg },
+  identityOverCover: { marginTop: -36 },
+  identityTags: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, flexWrap: 'wrap' },
+  description: { color: colors.textSecondary, marginTop: spacing.md },
+  stats: {
+    flexDirection: 'row', alignItems: 'center', marginTop: spacing.lg, paddingVertical: spacing.md,
+    borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.border,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FAF8F0',
+  stat: { flex: 1, alignItems: 'center', paddingHorizontal: 4 },
+  statValueRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  statValue: { fontFamily: fonts.heavy, fontSize: 15, color: colors.text },
+  statDivider: { width: 1, height: 28, backgroundColor: colors.border },
+
+  menuBar: { backgroundColor: colors.canvas, borderBottomWidth: 1, borderBottomColor: colors.border },
+  menuBarContent: { gap: spacing.sm, paddingHorizontal: spacing.screen, paddingVertical: spacing.md },
+  pill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, height: 34, paddingHorizontal: spacing.md,
+    borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface,
   },
-  headerOverlay: {
-    position: 'absolute',
-    top: 50,
-    left: 20,
-    zIndex: 10,
+  pillActive: { backgroundColor: colors.text, borderColor: colors.text },
+  vegPillActive: { backgroundColor: colors.successSoft, borderColor: colors.success },
+  pillText: { fontFamily: fonts.bold, fontSize: 13, color: colors.text },
+  vegSquare: { width: 12, height: 12, borderWidth: 1.5, borderColor: colors.veg, borderRadius: 2, alignItems: 'center', justifyContent: 'center' },
+  vegDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.veg },
+
+  menu: { paddingHorizontal: spacing.screen },
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: spacing.xxl, marginBottom: spacing.xs },
+  rowDivider: { height: 1, backgroundColor: colors.divider },
+
+  topBar: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingBottom: spacing.sm,
+    backgroundColor: colors.canvas, borderBottomWidth: 1, borderBottomColor: 'transparent',
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+  topBarSolid: { borderBottomColor: colors.border },
+  topBarTitle: { flex: 1, textAlign: 'center', fontFamily: fonts.bold, fontSize: 16, color: colors.text },
+
+  cartBarWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: spacing.screen, paddingTop: spacing.sm },
+  cartBar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: colors.inkSurface, borderRadius: 18, paddingHorizontal: spacing.lg, height: 64,
   },
-  bannerContainer: {
-    width: '100%',
-    height: 180,
-    backgroundColor: '#ddd',
-  },
-  bannerImage: {
-    width: '100%',
-    height: '100%',
-  },
-  bannerGradient: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0,0,0,0.1)',
-  },
-  infoSection: {
-    backgroundColor: 'transparent',
-    paddingHorizontal: 20,
-    marginTop: -30,
-    marginBottom: 20,
-  },
-  profileRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    marginBottom: 10,
-  },
-  logoWrapper: {
-    width: 80,
-    height: 80,
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    padding: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  profileLogo: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 10,
-  },
-  nameBadgeContainer: {
-    marginLeft: 15,
-    paddingBottom: 5,
-    flex: 1,
-  },
-  businessName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-    marginBottom: 6,
-  },
-  typeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 6,
-    borderWidth: 1,
-  },
-  homeChefBadge: {
-    backgroundColor: '#ECFDF5', // Emerald-50
-    borderColor: '#D1FAE5', // Emerald-100
-  },
-  restaurantBadge: {
-    backgroundColor: '#FFF7ED', // Orange-50
-    borderColor: '#FFEDD5', // Orange-100
-  },
-  typeBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  typeBadgeTextHome: {
-    color: '#059669', // Emerald-600
-  },
-  typeBadgeTextRest: {
-    color: '#C2410C', // Orange-700
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 5,
-    gap: 15,
-  },
-  ratingBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  ratingValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1a1a1a',
-  },
-  locationBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  locationValue: {
-    fontSize: 14,
-    color: '#666',
-  },
-  categoriesContainer: {
-    marginBottom: 15,
-  },
-  categoriesContent: {
-    paddingHorizontal: 20,
-  },
-  categoryChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    marginRight: 10,
-    borderWidth: 1,
-    borderColor: '#eee',
-  },
-  categoryChipActive: {
-    backgroundColor: '#FF6B00',
-    borderColor: '#FF6B00',
-  },
-  categoryText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-  },
-  categoryTextActive: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  menuHeader: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  menuTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-  },
-  menuUnderline: {
-    width: 40,
-    height: 3,
-    backgroundColor: '#FF6B00',
-    marginTop: 4,
-    borderRadius: 2,
-  },
-  menuSection: {
-    paddingHorizontal: 20,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 12,
-    marginBottom: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
-  },
-  menuItemInfo: {
-    flex: 1,
-  },
-  vegIndicator: {
-    width: 14,
-    height: 14,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  vegDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  menuItemDetails: {},
-  menuItemName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
-    marginBottom: 4,
-  },
-  menuItemDesc: {
-    fontSize: 12,
-    color: '#888',
-    lineHeight: 18,
-    marginBottom: 10,
-  },
-  menuItemPrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-  },
-  menuItemRight: {
-    alignItems: 'center',
-    width: 100,
-    marginLeft: 10,
-  },
-  menuItemImage: {
-    width: 90,
-    height: 90,
-    borderRadius: 12,
-    marginBottom: -15,
-    zIndex: 1,
-  },
-  addBtn: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#FF6B00',
-    paddingHorizontal: 20,
-    paddingVertical: 6,
-    borderRadius: 8,
-    marginTop: 5,
-    zIndex: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  addBtnText: {
-    color: '#FF6B00',
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  qtyControl: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#FF6B00',
-    marginTop: 5,
-    zIndex: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  qtyBtn: {
-    padding: 6,
-  },
-  qtyText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#FF6B00',
-    paddingHorizontal: 8,
-  },
-  unavailableText: {
-    fontSize: 12,
-    color: '#EF4444',
-    fontWeight: '600',
-    marginTop: 10,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
-    marginTop: 40,
-  },
-  cartButton: {
-    position: 'absolute',
-    bottom: 100,
-    left: 20,
-    right: 20,
-    backgroundColor: '#FF6B00',
-    borderRadius: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    shadowColor: '#FF6B00',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  cartInfo: {},
-  cartItems: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  cartTotal: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  cartAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  cartActionText: {
-    color: '#fff',
-    fontWeight: '700',
-    marginRight: 4,
-  },
+  cartBarCount: { ...type.caption, color: colors.textOnInkMuted },
+  cartBarTotal: { fontFamily: fonts.heavy, fontSize: 17, color: colors.textOnInk },
+  cartBarAction: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.primary, borderRadius: 12, paddingHorizontal: spacing.lg, height: 42 },
+  cartBarActionText: { fontFamily: fonts.bold, fontSize: 15, color: colors.textInverse },
 });
