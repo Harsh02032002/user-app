@@ -16,14 +16,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
-import { useAuth } from '../../context/AuthContext';
-import { AppHeader } from '../../components/common/AppHeader';
-import { AppFooter } from '../../components/common/AppFooter';
+import { useAuth } from '../context/AuthContext';
+import { ScreenHeader } from '../components/common';
+import { AppFooter } from '../components/common/AppFooter';
 
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
-import { getImageUrl } from '../../services/api';
-import api from '../../services/api';
+import { getImageUrl } from '../services/api';
+import api from '../services/api';
+import { colors, fonts } from '../theme';
 
 interface UserProfile {
   name: string;
@@ -35,7 +36,7 @@ interface UserProfile {
   banner: string;
 }
 
-export function SettingsScreen() {
+export function EditProfileScreen() {
   const { user, updateProfile, refreshProfile, uploadAvatar, uploadBanner } = useAuth();
   const navigation = useNavigation();
   const [loading, setLoading] = useState(false);
@@ -265,8 +266,8 @@ export function SettingsScreen() {
   const resolvedBannerUri = getImageUrl(profile.banner || user?.banner);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <AppHeader showSearch={false} />
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScreenHeader title="Edit profile" />
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
         {/* Profile Information Card */}
@@ -331,7 +332,7 @@ export function SettingsScreen() {
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
               >
                 <Ionicons name="cloud-upload-outline" size={15} color="#FF6B00" />
-                <Text style={{ fontSize: 13, fontWeight: '600', color: '#FF6B00' }}>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: colors.primary }}>
                   {uploadingType === 'banner'
                     ? 'Uploading...'
                     : resolvedBannerUri && !bannerLoadError
@@ -365,13 +366,13 @@ export function SettingsScreen() {
                     <Ionicons name="camera-outline" size={24} color="#FF6B00" />
                   </View>
                   <Text style={styles.bannerPlaceholderText}>Tap to Upload Banner Photo</Text>
-                  <Text style={{ fontSize: 11, color: '#9CA3AF' }}>JPG, PNG or WEBP (16:9 recommended)</Text>
+                  <Text style={{ fontSize: 11, color: colors.textTertiary }}>JPG, PNG or WEBP (16:9 recommended)</Text>
                 </View>
               )}
               {uploadingType === 'banner' && (
                 <View style={styles.bannerLoadingOverlay}>
                   <ActivityIndicator size="large" color="#fff" />
-                  <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600', marginTop: 6 }}>
+                  <Text style={{ color: colors.surface, fontSize: 13, fontWeight: '600', marginTop: 6 }}>
                     Uploading Banner...
                   </Text>
                 </View>
@@ -517,7 +518,7 @@ export function SettingsScreen() {
               style={styles.pickerOptionBtn}
               onPress={() => pickerModalType && launchCameraPicker(pickerModalType)}
             >
-              <View style={[styles.pickerOptionIcon, { backgroundColor: '#FFF5F0' }]}>
+              <View style={[styles.pickerOptionIcon, { backgroundColor: colors.primarySoft }]}>
                 <Ionicons name="camera" size={22} color="#FF6B00" />
               </View>
               <View style={{ flex: 1 }}>
@@ -562,20 +563,20 @@ const styles = StyleSheet.create({
   header: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    backgroundColor: '#fff',
+    borderBottomColor: colors.border,
+    backgroundColor: colors.surface,
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   scrollView: {
     flex: 1,
     padding: 16,
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
@@ -593,8 +594,8 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   profileSection: {
     flexDirection: 'row',
@@ -612,14 +613,14 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     borderWidth: 2,
-    borderColor: '#FF6B00',
-    backgroundColor: '#FFF5F0',
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
   },
   avatarPlaceholder: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#FFF5F0',
+    backgroundColor: colors.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
@@ -640,19 +641,19 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     width: 32,
     height: 32,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: colors.surface,
   },
   changePhotoButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF5F0',
+    backgroundColor: colors.primarySoft,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
@@ -662,8 +663,8 @@ const styles = StyleSheet.create({
   },
   changePhotoText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#FF6B00',
+    fontFamily: fonts.bold,
+    color: colors.primary,
   },
   bannerContainer: {
     height: 140,
@@ -695,8 +696,8 @@ const styles = StyleSheet.create({
   },
   bannerPlaceholderText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#FF6B00',
+    fontFamily: fonts.bold,
+    color: colors.primary,
   },
   bannerEditBadge: {
     position: 'absolute',
@@ -711,9 +712,9 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   bannerEditBadgeText: {
-    color: '#fff',
+    color: colors.surface,
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: fonts.bold,
   },
   bannerLoadingOverlay: {
     position: 'absolute',
@@ -731,7 +732,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   pickerModalSheet: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 22,
@@ -739,14 +740,14 @@ const styles = StyleSheet.create({
   },
   pickerModalTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
+    fontFamily: fonts.bold,
+    color: colors.text,
     marginBottom: 4,
   },
   pickerModalSubtitle: {
     fontSize: 13,
-    color: '#6B7280',
-    marginBottom: 18,
+    color: colors.textSecondary,
+    marginBottom: 18, fontFamily: fonts.regular,
   },
   pickerOptionBtn: {
     flexDirection: 'row',
@@ -754,7 +755,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderRadius: 12,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.canvas,
     marginBottom: 10,
     gap: 14,
   },
@@ -767,24 +768,24 @@ const styles = StyleSheet.create({
   },
   pickerOptionTitle: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#111827',
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   pickerOptionDesc: {
     fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
+    color: colors.textSecondary,
+    marginTop: 2, fontFamily: fonts.regular,
   },
   pickerCancelBtn: {
     marginTop: 6,
     paddingVertical: 13,
     borderRadius: 12,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.canvas,
     alignItems: 'center',
   },
   pickerCancelText: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: fonts.bold,
     color: '#374151',
   },
   formRow: {
@@ -796,7 +797,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
     color: '#374151',
     marginBottom: 4,
   },
@@ -807,15 +808,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     fontSize: 15,
-    color: '#111827',
-    backgroundColor: '#fff',
+    color: colors.text,
+    backgroundColor: colors.surface, fontFamily: fonts.regular,
   },
   textArea: {
     height: 80,
     textAlignVertical: 'top',
   },
   saveButton: {
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -824,8 +825,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   saveButtonText: {
-    color: '#fff',
+    color: colors.surface,
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: fonts.bold,
   },
 });
