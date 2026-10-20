@@ -10,7 +10,7 @@ import { LOCATION_COORDS_KEY, LOCATION_NAME_KEY } from '../utils/location';
 import { useCart } from '../context/CartContext';
 import { EmptyState, ErrorState, ScreenHeader, Skeleton } from '../components/common';
 import { FoodCard } from '../components/cards';
-import { colors, radius, spacing } from '../theme';
+import { colors, radius, spacing, fonts } from '../theme';
 import { SERVICE_RADIUS_KM } from '../config/serviceArea';
 
 export default function AllMenusScreen() {
@@ -236,7 +236,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.surfaceMuted,
   },
-  searchInput: { flex: 1, fontSize: 15, color: colors.text },
+  searchInput: { flex: 1, fontSize: 15, color: colors.text, fontFamily: fonts.regular,
+  },
   listContent: { padding: spacing.screen, gap: spacing.md, paddingBottom: spacing.xxxl },
   skeletonGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, padding: spacing.screen },
 });
