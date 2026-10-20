@@ -57,7 +57,7 @@ export default function App() {
       <AuthProvider>
         <CartProvider>
           <NavigationContainer>
-            <StatusBar style="dark" />
+            <StatusBar barStyle="dark-content" backgroundColor="#FBF7F1" />
             <RootNavigator />
             <Toast />
           </NavigationContainer>
