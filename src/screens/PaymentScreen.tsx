@@ -10,7 +10,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { Button, Card, IconButton, Notice, StickyFooter } from '../components/common';
-import { colors, formatPrice, radius, spacing, type as typo } from '../theme';
+import { colors, formatPrice, radius, spacing, type as typo, fonts } from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteType = RouteProp<RootStackParamList, 'Payment'>;
@@ -38,7 +38,7 @@ export default function PaymentScreen() {
         contact: user?.phone || '',
         name: user?.name || '',
       },
-      theme: { color: '#FF6B00' },
+      theme: { color: colors.primary },
     };
 
     try {
@@ -144,7 +144,8 @@ const styles = StyleSheet.create({
   header: { height: 56, flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.screen, backgroundColor: colors.surface, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   content: { flex: 1, padding: spacing.screen },
   amountCard: { alignItems: 'center', paddingVertical: spacing.xxl },
-  amountValue: { ...typo.display, fontSize: 32, lineHeight: 40, color: colors.text, marginVertical: spacing.xs, fontVariant: ['tabular-nums'] },
+  amountValue: { ...typo.display, fontSize: 32, lineHeight: 40, color: colors.text, marginVertical: spacing.xs, fontVariant: ['tabular-nums'], fontFamily: fonts.regular,
+  },
   label: { marginTop: spacing.xxl, marginBottom: spacing.sm, marginLeft: spacing.xs },
   method: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   methodIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
