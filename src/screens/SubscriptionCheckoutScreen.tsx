@@ -17,7 +17,6 @@ import RazorpayCheckout, { isRazorpayAvailable } from '../utils/razorpay';
 import api, { API_ENDPOINTS } from '../config/api';
 import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../navigation/RootNavigator';
-import { OnlinePaymentModal } from '../components/OnlinePaymentModal';
 import { colors, fonts } from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
