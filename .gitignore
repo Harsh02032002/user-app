@@ -45,3 +45,6 @@ app-example
 /android/.gradle
 /android/local.properties
 
+
+# Local machine settings (LAN IP for Expo Go)
+.env
