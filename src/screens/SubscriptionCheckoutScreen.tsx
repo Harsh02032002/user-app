@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import RazorpayCheckout from '../utils/razorpay';
+import RazorpayCheckout, { isRazorpayAvailable } from '../utils/razorpay';
 import api, { API_ENDPOINTS } from '../config/api';
 import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../navigation/RootNavigator';
@@ -43,7 +43,6 @@ export default function SubscriptionCheckoutScreen() {
   const [useWallet, setUseWallet] = useState(true);
   const [breakdown, setBreakdown] = useState<PaymentBreakdown | null>(null);
   const [razorpayOrderId, setRazorpayOrderId] = useState<string | null>(null);
-  const [onlineModalVisible, setOnlineModalVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -81,8 +80,8 @@ export default function SubscriptionCheckoutScreen() {
   const fetchWalletBalance = React.useCallback(async () => {
     try {
       setError(null);
-      // Get user wallet balance - same as web app
-      const response = await api.get('/user/wallet');
+      // Same balance source as the Wallet tab
+      const response = await api.get('/user/wallet/transactions');
       const balance = response.data?.balance || response.data?.data?.balance || 0;
       setWalletBalance(balance);
       calculateBreakdown(balance, useWallet);
@@ -103,14 +102,7 @@ export default function SubscriptionCheckoutScreen() {
 
   const verifyHybridPayment = React.useCallback(async (paymentData: any, rzOrderId: string) => {
     try {
-      // Step 1: Verify payment with Razorpay
-      await api.post(API_ENDPOINTS.VERIFY_RAZORPAY_PAYMENT, {
-        razorpayOrderId: rzOrderId,
-        razorpayPaymentId: paymentData.razorpay_payment_id,
-        razorpaySignature: paymentData.razorpay_signature,
-      });
-
-      // Step 2: Finalize subscription purchase
+      // The server checks the Razorpay signature and the amount paid before activating
       await api.post(API_ENDPOINTS.PURCHASE_SUBSCRIPTION, {
         planId,
         sellerId: homeChefId,
@@ -167,37 +159,6 @@ export default function SubscriptionCheckoutScreen() {
     }
   }, [planId, homeChefId, amount, durationDays, planName, homeChefName, navigation]);
 
-  const handleOnlineSuccess = React.useCallback(async (txnId?: string) => {
-    try {
-      setProcessing(true);
-      await api.post(API_ENDPOINTS.PURCHASE_SUBSCRIPTION, {
-        planId,
-        sellerId: homeChefId,
-        totalAmount: amount,
-        totalDays: durationDays,
-        usedWallet: useWallet && (breakdown?.walletAmount || 0) > 0,
-        walletAmount: breakdown?.walletAmount || 0,
-        razorpay_payment_id: txnId || `UPI_${Date.now()}`,
-      });
-
-      await refreshProfile();
-      Alert.alert(
-        'Subscription Activated!',
-        `Your ${planName} subscription with ${homeChefName} is now active!`,
-        [
-          {
-            text: 'View Subscriptions',
-            onPress: () => navigation.navigate('Subscriptions'),
-          },
-        ]
-      );
-    } catch (error: any) {
-      Alert.alert('Error', error?.response?.data?.message || 'Subscription payment verification failed');
-    } finally {
-      setProcessing(false);
-    }
-  }, [planId, homeChefId, amount, durationDays, useWallet, breakdown, planName, homeChefName, navigation, refreshProfile]);
-
   const handlePayment = React.useCallback(async () => {
     if (!breakdown) return;
     
@@ -208,8 +169,39 @@ export default function SubscriptionCheckoutScreen() {
       return;
     }
 
-    setOnlineModalVisible(true);
-  }, [breakdown, verifyWalletPayment]);
+    if (!isRazorpayAvailable()) {
+      Alert.alert(
+        'Online payment unavailable',
+        `Online payment isn't available in this build. Add ₹${breakdown.razorpayAmount} more to your wallet, or buy this plan from the installed Dabba Nation app.`
+      );
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      const { data } = await api.post(API_ENDPOINTS.CREATE_RAZORPAY_ORDER, { amount: breakdown.razorpayAmount });
+      const rzOrderId = data?.orderId;
+      if (!rzOrderId) throw new Error(data?.message || 'Could not start the payment');
+      const paymentData = await RazorpayCheckout.open({
+        description: `${planName} with ${homeChefName}`,
+        currency: 'INR',
+        key: data.key || API_ENDPOINTS.RAZORPAY_KEY,
+        amount: data.amount,
+        name: 'Dabba Nation',
+        order_id: rzOrderId,
+        prefill: { email: user?.email || '', contact: user?.phone || '', name: user?.name || '' },
+        theme: { color: '#FF6B00' },
+      });
+      await verifyHybridPayment(paymentData, rzOrderId);
+    } catch (error: any) {
+      // code 2 = closed by the customer
+      if (error?.code !== 2) {
+        Alert.alert('Payment not completed', error?.response?.data?.message || error?.description || error?.message || 'Please try again');
+      }
+    } finally {
+      setProcessing(false);
+    }
+  }, [breakdown, verifyWalletPayment, verifyHybridPayment, planName, homeChefName, user]);
 
   // Show loading state with UI skeleton to prevent blank screen
   if (loading && !mounted) {
@@ -381,13 +373,6 @@ export default function SubscriptionCheckoutScreen() {
         </TouchableOpacity>
       </View>
 
-      <OnlinePaymentModal
-        visible={onlineModalVisible}
-        onClose={() => setOnlineModalVisible(false)}
-        amount={breakdown?.razorpayAmount || amount}
-        title="Pay Online for Subscription"
-        onPaymentSuccess={handleOnlineSuccess}
-      />
     </SafeAreaView>
   );
 }
