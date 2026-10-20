@@ -25,7 +25,8 @@ const getBaseUrl = () => {
     (Constants as any).manifest?.debuggerHost ||
     (Constants as any).manifest2?.extra?.expoGo?.debuggerHost;
   if (hostUri) return `http://${hostUri.split(':')[0]}:${API_PORT}/api`;
-  return `http://172.20.10.3:${API_PORT}/api`;
+  // Installed (release) builds have no dev host: use the live API
+  return 'https://dabbanation.in/api';
 };
 
 export const BASE_URL = getBaseUrl();
@@ -84,7 +85,7 @@ const getBackendOrigin = (): string => {
     const ip = hostUri.split(':')[0];
     if (ip) return `http://${ip}:${API_PORT}`;
   }
-  return `http://172.20.10.3:${API_PORT}`;
+  return 'https://dabbanation.in';
 };
 
 // Helper to get full image URL
