@@ -9,10 +9,23 @@ const API_PORT = process.env.EXPO_PUBLIC_API_PORT || '5000';
 // Same resolution as services/api.ts so every screen talks to one backend:
 // web dev -> localhost:5000, Expo Go -> the dev machine on the LAN, release builds -> live API
 const getBaseUrl = () => {
-  if (Platform.OS === 'web') return `http://localhost:${API_PORT}/api`;
-  const hostUri = Constants.expoConfig?.hostUri;
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined' && window.location?.hostname) {
+      const proto = window.location.protocol || 'http:';
+      return `${proto}//${window.location.hostname}:${API_PORT}/api`;
+    }
+    return `http://localhost:${API_PORT}/api`;
+  }
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    const raw = process.env.EXPO_PUBLIC_API_URL.replace(/\/+$/, '');
+    return raw.endsWith('/api') ? raw : `${raw}/api`;
+  }
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    (Constants as any).manifest?.debuggerHost ||
+    (Constants as any).manifest2?.extra?.expoGo?.debuggerHost;
   if (hostUri) return `http://${hostUri.split(':')[0]}:${API_PORT}/api`;
-  return 'https://dabbanation.in/api';
+  return `http://172.20.10.3:${API_PORT}/api`;
 };
 
 export const BASE_URL = getBaseUrl();
@@ -56,17 +69,22 @@ export const getSubscriptionPlanImage = (plan: any): any => {
 };
 
 const getBackendOrigin = (): string => {
-  if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      return 'http://localhost:5000';
-    }
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.hostname) {
+    const proto = window.location.protocol || 'http:';
+    return `${proto}//${window.location.hostname}:${API_PORT}`;
   }
-  const hostUri = Constants.expoConfig?.hostUri;
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL.replace(/\/api\/?$/, '');
+  }
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    (Constants as any).manifest?.debuggerHost ||
+    (Constants as any).manifest2?.extra?.expoGo?.debuggerHost;
   if (hostUri) {
     const ip = hostUri.split(':')[0];
-    if (ip) return `http://${ip}:5000`;
+    if (ip) return `http://${ip}:${API_PORT}`;
   }
-  return 'https://dabbanation.in';
+  return `http://172.20.10.3:${API_PORT}`;
 };
 
 // Helper to get full image URL
