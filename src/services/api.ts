@@ -27,7 +27,8 @@ const getApiBaseUrl = () => {
     const ip = hostUri.split(':')[0];
     return `http://${ip}:${API_PORT}/api`;
   }
-  return `http://172.20.10.3:${API_PORT}/api`;
+  // Installed (release) builds have no dev host: use the live API
+  return 'https://dabbanation.in/api';
 };
 
 const API_BASE_URL = getApiBaseUrl();
