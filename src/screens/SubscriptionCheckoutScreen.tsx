@@ -18,6 +18,7 @@ import api, { API_ENDPOINTS } from '../config/api';
 import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { OnlinePaymentModal } from '../components/OnlinePaymentModal';
+import { colors, fonts } from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteType = RouteProp<RootStackParamList, 'SubscriptionCheckout'>;
@@ -290,7 +291,7 @@ export default function SubscriptionCheckoutScreen() {
           >
             <View style={styles.walletHeader}>
               <View style={styles.walletIcon}>
-                <Ionicons name="wallet" size={24} color={useWallet ? '#FF6B00' : '#666'} />
+                <Ionicons name="wallet" size={24} color={useWallet ? colors.primary : colors.textSecondary} />
               </View>
               <View style={styles.walletInfo}>
                 <Text style={styles.walletTitle}>Use Wallet Balance</Text>
@@ -394,13 +395,13 @@ export default function SubscriptionCheckoutScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
   },
   header: {
     flexDirection: 'row',
@@ -409,19 +410,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: colors.border,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   content: {
     flex: 1,
     padding: 20,
   },
   planCard: {
-    backgroundColor: '#FFF5F0',
+    backgroundColor: colors.primarySoft,
     borderRadius: 16,
     padding: 24,
     alignItems: 'center',
@@ -438,14 +439,14 @@ const styles = StyleSheet.create({
   },
   planName: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
     marginBottom: 4,
   },
   planSubtitle: {
     fontSize: 14,
-    color: '#666',
-    marginBottom: 12,
+    color: colors.textSecondary,
+    marginBottom: 12, fontFamily: fonts.regular,
   },
   planMeta: {
     flexDirection: 'row',
@@ -458,19 +459,19 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 13,
-    color: '#666',
+    color: colors.textSecondary, fontFamily: fonts.regular,
   },
   walletCard: {
-    backgroundColor: '#f9f9f9',
+    backgroundColor: colors.canvas,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#eee',
+    borderColor: colors.border,
   },
   walletCardActive: {
-    backgroundColor: '#FFF5F0',
-    borderColor: '#FF6B00',
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary,
   },
   walletHeader: {
     flexDirection: 'row',
@@ -490,37 +491,37 @@ const styles = StyleSheet.create({
   },
   walletTitle: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   walletBalance: {
     fontSize: 13,
-    color: '#666',
-    marginTop: 2,
+    color: colors.textSecondary,
+    marginTop: 2, fontFamily: fonts.regular,
   },
   checkbox: {
     width: 24,
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#ddd',
+    borderColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
   checkboxActive: {
-    backgroundColor: '#FF6B00',
-    borderColor: '#FF6B00',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   breakdownCard: {
-    backgroundColor: '#f9f9f9',
+    backgroundColor: colors.canvas,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
   },
   breakdownTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
     marginBottom: 16,
   },
   breakdownRow: {
@@ -531,41 +532,41 @@ const styles = StyleSheet.create({
   },
   breakdownLabel: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary, fontFamily: fonts.regular,
   },
   breakdownValue: {
     fontSize: 14,
-    color: '#1a1a1a',
-    fontWeight: '500',
+    color: colors.text,
+    fontFamily: fonts.medium,
   },
   successText: {
-    color: '#22C55E',
+    color: colors.success,
   },
   divider: {
     height: 1,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: colors.border,
     marginVertical: 12,
   },
   totalLabel: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   totalValue: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FF6B00',
+    fontFamily: fonts.bold,
+    color: colors.primary,
   },
   paymentMethodCard: {
-    backgroundColor: '#f9f9f9',
+    backgroundColor: colors.canvas,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
   },
   paymentMethodTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
     marginBottom: 12,
   },
   methodRow: {
@@ -585,13 +586,13 @@ const styles = StyleSheet.create({
   },
   methodName: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   methodDesc: {
     fontSize: 13,
-    color: '#666',
-    marginTop: 2,
+    color: colors.textSecondary,
+    marginTop: 2, fontFamily: fonts.regular,
   },
   securityNote: {
     flexDirection: 'row',
@@ -605,32 +606,32 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 12,
     fontSize: 13,
-    color: '#1a1a1a',
-    lineHeight: 18,
+    color: colors.text,
+    lineHeight: 18, fontFamily: fonts.regular,
   },
   bottomContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     padding: 20,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: colors.border,
   },
   totalContainer: {
     marginBottom: 12,
   },
   totalAmountLabel: {
     fontSize: 14,
-    color: '#888',
+    color: colors.textTertiary, fontFamily: fonts.regular,
   },
   totalAmountValue: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   payButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     borderRadius: 12,
     padding: 16,
   },
@@ -638,39 +639,39 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFB380',
   },
   payButtonText: {
-    color: '#fff',
+    color: colors.surface,
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: fonts.bold,
     marginRight: 8,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary, fontFamily: fonts.regular,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
   },
   errorText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#666',
+    color: colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 24, fontFamily: fonts.regular,
   },
   retryButton: {
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 8,
   },
   retryText: {
-    color: '#fff',
+    color: colors.surface,
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: fonts.bold,
   },
 });
