@@ -12,7 +12,10 @@ import {
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { DeliveryOtpCard } from '../components/DeliveryOtpCard';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import api from '../services/api';
+import { colors, fonts, radius, spacing, type } from '../theme';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { extractCoordinates, getCurrentCoordinates } from '../utils/location';
 import { DeliveryMap } from '../components/common/DeliveryMap';
@@ -86,10 +89,24 @@ const PAYMENT_STATUS_LABEL: Record<string, string> = {
 
 const formatRupees = (n: number) => `Rs. ${(Number(n) || 0).toFixed(2).replace(/\.00$/, '')}`;
 
+const STAGES = ['Placed', 'Accepted', 'Cooking', 'On the way', 'Delivered'];
+
+/** One sentence per order stage, from the stored order status and the rider leg */
+const getStage = (status: string, deliveryStatus: string | null, riderName?: string) => {
+  if (status === 'cancelled') return { step: 0, title: 'Order cancelled', subtitle: 'If you paid online, the refund goes back to your original payment method.' };
+  if (status === 'delivered' || deliveryStatus === 'delivered') return { step: 4, title: 'Delivered. Enjoy your meal', subtitle: 'Rate the kitchen to help other neighbours choose.' };
+  if (status === 'out_for_delivery' || deliveryStatus === 'picked_up') return { step: 3, title: 'On the way to you', subtitle: riderName ? `${riderName} has picked up your food.` : 'Your food has been picked up.' };
+  if (status === 'ready') return { step: 2, title: 'Packed and ready', subtitle: deliveryStatus === 'arrived_at_restaurant' ? 'Your delivery partner is at the kitchen.' : 'Waiting for the delivery partner to pick it up.' };
+  if (status === 'preparing') return { step: 2, title: 'Being cooked', subtitle: riderName ? `${riderName} will pick it up when it's ready.` : 'The kitchen is cooking your order fresh.' };
+  if (status === 'confirmed') return { step: 1, title: 'Kitchen accepted your order', subtitle: 'Cooking starts shortly.' };
+  return { step: 0, title: 'Waiting for the kitchen to accept', subtitle: 'Home kitchens usually confirm within a few minutes.' };
+};
+
 export default function OrderDetailsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteType>();
   const { orderId } = route.params;
+  const insets = useSafeAreaInsets();
 
   const [loading, setLoading] = useState(true);
   const [order, setOrder] = useState<OrderDetails | null>(null);
@@ -207,11 +224,11 @@ export default function OrderDetailsScreen() {
       case 'out_for_delivery':
         return '#FF9800';
       case 'delivered':
-        return '#22C55E';
+        return colors.success;
       case 'cancelled':
-        return '#EF4444';
+        return colors.danger;
       default:
-        return '#888';
+        return colors.textTertiary;
     }
   };
 
@@ -297,7 +314,7 @@ export default function OrderDetailsScreen() {
         icon: 'storefront',
         title: 'Rider reached the kitchen',
         subtitle: 'Waiting to pick up your freshly prepared order',
-        bg: '#FFF7ED',
+        bg: colors.primarySoft,
         color: '#9A3412',
       };
     }
@@ -314,68 +331,56 @@ export default function OrderDetailsScreen() {
       icon: 'restaurant',
       title: 'Kitchen is preparing your order',
       subtitle: 'A delivery partner near the restaurant will be assigned shortly',
-      bg: '#FFF7ED',
+      bg: colors.primarySoft,
       color: '#9A3412',
     };
   };
 
   const liveBanner = getLiveStageBanner();
+  const stage = getStage(order.status, deliveryStatus, riderInfo?.name);
   const itemTotal = order.totalAmount ?? (order as any).subtotal ?? (order as any).total ?? 0;
   const delivCharges = order.deliveryCharges ?? (order as any).deliveryFee ?? 0;
   const totalPaid = order.onlineAmountPaid ?? (order as any).total ?? itemTotal + delivCharges;
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
+      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={10} accessibilityRole="button" accessibilityLabel="Go back">
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Order Details</Text>
+        <Text style={styles.headerTitle} numberOfLines={1}>Order #{order.orderNumber}</Text>
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Status Card */}
-        <View style={styles.statusCard}>
-          <View
-            style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status) + '20' }]}
-          >
-            <Text style={[styles.statusText, { color: getStatusColor(order.status) }]}>
-              {getStatusText(order.status)}
-            </Text>
-          </View>
-          <Text style={styles.orderNumber}>#{order.orderNumber}</Text>
-          <Text style={styles.orderDate}>{formatDate(order.createdAt)}</Text>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: spacing.xxxl }}>
+        {/* Status hero */}
+        <View style={styles.hero}>
+          <Text style={styles.heroOverline}>{formatDate(order.createdAt)}</Text>
+          <Text style={styles.heroTitle}>{stage.title}</Text>
+          <Text style={styles.heroSubtitle}>{stage.subtitle}</Text>
+          {order.status !== 'cancelled' ? (
+            <View style={styles.progress} accessibilityLabel={`Step ${stage.step + 1} of ${STAGES.length}: ${STAGES[stage.step]}`}>
+              {STAGES.map((label, i) => (
+                <View key={label} style={styles.progressItem}>
+                  <View style={[styles.progressBar, i <= stage.step && styles.progressBarDone]} />
+                  <Text style={[styles.progressLabel, i === stage.step && styles.progressLabelActive]} numberOfLines={1}>{label}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
         </View>
 
-        {/* Map & Live Delivery Tracking (Moved near top like Blinkit!) */}
-        {order.status !== 'cancelled' && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Live Order Tracking</Text>
+        {/* Code the customer gives the rider at handover */}
+        {order.status !== 'cancelled' && order.status !== 'delivered' && (order as any).deliveryOtp ? (
+          <View style={styles.otpWrap}>
+            <DeliveryOtpCard otp={(order as any).deliveryOtp} active={order.status === 'out_for_delivery'} />
+          </View>
+        ) : null}
 
-            {/* Blinkit-style Live Stage Banner */}
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: liveBanner.bg,
-                padding: 12,
-                borderRadius: 12,
-                marginBottom: 10,
-                gap: 10,
-              }}
-            >
-              <Ionicons name={liveBanner.icon as any} size={24} color={liveBanner.color} />
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: liveBanner.color }}>
-                  {liveBanner.title}
-                </Text>
-                <Text style={{ fontSize: 12, color: liveBanner.color, opacity: 0.85, marginTop: 2 }}>
-                  {liveBanner.subtitle}
-                </Text>
-              </View>
-            </View>
+        {/* Map & live delivery tracking */}
+        {order.status !== 'cancelled' && order.status !== 'delivered' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Live tracking</Text>
 
             <View style={styles.mapContainer}>
               <DeliveryMap
@@ -423,15 +428,13 @@ export default function OrderDetailsScreen() {
                     {riderInfo.name || 'Delivery Partner'}
                   </Text>
                   <Text style={{ fontSize: 12, color: '#15803D', marginTop: 1 }}>
-                    {riderInfo.vehicleType ? String(riderInfo.vehicleType).toUpperCase() : 'SCOOTER'}
-                    {riderInfo.vehicleNumber ? ` • ${riderInfo.vehicleNumber}` : ''}
-                    {' '}| Rating: {riderInfo.rating || '5.0'}
+                    {[riderInfo.vehicleType ? String(riderInfo.vehicleType) : null, riderInfo.vehicleNumber, riderInfo.rating ? `★ ${Number(riderInfo.rating).toFixed(1)}` : null].filter(Boolean).join(' · ') || 'Delivery partner'}
                   </Text>
                 </View>
                 {riderInfo.phone ? (
                   <TouchableOpacity
                     style={{
-                      backgroundColor: '#16A34A',
+                      backgroundColor: colors.success,
                       width: 36,
                       height: 36,
                       borderRadius: 18,
@@ -574,42 +577,49 @@ Invoice ${receipt.invoiceNumber}` : ''}
 }
 
 const styles = StyleSheet.create({
+  otpWrap: { marginHorizontal: spacing.screen, marginBottom: spacing.md },
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.canvas,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.canvas,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.canvas,
   },
   errorText: {
     fontSize: 16,
-    color: '#888',
+    color: colors.textTertiary, fontFamily: fonts.regular,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 16,
-    backgroundColor: '#fff',
+    gap: spacing.md,
+    paddingHorizontal: spacing.screen,
+    paddingBottom: spacing.md,
+    backgroundColor: colors.canvas,
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1a1a1a',
-  },
+  headerTitle: { flex: 1, textAlign: 'center', fontFamily: fonts.bold, fontSize: 16, color: colors.text },
+  hero: { marginHorizontal: spacing.screen, marginBottom: spacing.lg, padding: spacing.xl, borderRadius: radius.xl, backgroundColor: colors.inkSurface },
+  heroOverline: { fontFamily: fonts.bold, fontSize: 11, letterSpacing: 1, color: colors.textOnInkMuted, textTransform: 'uppercase' },
+  heroTitle: { fontFamily: fonts.display, fontSize: 26, lineHeight: 32, color: colors.textOnInk, marginTop: spacing.sm },
+  heroSubtitle: { ...type.body, color: colors.textOnInkMuted, marginTop: spacing.xs },
+  progress: { flexDirection: 'row', gap: 6, marginTop: spacing.xl },
+  progressItem: { flex: 1, gap: 6 },
+  progressBar: { height: 4, borderRadius: 2, backgroundColor: 'rgba(246,239,230,0.18)' },
+  progressBarDone: { backgroundColor: colors.primary },
+  progressLabel: { fontFamily: fonts.medium, fontSize: 10, color: colors.textOnInkMuted },
+  progressLabelActive: { fontFamily: fonts.heavy, color: colors.textOnInk },
   statusCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     padding: 20,
     alignItems: 'center',
     marginBottom: 12,
@@ -622,30 +632,28 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
   },
   orderNumber: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
     marginBottom: 4,
   },
   orderDate: {
     fontSize: 14,
-    color: '#888',
+    color: colors.textTertiary, fontFamily: fonts.regular,
   },
   section: {
-    backgroundColor: '#fff',
-    padding: 16,
-    marginBottom: 12,
+    backgroundColor: colors.surface,
+    padding: spacing.lg,
+    marginHorizontal: spacing.screen,
+    marginBottom: spacing.md,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#888',
-    marginBottom: 12,
-    textTransform: 'uppercase',
-  },
+  sectionTitle: { ...type.overline, marginBottom: spacing.md },
   sellerCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -654,7 +662,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#FFF5F0',
+    backgroundColor: colors.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -664,24 +672,24 @@ const styles = StyleSheet.create({
   },
   sellerName: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   sellerPhone: {
     fontSize: 14,
-    color: '#888',
-    marginTop: 2,
+    color: colors.textTertiary,
+    marginTop: 2, fontFamily: fonts.regular,
   },
   callBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#FFF5F0',
+    backgroundColor: colors.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
   itemsCard: {
-    backgroundColor: '#f9f9f9',
+    backgroundColor: colors.canvas,
     borderRadius: 12,
     padding: 12,
   },
@@ -691,7 +699,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: colors.border,
   },
   itemInfo: {
     flexDirection: 'row',
@@ -699,20 +707,20 @@ const styles = StyleSheet.create({
   },
   itemName: {
     fontSize: 14,
-    color: '#1a1a1a',
+    color: colors.text, fontFamily: fonts.regular,
   },
   itemQty: {
     fontSize: 13,
-    color: '#888',
-    marginLeft: 8,
+    color: colors.textTertiary,
+    marginLeft: 8, fontFamily: fonts.regular,
   },
   itemPrice: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#1a1a1a',
+    fontFamily: fonts.medium,
+    color: colors.text,
   },
   billCard: {
-    backgroundColor: '#f9f9f9',
+    backgroundColor: colors.canvas,
     borderRadius: 12,
     padding: 16,
   },
@@ -724,14 +732,14 @@ const styles = StyleSheet.create({
   },
   billLabel: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary, fontFamily: fonts.regular,
   },
   billValue: {
     fontSize: 14,
-    color: '#1a1a1a',
+    color: colors.text, fontFamily: fonts.regular,
   },
   subscriptionRow: {
-    backgroundColor: '#FFF5F0',
+    backgroundColor: colors.primarySoft,
     marginHorizontal: -16,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -739,33 +747,33 @@ const styles = StyleSheet.create({
   },
   subscriptionLabel: {
     fontSize: 14,
-    color: '#FF6B00',
-    fontWeight: '500',
+    color: colors.primary,
+    fontFamily: fonts.medium,
   },
   daysDeducted: {
     fontSize: 12,
-    color: '#FF6B00',
-    marginTop: 2,
+    color: colors.primary,
+    marginTop: 2, fontFamily: fonts.regular,
   },
   subscriptionValue: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#FF6B00',
+    fontFamily: fonts.bold,
+    color: colors.primary,
   },
   divider: {
     height: 1,
-    backgroundColor: '#ddd',
+    backgroundColor: colors.border,
     marginBottom: 12,
   },
   totalLabel: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   totalValue: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   paymentMethod: {
     flexDirection: 'row',
@@ -774,13 +782,13 @@ const styles = StyleSheet.create({
   },
   paymentMethodText: {
     fontSize: 12,
-    color: '#888',
-    marginLeft: 6,
+    color: colors.textTertiary,
+    marginLeft: 6, fontFamily: fonts.regular,
   },
   addressCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#f9f9f9',
+    backgroundColor: colors.canvas,
     borderRadius: 12,
     padding: 16,
   },
@@ -790,26 +798,26 @@ const styles = StyleSheet.create({
   },
   addressText: {
     fontSize: 14,
-    color: '#1a1a1a',
-    lineHeight: 20,
+    color: colors.text,
+    lineHeight: 20, fontFamily: fonts.regular,
   },
   addressCity: {
     fontSize: 13,
-    color: '#888',
-    marginTop: 4,
+    color: colors.textTertiary,
+    marginTop: 4, fontFamily: fonts.regular,
   },
   mapContainer: {
     height: 250,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: colors.border,
   },
   map: {
     flex: 1,
   },
   webMapWrapper: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
   },
   webMapButton: {
     position: 'absolute',
@@ -825,14 +833,14 @@ const styles = StyleSheet.create({
   },
   webMapButtonText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#FF6B00',
+    fontFamily: fonts.bold,
+    color: colors.primary,
   },
   mapHint: {
     fontSize: 12,
-    color: '#666',
+    color: colors.textSecondary,
     marginTop: 8,
-    lineHeight: 18,
+    lineHeight: 18, fontFamily: fonts.regular,
   },
   markerContainer: {
     alignItems: 'center',
@@ -841,11 +849,11 @@ const styles = StyleSheet.create({
   mapFallback: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.canvas,
   },
   mapFallbackText: {
     marginTop: 8,
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary, fontFamily: fonts.regular,
   },
 });

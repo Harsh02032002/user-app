@@ -7,7 +7,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Button, Card, EmptyState, ErrorState, Rating, ScreenHeader, SkeletonList, StickyFooter } from '../components/common';
-import { colors, formatPrice, radius, spacing, type } from '../theme';
+import { colors, formatPrice, radius, spacing, type, fonts } from '../theme';
 import api, { API_ENDPOINTS, getImageUrl } from '../config/api';
 import { api as userServicesApi } from '../services/api';
 import { LOCATION_COORDS_KEY, LOCATION_NAME_KEY } from '../utils/location';

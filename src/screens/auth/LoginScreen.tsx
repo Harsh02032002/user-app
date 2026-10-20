@@ -17,6 +17,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/RootNavigator';
 import { useAuth } from '../../context/AuthContext';
 import { Feather, Ionicons } from '@expo/vector-icons';
+import { colors, fonts } from '../../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -339,7 +340,7 @@ const styles = StyleSheet.create({
   },
   backText: {
     fontSize: 13,
-    color: '#666',
+    color: colors.textSecondary, fontFamily: fonts.regular,
   },
   logoContainer: {
     alignItems: 'center',
@@ -349,7 +350,7 @@ const styles = StyleSheet.create({
     width: 90,
     height: 90,
     borderRadius: 45,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
     ...Platform.select({
@@ -367,16 +368,16 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
     marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     textAlign: 'center',
-    paddingHorizontal: 10,
+    paddingHorizontal: 10, fontFamily: fonts.regular,
   },
   formContainer: {
     width: '100%',
@@ -395,13 +396,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modeTabActive: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     elevation: 2,
   },
   modeTabText: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#666',
+    fontFamily: fonts.bold,
+    color: colors.textSecondary,
   },
   modeTabTextActive: {
     color: '#E86F2A',
@@ -411,8 +412,8 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
     marginBottom: 8,
   },
   inputWrapper: {
@@ -429,11 +430,11 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 12,
     fontSize: 14,
-    color: '#1a1a1a',
+    color: colors.text, fontFamily: fonts.regular,
   },
   otpInput: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
     letterSpacing: 6,
   },
   forgotPasswordContainer: {
@@ -443,7 +444,7 @@ const styles = StyleSheet.create({
   forgotPasswordText: {
     fontSize: 13,
     color: '#E86F2A',
-    fontWeight: '500',
+    fontFamily: fonts.medium,
   },
   signInButton: {
     backgroundColor: '#E86F2A',
@@ -458,9 +459,9 @@ const styles = StyleSheet.create({
     })
   },
   buttonText: {
-    color: '#fff',
+    color: colors.surface,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
   },
   otpActionRow: {
     flexDirection: 'row',
@@ -471,13 +472,13 @@ const styles = StyleSheet.create({
   },
   changeAccountText: {
     fontSize: 13,
-    color: '#666',
-    fontWeight: '500',
+    color: colors.textSecondary,
+    fontFamily: fonts.medium,
   },
   resendOtpText: {
     fontSize: 13,
     color: '#E86F2A',
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
   registerLinkContainer: {
     flexDirection: 'row',
@@ -487,11 +488,11 @@ const styles = StyleSheet.create({
   },
   registerText: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary, fontFamily: fonts.regular,
   },
   registerLink: {
     fontSize: 14,
     color: '#E86F2A',
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
   },
 });

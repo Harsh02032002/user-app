@@ -8,7 +8,7 @@ import Toast from 'react-native-toast-message';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import api from '../services/api';
 import { Badge, Button, Card, EmptyState, ErrorState, ScreenHeader, SkeletonList, StickyFooter } from '../components/common';
-import { colors, radius, spacing, type } from '../theme';
+import { colors, radius, spacing, type, fonts } from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Addresses'>;
 

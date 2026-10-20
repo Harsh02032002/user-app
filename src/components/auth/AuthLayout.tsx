@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { colors, elevation, spacing, type } from '../../theme';
+import { colors, elevation, spacing, type, fonts } from '../../theme';
 import { IconButton } from '../common';
 
 /** Shared shell for sign-in, registration and OTP: cream canvas, logo, title, keyboard-safe scroll */
@@ -38,22 +38,24 @@ export const AuthLayout: React.FC<{
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.canvas },
   scroll: { flexGrow: 1, alignItems: 'center' },
-  inner: { width: '100%', maxWidth: 440, paddingHorizontal: spacing.xxl, paddingBottom: spacing.xxl },
+  inner: { width: '100%', maxWidth: 440, paddingHorizontal: spacing.screen + 4, paddingBottom: spacing.xxl },
   back: { marginTop: spacing.sm, marginLeft: -spacing.sm },
   logoCircle: {
-    alignSelf: 'center',
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: spacing.sm,
-    ...elevation.card,
+    marginTop: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    ...elevation.none,
   },
-  logo: { width: 96, height: 96, borderRadius: 48 },
-  title: { ...type.title, fontSize: 24, lineHeight: 30, textAlign: 'center', marginTop: spacing.xl },
-  subtitle: { ...type.small, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xs },
+  logo: { width: 64, height: 64, borderRadius: 32 },
+  title: { ...type.display, fontSize: 30, lineHeight: 36, marginTop: spacing.xl },
+  subtitle: { ...type.body, color: colors.textSecondary, marginTop: spacing.xs },
   form: { marginTop: spacing.xxl },
   footer: { marginTop: spacing.xl, alignItems: 'center' },
 });

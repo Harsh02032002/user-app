@@ -17,15 +17,17 @@ import {
 import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { DeliveryOtpCard } from '../../components/DeliveryOtpCard';
 import * as WebBrowser from 'expo-web-browser';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import { AppHeader } from '../../components/common/AppHeader';
-import { AppFooter } from '../../components/common/AppFooter';
+import { EmptyState, ErrorState, Skeleton } from '../../components/common';
+import { KitchenMark } from '../../components/cards';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DeliveryMap } from '../../components/common/DeliveryMap';
 import { trackOrder, untrackOrder, onAnyOrderUpdate } from '../../services/socket';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
+import { colors, fonts, formatPrice, orderStatusColors, radius, spacing, type } from '../../theme';
 
 const ORDERS_CACHE_KEY = 'orders_screen_cache';
 
@@ -50,6 +52,13 @@ interface Order {
 }
 
 const statusTabs = ['all', 'pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'cancelled'];
+const LIST_TABS = [
+  { key: 'active', label: 'Active' },
+  { key: 'delivered', label: 'Delivered' },
+  { key: 'cancelled', label: 'Cancelled' },
+  { key: 'all', label: 'All' },
+];
+const LIST_STEPS = ['pending', 'confirmed', 'preparing', 'out_for_delivery', 'delivered'];
 
 /** Orders that are still moving — Track is offered and the tracking view keeps syncing */
 const ACTIVE_STATUSES = ['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery'];
@@ -64,7 +73,7 @@ const getStatusColor = (status: string) => {
     case 'out_for_delivery': return '#FED7AA';
     case 'delivered': return '#D1FAE5';
     case 'cancelled': return '#FEE2E2';
-    default: return '#F3F4F6';
+    default: return colors.canvas;
   }
 };
 
@@ -76,7 +85,7 @@ const getStatusTextColor = (status: string) => {
     case 'ready': return '#0F766E';
     case 'out_for_delivery': return '#EA580C';
     case 'delivered': return '#065F46';
-    case 'cancelled': return '#DC2626';
+    case 'cancelled': return colors.danger;
     default: return '#374151';
   }
 };
@@ -130,7 +139,7 @@ export function OrdersScreen() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState('active');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showTrackingModal, setShowTrackingModal] = useState(false);
   const [trackingData, setTrackingData] = useState<any>(null);
@@ -150,7 +159,8 @@ export function OrdersScreen() {
       fetchOrders();
       loadUserLocation();
     });
-  }, [activeTab]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Keep the list in sync: refresh when coming back to the tab and on live status pushes
   useEffect(() => {
@@ -160,14 +170,15 @@ export function OrdersScreen() {
       if (data?.type === 'reconnected' || data?.orderId) fetchOrders(true);
     });
     return unsubscribe;
-  }, [isFocused, activeTab]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFocused]);
 
   // Stop tracking listeners/polling if the screen unmounts with the modal open
   useEffect(() => () => stopTracking(), []);
 
   const loadCachedData = async () => {
     try {
-      const cached = await AsyncStorage.getItem(ORDERS_CACHE_KEY + activeTab);
+      const cached = await AsyncStorage.getItem(ORDERS_CACHE_KEY + 'all');
       if (cached) {
         setOrders(JSON.parse(cached));
         setLoading(false);
@@ -183,10 +194,11 @@ export function OrdersScreen() {
     try {
       if (!silent) setLoading(true);
       setError(null);
-      const response = await api.user.getOrders(activeTab === 'all' ? undefined : activeTab);
+      // Tabs (Active / Delivered / Cancelled / All) filter on the device, so always load every order
+      const response = await api.user.getOrders(undefined);
       const ordersData = Array.isArray(response) ? response : response.orders || response.data || [];
       setOrders(ordersData);
-      await AsyncStorage.setItem(ORDERS_CACHE_KEY + activeTab, JSON.stringify(ordersData));
+      await AsyncStorage.setItem(ORDERS_CACHE_KEY + 'all', JSON.stringify(ordersData));
     } catch (err: any) {
       console.error('Error fetching orders:', err);
       if (!silent) setError(err.message || 'Failed to load orders');
@@ -417,11 +429,12 @@ export function OrdersScreen() {
                   styles.stepDot,
                   idx <= currentIdx ? styles.stepDotActive : styles.stepDotInactive
                 ]}>
-                  {idx <= currentIdx ? (
-                    <Ionicons name="checkmark" size={12} color="#fff" />
-                  ) : (
-                    <Text style={styles.stepDotTextInactive}>{idx + 1}</Text>
-                  )}
+                  <Text style={[
+                    styles.stepDotText,
+                    idx <= currentIdx ? styles.stepDotTextActive : styles.stepDotTextInactive
+                  ]}>
+                    {idx <= currentIdx ? '✓' : idx + 1}
+                  </Text>
                 </View>
                 <Text style={[
                   styles.stepLabel,
@@ -444,204 +457,132 @@ export function OrdersScreen() {
   };
 
   const renderOrderCard = (order: Order) => {
-    const sellerObj = typeof order.sellerId === 'object' ? order.sellerId : null;
-    const sellerName = sellerObj?.businessName || order.sellerName || 'Seller';
+    const sellerObj: any = typeof order.sellerId === 'object' ? order.sellerId : null;
+    const sellerName = sellerObj?.businessName || order.sellerName || 'Kitchen';
+    const status = orderStatusColors[order.status] || { bg: colors.surfaceMuted, fg: colors.textSecondary, label: order.status };
+    const isActive = ACTIVE_STATUSES.includes(order.status);
+    const step = LIST_STEPS.indexOf(order.status === 'ready' ? 'preparing' : order.status);
+    const summary = (order.items || []).map((i: any) => `${i.quantity} × ${i.name}`).join(', ');
+    const placed = new Date(order.createdAt);
+    const when = placed.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) + ', ' + placed.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
 
     return (
-      <View key={order._id} style={styles.orderCard}>
-        <View style={styles.orderHeader}>
-          <View style={styles.orderInfo}>
-            <Text style={styles.orderNumber}>{order.orderNumber}</Text>
-            {renderStatusBadge(order.status)}
+      <TouchableOpacity
+        key={order._id}
+        style={styles.card}
+        activeOpacity={0.9}
+        onPress={() => navigation.navigate('OrderDetails', { orderId: order._id })}
+        accessibilityRole="button"
+        accessibilityLabel={`Order from ${sellerName}, ${status.label}, ${formatPrice(order.total)}`}
+      >
+        <View style={styles.cardTop}>
+          <KitchenMark name={sellerName} logo={sellerObj?.logo} size={44} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={styles.cardKitchen} numberOfLines={1}>{sellerName}</Text>
+            <Text style={type.caption} numberOfLines={1}>{when} · #{order.orderNumber}</Text>
           </View>
-          <Text style={styles.orderPrice}>₹{order.total}</Text>
+          <Text style={styles.cardTotal}>{formatPrice(order.total)}</Text>
         </View>
 
-        <Text style={styles.sellerInfo}>
-          {sellerName} • {new Date(order.createdAt).toLocaleDateString('en-IN', { 
-            day: 'numeric', 
-            month: 'short', 
-            year: 'numeric' 
-          })}
-        </Text>
+        <Text style={[type.small, styles.cardItems]} numberOfLines={2}>{summary}</Text>
 
-        {/* Order Items */}
-        <View style={styles.itemsContainer}>
-          {order.items.map((item, idx) => (
-            <View key={idx} style={styles.itemCard}>
-              {item.image && (
-                <Image source={{ uri: item.image }} style={styles.itemImage} />
-              )}
-              <Text style={styles.itemText}>{item.name} x{item.quantity}</Text>
-            </View>
-          ))}
+        <View style={styles.statusRow}>
+          <View style={[styles.statusDot, { backgroundColor: status.fg }]} />
+          <Text style={[styles.statusLabel, { color: status.fg }]}>{status.label}</Text>
+          {(order as any).paymentStatus === 'pending' && order.paymentMethod !== 'cod' && order.status !== 'cancelled' ? (
+            <Text style={type.caption}>· payment being confirmed</Text>
+          ) : null}
         </View>
-
-        {/* Order Tracker */}
-        {renderOrderTracker(order)}
-
-        {/* Live status summary */}
-        {['confirmed', 'preparing', 'ready', 'out_for_delivery'].includes(order.status) && (
-          <View style={styles.trackingSection}>
-            <View style={styles.trackingHeader}>
-              <Ionicons name="bicycle" size={16} color="#FF6B00" />
-              <Text style={styles.trackingTitle}>
-                {order.status === 'out_for_delivery' ? 'Your order is on the way!' :
-                 order.deliveryStatus ? 'Delivery partner assigned' :
-                 order.status === 'ready' ? 'Food is ready!' :
-                 order.status === 'preparing' ? 'Being prepared...' : 'Order confirmed!'}
-              </Text>
-            </View>
+        {isActive && step >= 0 ? (
+          <View style={styles.miniProgress}>
+            {LIST_STEPS.map((k, i) => (
+              <View key={k} style={[styles.miniBar, i <= step && styles.miniBarDone]} />
+            ))}
           </View>
-        )}
+        ) : null}
 
-        {/* Subscription Info */}
-        {Boolean(order.subscriptionAmountUsed && order.subscriptionAmountUsed > 0) && (
-          <View style={styles.subscriptionInfo}>
-            <Text style={styles.subscriptionTitle}>Subscription Used</Text>
-            <Text style={styles.subscriptionAmount}>-₹{order.subscriptionAmountUsed}</Text>
-            {Boolean(order.subscriptionDaysDeducted && order.subscriptionDaysDeducted > 0) && (
-              <Text style={styles.subscriptionDays}>-{order.subscriptionDaysDeducted} days</Text>
-            )}
-            {Boolean(order.payableAfterSubscription && order.payableAfterSubscription > 0) && (
-              <Text style={styles.subscriptionPaid}>Paid: ₹{order.payableAfterSubscription}</Text>
-            )}
-          </View>
-        )}
-
-        <Text style={styles.paymentMethod}>
-          {order.paymentMethod?.replace('_', ' ').toUpperCase()}
-        </Text>
-
-        {/* Action Buttons */}
-        <View style={styles.actionButtons}>
-          {/* Rating Button */}
-          {order.status === 'delivered' && !order.rating && (
-            <TouchableOpacity style={styles.rateButton} onPress={() => handleRateOrder(order)}>
-              <Ionicons name="star-outline" size={14} color="#FF6B00" />
-              <Text style={styles.rateButtonText}>Rate Order</Text>
+        <View style={styles.actions}>
+          {isActive ? (
+            <TouchableOpacity style={styles.primaryAction} onPress={() => showOrderTracking(order)} accessibilityRole="button">
+              <Ionicons name="navigate" size={14} color={colors.textInverse} />
+              <Text style={styles.primaryActionText}>Track</Text>
             </TouchableOpacity>
-          )}
-
-          {/* Show Rating */}
-          {order.rating && (
-            <View style={styles.ratingDisplay}>
-              {[1,2,3,4,5].map(s => (
-                <Ionicons 
-                  key={s} 
-                  name={s <= order.rating! ? 'star' : 'star-outline'} 
-                  size={14} 
-                  color={s <= order.rating! ? '#FFD700' : '#999'} 
-                />
-              ))}
+          ) : null}
+          {order.status === 'delivered' && !order.rating ? (
+            <TouchableOpacity style={styles.primaryAction} onPress={() => handleRateOrder(order)} accessibilityRole="button">
+              <Ionicons name="star" size={14} color={colors.textInverse} />
+              <Text style={styles.primaryActionText}>Rate</Text>
+            </TouchableOpacity>
+          ) : null}
+          {order.rating ? (
+            <View style={styles.ratedPill}>
+              <Ionicons name="star" size={12} color={colors.rating} />
+              <Text style={styles.ratedText}>You rated {order.rating}</Text>
             </View>
-          )}
-
-          {/* Invoice Button */}
-          <TouchableOpacity style={styles.invoiceButton} onPress={() => downloadInvoice(order._id)}>
-            <Ionicons name="download-outline" size={14} color="#666" />
-            <Text style={styles.invoiceButtonText}>Invoice</Text>
+          ) : null}
+          <View style={{ flex: 1 }} />
+          <TouchableOpacity onPress={() => downloadInvoice(order._id)} hitSlop={8} accessibilityRole="button">
+            <Text style={styles.textAction}>Invoice</Text>
           </TouchableOpacity>
-
-          {/* Cancel Button */}
-          {['pending', 'confirmed', 'preparing'].includes(order.status) && (
-            <TouchableOpacity style={styles.cancelButton} onPress={() => handleCancelOrder(order)}>
-              <Ionicons name="close-circle-outline" size={14} color="#DC2626" />
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+          {['pending', 'confirmed', 'preparing'].includes(order.status) ? (
+            <TouchableOpacity onPress={() => handleCancelOrder(order)} hitSlop={8} accessibilityRole="button">
+              <Text style={[styles.textAction, { color: colors.danger }]}>Cancel</Text>
             </TouchableOpacity>
-          )}
-
-          {/* Track Button */}
-          {ACTIVE_STATUSES.includes(order.status) && (
-            <TouchableOpacity style={styles.trackButton} onPress={() => showOrderTracking(order)}>
-              <Ionicons name="location-outline" size={14} color="#fff" />
-              <Text style={styles.trackButtonText}>Track</Text>
-            </TouchableOpacity>
-          )}
+          ) : null}
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
-  const filteredOrders = orders.filter(order => 
-    activeTab === 'all' || order.status === activeTab
-  );
+  const filteredOrders = orders.filter((order) => {
+    if (activeTab === 'all') return true;
+    if (activeTab === 'active') return ACTIVE_STATUSES.includes(order.status);
+    return order.status === activeTab;
+  });
 
   return (
-    <SafeAreaView style={styles.container}>
-      <AppHeader showSearch={false} />
-      
-      <View style={styles.headerSection}>
-        <Text style={styles.pageTitle}>My Orders</Text>
-        <Text style={styles.orderCount}>{filteredOrders.length} orders</Text>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.pageHeader}>
+        <Text style={type.display}>Orders</Text>
+        <Text style={type.caption}>{orders.length ? `${orders.length} in total` : ''}</Text>
       </View>
 
-      {/* Status Tabs */}
-      <View style={styles.tabsSection}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsScrollContainer}>
-          {statusTabs.map(tab => {
-            const isActive = activeTab === tab;
-            const tabCount = orders.filter(order => tab === 'all' || order.status === tab).length;
-            
-            return (
-              <TouchableOpacity
-                key={tab}
-                style={[styles.filterTab, isActive && styles.activeFilterTab]}
-                onPress={() => setActiveTab(tab)}
-              >
-                <Text style={[styles.filterTabText, isActive && styles.activeFilterTabText]}>
-                  {tab.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                </Text>
-                <View style={[styles.tabBadge, isActive && styles.activeTabBadge]}>
-                  <Text style={[styles.tabBadgeText, isActive && styles.activeTabBadgeText]}>
-                    {tabCount}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+      <View style={styles.tabs}>
+        {LIST_TABS.map((tab) => {
+          const isActive = activeTab === tab.key;
+          const count = orders.filter((o) => (tab.key === 'all' ? true : tab.key === 'active' ? ACTIVE_STATUSES.includes(o.status) : o.status === tab.key)).length;
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              style={[styles.tab, isActive && styles.tabActive]}
+              onPress={() => setActiveTab(tab.key)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isActive }}
+            >
+              <Text style={[styles.tabText, isActive && styles.tabTextActive]}>{tab.label}{count ? ` ${count}` : ''}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
         {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#FF6B00" />
-            <Text style={styles.loadingText}>Loading orders...</Text>
+          <View style={{ gap: spacing.md }}>
+            {[0, 1, 2].map((i) => <Skeleton key={i} height={150} radius={radius.xl} />)}
           </View>
         ) : error ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="alert-circle-outline" size={64} color="#ff4444" />
-            <Text style={styles.emptyTitle}>Error loading orders</Text>
-            <Text style={styles.emptySubtitle}>{error}</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={() => fetchOrders()}>
-              <Text style={styles.retryButtonText}>Try Again</Text>
-            </TouchableOpacity>
-          </View>
+          <ErrorState title="Couldn't load your orders" message={error} onRetry={() => fetchOrders()} />
         ) : filteredOrders.length > 0 ? (
           filteredOrders.map(renderOrderCard)
         ) : (
-          <View style={styles.emptyState}>
-            <Ionicons name="bag-outline" size={64} color="#ccc" />
-            <Text style={styles.emptyTitle}>No orders found</Text>
-            <Text style={styles.emptySubtitle}>Start ordering delicious food!</Text>
-            <TouchableOpacity
-              style={styles.browseButton}
-              onPress={() => {
-                try {
-                  navigation.navigate('MainTabs', { screen: 'Home' });
-                } catch (_) {
-                  navigation.navigate('Home');
-                }
-              }}
-            >
-              <Text style={styles.browseButtonText}>Browse Food</Text>
-            </TouchableOpacity>
-          </View>
+          <EmptyState
+            icon="receipt-outline"
+            title={activeTab === 'active' ? 'Nothing cooking right now' : 'No orders here yet'}
+            subtitle={activeTab === 'active' ? 'Orders you place show up here while they’re being cooked and delivered.' : 'Your past orders will appear here.'}
+            actionText="Find something to eat"
+            onAction={() => navigation.navigate('MainTabs', { screen: 'Home' })}
+          />
         )}
-        <View style={{ height: 20 }} />
-        <AppFooter />
-        <View style={{ height: 120 }} />
       </ScrollView>
 
       {/* ─── Swiggy-Style Order Tracking Modal ─── */}
@@ -817,9 +758,18 @@ export function OrdersScreen() {
             {(trackingData?.status === 'delivered' || selectedOrder?.status === 'delivered') && (
               <View style={styles.trackingInfoRow}>
                 <Ionicons name="checkmark-circle" size={16} color="#16A34A" />
-                <Text style={[styles.trackingInfoText, { color: '#16A34A' }]}>
+                <Text style={[styles.trackingInfoText, { color: colors.success }]}>
                   Delivered{trackingData?.actualDelivery ? ` at ${new Date(trackingData.actualDelivery).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}` : ''}
                 </Text>
+              </View>
+            )}
+
+            {selectedOrder && !['cancelled', 'delivered'].includes(trackingData?.status || selectedOrder.status) && (
+              <View style={{ marginTop: 12 }}>
+                <DeliveryOtpCard
+                  otp={(trackingData as any)?.deliveryOtp || (selectedOrder as any)?.deliveryOtp}
+                  active={(trackingData?.status || selectedOrder.status) === 'out_for_delivery'}
+                />
               </View>
             )}
 
@@ -854,7 +804,7 @@ export function OrdersScreen() {
                   <Ionicons 
                     name={star <= rating ? 'star' : 'star-outline'} 
                     size={32} 
-                    color={star <= rating ? '#FFD700' : '#999'} 
+                    color={star <= rating ? '#FFD700' : colors.textTertiary} 
                   />
                 </TouchableOpacity>
               ))}
@@ -883,6 +833,31 @@ export function OrdersScreen() {
 }
 
 const styles = StyleSheet.create({
+  pageHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingHorizontal: spacing.screen, paddingTop: spacing.md },
+  tabs: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.screen, paddingVertical: spacing.lg },
+  tab: { height: 36, paddingHorizontal: spacing.md + 2, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, justifyContent: 'center' },
+  tabActive: { backgroundColor: colors.text, borderColor: colors.text },
+  tabText: { fontFamily: fonts.bold, fontSize: 13, color: colors.text },
+  tabTextActive: { color: colors.textInverse },
+  list: { paddingHorizontal: spacing.screen, paddingBottom: 120, gap: spacing.md },
+  card: { backgroundColor: colors.surface, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.border, padding: spacing.lg },
+  cardTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  cardKitchen: { fontFamily: fonts.bold, fontSize: 16, color: colors.text },
+  cardTotal: { fontFamily: fonts.heavy, fontSize: 16, color: colors.text },
+  cardItems: { color: colors.textSecondary, marginTop: spacing.md },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing.md },
+  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  statusLabel: { fontFamily: fonts.bold, fontSize: 13 },
+  miniProgress: { flexDirection: 'row', gap: 4, marginTop: spacing.sm },
+  miniBar: { flex: 1, height: 3, borderRadius: 2, backgroundColor: colors.surfaceSunken },
+  miniBarDone: { backgroundColor: colors.primary },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.lg, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.divider },
+  primaryAction: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 36, paddingHorizontal: spacing.lg, borderRadius: 10, backgroundColor: colors.text },
+  primaryActionText: { fontFamily: fonts.bold, fontSize: 13, color: colors.textInverse },
+  ratedPill: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  ratedText: { ...type.caption },
+  textAction: { fontFamily: fonts.bold, fontSize: 13, color: colors.textSecondary },
+
   container: {
     flex: 1,
     backgroundColor: '#F5F2E8',
@@ -893,16 +868,16 @@ const styles = StyleSheet.create({
   },
   pageTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
     marginBottom: 4,
   },
   orderCount: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary, fontFamily: fonts.regular,
   },
   tabsSection: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.canvas,
     paddingVertical: 8,
     paddingHorizontal: 4,
     marginHorizontal: 16,
@@ -924,7 +899,7 @@ const styles = StyleSheet.create({
     minHeight: 36,
   },
   activeFilterTab: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -933,15 +908,15 @@ const styles = StyleSheet.create({
   },
   filterTabText: {
     fontSize: 13,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
     color: '#6b7280',
   },
   activeFilterTabText: {
     color: '#1f2937',
-    fontWeight: '600',
+    fontFamily: fonts.bold,
   },
   tabBadge: {
-    backgroundColor: '#e5e7eb',
+    backgroundColor: colors.border,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 10,
@@ -949,15 +924,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   activeTabBadge: {
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
   },
   tabBadgeText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: fonts.bold,
     color: '#6b7280',
   },
   activeTabBadgeText: {
-    color: '#fff',
+    color: colors.surface,
   },
   scrollView: {
     flex: 1,
@@ -972,10 +947,10 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#666',
+    color: colors.textSecondary, fontFamily: fonts.regular,
   },
   orderCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
@@ -1000,14 +975,14 @@ const styles = StyleSheet.create({
   },
   orderNumber: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
     flexShrink: 1,
   },
   orderPrice: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
     textAlign: 'right',
   },
   statusBadge: {
@@ -1017,12 +992,12 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 10,
-    fontWeight: '600',
+    fontFamily: fonts.bold,
   },
   sellerInfo: {
     fontSize: 14,
-    color: '#666',
-    marginBottom: 12,
+    color: colors.textSecondary,
+    marginBottom: 12, fontFamily: fonts.regular,
   },
   itemsContainer: {
     flexDirection: 'row',
@@ -1033,7 +1008,7 @@ const styles = StyleSheet.create({
   itemCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.canvas,
     borderRadius: 8,
     padding: 8,
     gap: 8,
@@ -1045,7 +1020,7 @@ const styles = StyleSheet.create({
   },
   itemText: {
     fontSize: 14,
-    color: '#1a1a1a',
+    color: colors.text, fontFamily: fonts.regular,
   },
   trackerContainer: {
     marginVertical: 16,
@@ -1072,39 +1047,39 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   stepDotInactive: {
-    backgroundColor: '#e5e5e5',
+    backgroundColor: colors.border,
   },
   stepDotText: {
     fontSize: 10,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
   },
   stepDotTextActive: {
-    color: '#fff',
+    color: colors.surface,
   },
   stepDotTextInactive: {
-    color: '#999',
+    color: colors.textTertiary,
   },
   stepLabel: {
     fontSize: 10,
     textAlign: 'center',
-    lineHeight: 12,
+    lineHeight: 12, fontFamily: fonts.regular,
   },
   stepLabelActive: {
-    color: '#FF6B00',
-    fontWeight: '600',
+    color: colors.primary,
+    fontFamily: fonts.bold,
   },
   stepLabelInactive: {
-    color: '#999',
+    color: colors.textTertiary,
   },
   stepLine: {
     width: 24,
     height: 2,
   },
   stepLineActive: {
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
   },
   stepLineInactive: {
-    backgroundColor: '#e5e5e5',
+    backgroundColor: colors.border,
   },
   cancelledTracker: {
     flexDirection: 'row',
@@ -1116,12 +1091,12 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#DC2626',
+    backgroundColor: colors.danger,
   },
   cancelledText: {
     fontSize: 14,
-    color: '#DC2626',
-    fontWeight: '600',
+    color: colors.danger,
+    fontFamily: fonts.bold,
   },
   trackingSection: {
     backgroundColor: '#f0f9ff',
@@ -1139,7 +1114,7 @@ const styles = StyleSheet.create({
   },
   trackingTitle: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: fonts.bold,
     color: '#0369a1',
   },
   mapButton: {
@@ -1154,8 +1129,8 @@ const styles = StyleSheet.create({
   },
   mapButtonText: {
     fontSize: 12,
-    color: '#fff',
-    fontWeight: '600',
+    color: colors.surface,
+    fontFamily: fonts.bold,
   },
   subscriptionInfo: {
     backgroundColor: '#f0fdf4',
@@ -1167,20 +1142,20 @@ const styles = StyleSheet.create({
   },
   subscriptionTitle: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: fonts.bold,
     color: '#166534',
   },
   subscriptionAmount: {
     fontSize: 12,
-    color: '#16a34a',
+    color: '#16a34a', fontFamily: fonts.regular,
   },
   subscriptionDays: {
     fontSize: 12,
-    color: '#16a34a',
+    color: '#16a34a', fontFamily: fonts.regular,
   },
   subscriptionPaid: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: fonts.bold,
     color: '#166534',
     marginTop: 4,
     paddingTop: 4,
@@ -1189,8 +1164,8 @@ const styles = StyleSheet.create({
   },
   paymentMethod: {
     fontSize: 12,
-    color: '#666',
-    marginBottom: 16,
+    color: colors.textSecondary,
+    marginBottom: 16, fontFamily: fonts.regular,
   },
   actionButtons: {
     flexDirection: 'row',
@@ -1203,7 +1178,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#fff5f0',
     borderWidth: 1,
-    borderColor: '#FF6B00',
+    borderColor: colors.primary,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -1211,8 +1186,8 @@ const styles = StyleSheet.create({
   },
   rateButtonText: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#FF6B00',
+    fontFamily: fonts.bold,
+    color: colors.primary,
   },
   ratingDisplay: {
     flexDirection: 'row',
@@ -1221,7 +1196,7 @@ const styles = StyleSheet.create({
   invoiceButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.canvas,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -1229,15 +1204,15 @@ const styles = StyleSheet.create({
   },
   invoiceButtonText: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#666',
+    fontFamily: fonts.bold,
+    color: colors.textSecondary,
   },
   cancelButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fef2f2',
     borderWidth: 1,
-    borderColor: '#DC2626',
+    borderColor: colors.danger,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -1245,13 +1220,13 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#DC2626',
+    fontFamily: fonts.bold,
+    color: colors.danger,
   },
   trackButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -1259,8 +1234,8 @@ const styles = StyleSheet.create({
   },
   trackButtonText: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#fff',
+    fontFamily: fonts.bold,
+    color: colors.surface,
   },
   emptyState: {
     flex: 1,
@@ -1270,38 +1245,38 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
     marginTop: 16,
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 24, fontFamily: fonts.regular,
   },
   retryButton: {
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 25,
   },
   retryButtonText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
+    fontFamily: fonts.bold,
+    color: colors.surface,
   },
   browseButton: {
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 25,
   },
   browseButtonText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
+    fontFamily: fonts.bold,
+    color: colors.surface,
   },
   modalOverlay: {
     flex: 1,
@@ -1310,7 +1285,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   ratingModal: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 24,
     margin: 20,
@@ -1318,15 +1293,15 @@ const styles = StyleSheet.create({
   },
   ratingModalTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
     marginBottom: 8,
   },
   ratingModalSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 24, fontFamily: fonts.regular,
   },
   starsContainer: {
     flexDirection: 'row',
@@ -1342,25 +1317,25 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: colors.border,
   },
   ratingCancelText: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary, fontFamily: fonts.regular,
   },
   ratingSubmitButton: {
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
   },
   ratingSubmitDisabled: {
     backgroundColor: '#FFB380',
   },
   ratingSubmitText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
+    fontFamily: fonts.bold,
+    color: colors.surface,
   },
 
   // ─── Swiggy-Style Tracking Modal ───────────────
@@ -1370,7 +1345,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   trackingModalContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 20,
@@ -1386,17 +1361,17 @@ const styles = StyleSheet.create({
   },
   trackingModalTitle: {
     fontSize: 20,
-    fontWeight: '700',
-    color: '#111',
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   trackingModalOrderNum: {
     fontSize: 13,
-    color: '#FF6B00',
-    fontWeight: '600',
+    color: colors.primary,
+    fontFamily: fonts.bold,
     marginTop: 2,
   },
   trackingCloseBtn: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.canvas,
     borderRadius: 20,
     width: 36,
     height: 36,
@@ -1424,16 +1399,16 @@ const styles = StyleSheet.create({
   },
   trackingRiderName: {
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: '#166534',
   },
   trackingRiderVehicle: {
     fontSize: 12,
     color: '#15803D',
-    marginTop: 1,
+    marginTop: 1, fontFamily: fonts.regular,
   },
   trackingCallBtn: {
-    backgroundColor: '#16A34A',
+    backgroundColor: colors.success,
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -1463,18 +1438,18 @@ const styles = StyleSheet.create({
   },
   trackingSellerName: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#111',
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   trackingItemsText: {
     fontSize: 12,
-    color: '#888',
-    marginTop: 2,
+    color: colors.textTertiary,
+    marginTop: 2, fontFamily: fonts.regular,
   },
   trackingTotalBadge: {
     fontSize: 16,
-    fontWeight: '800',
-    color: '#FF6B00',
+    fontFamily: fonts.heavy,
+    color: colors.primary,
   },
   stepsContainer: {
     paddingTop: 8,
@@ -1492,7 +1467,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#22C55E',
+    backgroundColor: colors.success,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1500,10 +1475,10 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#FF6B00',
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
     shadowRadius: 8,
@@ -1513,18 +1488,18 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.border,
     borderWidth: 2,
     borderColor: '#D1D5DB',
   },
   stepConnector: {
     width: 2,
     flex: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.border,
     marginVertical: 4,
   },
   stepConnectorDone: {
-    backgroundColor: '#22C55E',
+    backgroundColor: colors.success,
   },
   stepRightCol: {
     flex: 1,
@@ -1533,27 +1508,27 @@ const styles = StyleSheet.create({
   },
   stepName: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#333',
+    fontFamily: fonts.bold,
+    color: colors.text,
     paddingTop: 4,
   },
   stepNameActive: {
-    color: '#FF6B00',
-    fontWeight: '700',
+    color: colors.primary,
+    fontFamily: fonts.bold,
     fontSize: 16,
   },
   stepNameDone: {
-    color: '#22C55E',
+    color: colors.success,
   },
   stepNamePending: {
-    color: '#9CA3AF',
-    fontWeight: '400',
+    color: colors.textTertiary,
+    fontFamily: fonts.regular,
   },
   stepActiveSubLabel: {
     fontSize: 12,
-    color: '#888',
+    color: colors.textTertiary,
     marginTop: 4,
-    lineHeight: 18,
+    lineHeight: 18, fontFamily: fonts.regular,
   },
   cancelledState: {
     alignItems: 'center',
@@ -1564,13 +1539,13 @@ const styles = StyleSheet.create({
   },
   cancelledStateTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#DC2626',
+    fontFamily: fonts.bold,
+    color: colors.danger,
     marginBottom: 6,
   },
   cancelledStateSubtitle: {
     fontSize: 13,
-    color: '#888',
+    color: colors.textTertiary, fontFamily: fonts.regular,
   },
   trackingInfoRow: {
     flexDirection: 'row',
@@ -1581,7 +1556,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.canvas,
   },
   trackingErrorRow: {
     backgroundColor: '#FEF2F2',
@@ -1589,8 +1564,8 @@ const styles = StyleSheet.create({
   trackingInfoText: {
     flex: 1,
     fontSize: 12,
-    fontWeight: '600',
-    color: '#4B5563',
+    fontFamily: fonts.bold,
+    color: colors.textSecondary,
   },
   trackingStatusBar: {
     flexDirection: 'row',
@@ -1607,11 +1582,11 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#22C55E',
+    backgroundColor: colors.success,
   },
   trackingStatusBarText: {
     fontSize: 12,
     color: '#15803D',
-    fontWeight: '600',
+    fontFamily: fonts.bold,
   },
 });

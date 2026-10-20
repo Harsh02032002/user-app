@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../../navigation/RootNavigator';
 import { Button, Card, Divider, ScreenHeader } from '../../components/common';
-import { colors, spacing, type as typo } from '../../theme';
+import { colors, spacing, type as typo, fonts } from '../../theme';
 
 type StaticPageScreenRouteProp = RouteProp<RootStackParamList, 'StaticPage'>;
 
