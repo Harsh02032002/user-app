@@ -44,9 +44,10 @@ const getSocketConfig = () => {
       path: '/socket.io',
     };
   }
+  // Installed (release) builds: live server, where Socket.IO sits behind /api
   return {
-    url: `http://172.20.10.3:${API_PORT}`,
-    path: '/socket.io',
+    url: 'https://dabbanation.in',
+    path: '/api/socket.io',
   };
 };
 
