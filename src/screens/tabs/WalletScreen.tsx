@@ -18,7 +18,7 @@ import api from '../../services/api';
 import { BottomSheet, Button, Card, Chip, Divider, EmptyState, ErrorState, ScreenHeader, Skeleton, SkeletonList } from '../../components/common';
 import { TAB_BAR_HEIGHT } from '../../components/common/MobileNavBar';
 import { colors, formatPrice, radius, spacing, type } from '../../theme';
-import { OnlinePaymentModal } from '../../components/OnlinePaymentModal';
+import RazorpayCheckout, { isRazorpayAvailable } from '../../utils/razorpay';
 
 interface Transaction {
   _id: string;
@@ -84,15 +84,49 @@ export function WalletScreen() {
     fetchWallet();
   };
 
+  // Server creates the Razorpay order, Razorpay takes the payment, the server verifies it and credits the wallet
   const handleTopup = async () => {
     const amount = parseInt(topupAmount);
     if (!amount || amount < 10) {
       Alert.alert('Enter an amount', 'The minimum top-up is ₹10.');
       return;
     }
-    setPendingTopupAmount(amount);
+    if (amount > 50000) {
+      Alert.alert('Amount too large', 'You can add up to ₹50,000 at a time.');
+      return;
+    }
+    if (!isRazorpayAvailable()) {
+      Alert.alert('Online payment unavailable', 'Adding money needs the installed Dabba Nation app.');
+      return;
+    }
     setTopupModalVisible(false);
-    setRazorpayModal(true);
+    setLoading(true);
+    try {
+      const order: any = await api.user.topupWallet(amount);
+      if (!order?.orderId) throw new Error(order?.message || 'Could not start the payment');
+      const paid: any = await RazorpayCheckout.open({
+        key: order.key,
+        amount: order.amount,
+        currency: order.currency || 'INR',
+        order_id: order.orderId,
+        name: 'Dabba Nation',
+        description: 'Add money to wallet',
+        theme: { color: colors.primary },
+      });
+      await api.user.verifyPayment({
+        razorpay_order_id: order.orderId,
+        razorpay_payment_id: paid.razorpay_payment_id,
+        razorpay_signature: paid.razorpay_signature,
+      });
+      Toast.show({ type: 'success', text1: 'Money added', text2: `${formatPrice(amount)} added to your wallet` });
+      setTopupAmount('');
+      fetchWallet();
+    } catch (err: any) {
+      // code 2 = closed by the customer
+      if (err?.code !== 2) Alert.alert('Money not added', err?.description || err?.message || 'Payment was not completed. You have not been charged.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleWebViewMessage = async (event: any) => {
@@ -236,29 +270,13 @@ export function WalletScreen() {
         )}
       </ScrollView>
 
-      {/* Online UPI QR Payment Modal */}
-      <OnlinePaymentModal
-        visible={razorpayModal}
-        onClose={() => setRazorpayModal(false)}
-        amount={pendingTopupAmount || 0}
-        title="Add money with UPI"
-        onPaymentSuccess={async (txnId) => {
-          if (pendingTopupAmount) {
-            setLoading(true);
-            // POST /user/wallet/topup expects { amount: number } (the UTR is not stored by the backend)
-            await api.user.topupWallet(pendingTopupAmount);
-            Toast.show({ type: 'success', text1: 'Money added', text2: `${formatPrice(pendingTopupAmount)} added to your wallet` });
-            fetchWallet();
-          }
-        }}
-      />
 
       {/* Add money */}
       <BottomSheet
         visible={topupModalVisible}
         onClose={() => setTopupModalVisible(false)}
         title="Add money"
-        subtitle="Pay by UPI and the amount is added to your wallet"
+        subtitle="Pay securely with UPI, card or net banking"
         scrollable={false}
         footer={<Button title={parsedAmount >= 10 ? `Add ${formatPrice(parsedAmount)}` : 'Add money'} onPress={handleTopup} disabled={!parsedAmount || parsedAmount < 10} fullWidth />}
       >
