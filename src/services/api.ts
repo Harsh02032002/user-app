@@ -258,6 +258,14 @@ export const api = {
         body: JSON.stringify({ currentPassword, newPassword }),
       });
     },
+
+    // Permanently delete the signed-in account (personal data erased, orders kept anonymised)
+    deleteAccount: async () => {
+      return apiRequest('/auth/account', {
+        method: 'DELETE',
+        body: JSON.stringify({ confirm: 'DELETE' }),
+      });
+    },
   },
 
   // User APIs (matching Dabba Delights userAPI exactly)
