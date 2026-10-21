@@ -23,14 +23,19 @@
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
+        "CAMERA",
         "POST_NOTIFICATIONS",
         "VIBRATE"
       ],
       "predictiveBackGestureEnabled": false,
       "package": "com.dabbnation.user",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
+      "allowBackup": false
     },
     "web": {
       "output": "single",
@@ -52,7 +57,15 @@
       "expo-location",
       "expo-web-browser",
       "expo-notifications",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Dabba Nation to use your photos for your profile picture.",
+          "cameraPermission": "Allow Dabba Nation to use the camera for your profile picture.",
+          "microphonePermission": false
+        }
+      ]
     ],
     "experiments": {
       "reactCompiler": true
