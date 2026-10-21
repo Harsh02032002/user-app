@@ -24,6 +24,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import { getImageUrl } from '../../services/api';
 import api from '../../services/api';
+import { deleteAccountFlow } from '../../utils/accountDeletion';
 
 interface UserProfile {
   name: string;
@@ -36,8 +37,8 @@ interface UserProfile {
 }
 
 export function SettingsScreen() {
-  const { user, updateProfile, refreshProfile, uploadAvatar, uploadBanner } = useAuth();
-  const navigation = useNavigation();
+  const { user, updateProfile, refreshProfile, uploadAvatar, uploadBanner, logout } = useAuth();
+  const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(false);
   const [uploadingType, setUploadingType] = useState<'profileImage' | 'banner' | null>(null);
   const [pickerModalType, setPickerModalType] = useState<'profileImage' | 'banner' | null>(null);
@@ -491,6 +492,34 @@ export function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Account: policies and deletion (Play Store requirement) */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="shield-checkmark-outline" size={20} color="#FF6B00" />
+            <Text style={styles.cardTitle}>Account</Text>
+          </View>
+          <TouchableOpacity style={styles.accountRow} onPress={() => navigation.navigate('StaticPage', { type: 'privacy' })} accessibilityRole="link">
+            <Ionicons name="document-text-outline" size={18} color="#4B5563" />
+            <Text style={styles.accountRowText}>Privacy policy</Text>
+            <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.accountRow} onPress={() => navigation.navigate('StaticPage', { type: 'terms' })} accessibilityRole="link">
+            <Ionicons name="reader-outline" size={18} color="#4B5563" />
+            <Text style={styles.accountRowText}>Terms of service</Text>
+            <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.accountRow} onPress={() => logout()} accessibilityRole="button">
+            <Ionicons name="log-out-outline" size={18} color="#4B5563" />
+            <Text style={styles.accountRowText}>Log out</Text>
+            <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.accountRow, { borderBottomWidth: 0 }]} onPress={() => deleteAccountFlow(logout)} accessibilityRole="button">
+            <Ionicons name="trash-outline" size={18} color="#DC2626" />
+            <Text style={[styles.accountRowText, { color: '#DC2626' }]}>Delete account</Text>
+            <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+          </TouchableOpacity>
+        </View>
+
         <View style={{ height: 20 }} />
         <AppFooter />
       </ScrollView>
@@ -594,6 +623,19 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 18,
     fontWeight: '600',
+    color: '#1a1a1a',
+  },
+  accountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  accountRowText: {
+    flex: 1,
+    fontSize: 15,
     color: '#1a1a1a',
   },
   profileSection: {
