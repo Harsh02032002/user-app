@@ -142,6 +142,10 @@ export function ProfileScreen() {
   const handleMenuAction = (action: string) => {
     if (action === 'logout') {
       logout();
+    } else if (action === 'terms') {
+      navigation.navigate('StaticPage', { type: 'privacy' });
+    } else if (action === 'help') {
+      navigation.navigate('StaticPage', { type: 'help' });
     } else if (action === 'personal') {
       navigation.navigate('Settings');
     }
