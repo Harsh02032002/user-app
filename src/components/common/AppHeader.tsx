@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import { deleteAccountFlow } from '../../utils/accountDeletion';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { useNavigation } from '@react-navigation/native';
@@ -174,6 +175,16 @@ export const AppHeader = React.memo(function AppHeader({ showSearch = true, show
               <Ionicons name="receipt-outline" size={18} color={colors.text} />
               <Text style={type.body}>My Orders</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setShowUserMenu(false);
+                navigation.navigate('StaticPage', { type: 'privacy' });
+              }}
+            >
+              <Ionicons name="document-text-outline" size={18} color={colors.text} />
+              <Text style={type.body}>Privacy & Terms</Text>
+            </TouchableOpacity>
             <View style={styles.menuDivider} />
             <TouchableOpacity
               style={styles.menuItem}
@@ -184,6 +195,16 @@ export const AppHeader = React.memo(function AppHeader({ showSearch = true, show
             >
               <Ionicons name="log-out-outline" size={18} color={colors.danger} />
               <Text style={[type.body, { color: colors.danger }]}>Log out</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setShowUserMenu(false);
+                deleteAccountFlow(logout);
+              }}
+            >
+              <Ionicons name="trash-outline" size={18} color={colors.danger} />
+              <Text style={[type.body, { color: colors.danger }]}>Delete account</Text>
             </TouchableOpacity>
           </View>
         </Pressable>
