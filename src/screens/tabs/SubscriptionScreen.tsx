@@ -17,7 +17,6 @@ import { api } from '../../services/api';
 import { AppFooter } from '../../components/common/AppFooter';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getImageUrl, getSubscriptionPlanImage } from '../../config/api';
-import { colors, fonts } from '../../theme';
 
 const SUB_CACHE_KEY = 'subscription_screen_cache';
 
@@ -482,7 +481,7 @@ export function SubscriptionScreen() {
 
                   <View style={[
                     styles.historyStatusBar, 
-                    { backgroundColor: plan.status === 'active' ? colors.success : colors.textSecondary }
+                    { backgroundColor: plan.status === 'active' ? '#4CAF50' : '#666' }
                   ]}>
                     <Text style={styles.historyStatusText}>{plan.status}</Text>
                   </View>
@@ -507,24 +506,24 @@ export function SubscriptionScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
   },
   header: {
     paddingHorizontal: 20,
     paddingTop: 60,
     paddingBottom: 15,
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: '#f0f0f0',
   },
   headerTitle: {
     fontSize: 22,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
     paddingHorizontal: 20,
     paddingVertical: 12,
     gap: 12,
@@ -533,34 +532,34 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 20,
     borderRadius: 8,
-    backgroundColor: colors.canvas,
+    backgroundColor: '#f5f5f5',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#e0e0e0',
   },
   activeTab: {
-    backgroundColor: colors.surface,
-    borderColor: colors.success,
+    backgroundColor: '#fff',
+    borderColor: '#4CAF50',
     borderWidth: 2,
   },
   tabText: {
     fontSize: 14,
-    fontFamily: fonts.bold,
-    color: colors.textSecondary,
+    fontWeight: '600',
+    color: '#666',
   },
   activeTabText: {
-    color: colors.success,
-    fontFamily: fonts.bold,
+    color: '#4CAF50',
+    fontWeight: 'bold',
   },
   scrollContent: {
     padding: 16,
   },
   activePlanCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 20,
     marginBottom: 16,
     borderWidth: 2,
-    borderColor: colors.success, // Website's green border
+    borderColor: '#4CAF50', // Website's green border
   },
   cardHeader: {
     flexDirection: 'row',
@@ -579,8 +578,8 @@ const styles = StyleSheet.create({
   },
   activeTitle: {
     fontSize: 20,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
   },
   chefInfo: {
     flexDirection: 'row',
@@ -590,23 +589,23 @@ const styles = StyleSheet.create({
   },
   chefName: {
     fontSize: 14,
-    color: colors.textSecondary, fontFamily: fonts.regular,
+    color: '#666',
   },
   planName: {
     fontSize: 16,
-    color: colors.textSecondary,
-    fontFamily: fonts.medium,
+    color: '#666',
+    fontWeight: '500',
   },
   activeBadge: {
-    backgroundColor: colors.success,
+    backgroundColor: '#4CAF50',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 20,
   },
   activeBadgeText: {
-    color: colors.surface,
+    color: '#fff',
     fontSize: 11,
-    fontFamily: fonts.bold,
+    fontWeight: 'bold',
   },
   progressSection: {
     marginBottom: 16,
@@ -618,17 +617,17 @@ const styles = StyleSheet.create({
   },
   progressLabel: {
     fontSize: 14,
-    color: colors.textTertiary,
-    fontFamily: fonts.medium,
+    color: '#888',
+    fontWeight: '500',
   },
   progressValue: {
     fontSize: 14,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
   },
   progressBar: {
     height: 10,
-    backgroundColor: colors.border,
+    backgroundColor: '#eee',
     borderRadius: 5,
     overflow: 'hidden',
   },
@@ -638,8 +637,8 @@ const styles = StyleSheet.create({
   },
   progressUsedText: {
     fontSize: 12,
-    color: colors.textTertiary,
-    marginTop: 4, fontFamily: fonts.regular,
+    color: '#999',
+    marginTop: 4,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -658,14 +657,14 @@ const styles = StyleSheet.create({
   },
   gridVal: {
     fontSize: 18,
-    fontFamily: fonts.bold,
-    color: colors.primary,
+    fontWeight: 'bold',
+    color: '#FF6B00',
   },
   gridLabel: {
     fontSize: 10,
     color: '#8b7355',
     marginTop: 4,
-    textAlign: 'center', fontFamily: fonts.regular,
+    textAlign: 'center',
   },
   activatedRow: {
     flexDirection: 'row',
@@ -673,12 +672,12 @@ const styles = StyleSheet.create({
     gap: 6,
     marginBottom: 20,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: '#f0f0f0',
     paddingTop: 15,
   },
   activatedText: {
     fontSize: 13,
-    color: colors.textTertiary, fontFamily: fonts.regular,
+    color: '#888',
   },
   viewItemsBtn: {
     backgroundColor: '#00897B', // Website's dark green button
@@ -690,20 +689,20 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   viewItemsText: {
-    color: colors.surface,
-    fontFamily: fonts.bold,
+    color: '#fff',
+    fontWeight: 'bold',
     fontSize: 14,
   },
   viewItemsPrice: {
     color: 'rgba(255,255,255,0.8)',
-    fontSize: 13, fontFamily: fonts.regular,
+    fontSize: 13,
   },
   plansContainer: {
     paddingBottom: 20,
     gap: 16,
   },
   premiumPlanCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
     borderRadius: 20,
     marginBottom: 24,
     overflow: 'hidden',
@@ -713,7 +712,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#f0f0f0',
   },
   planImageContainer: {
     height: 200,
@@ -722,7 +721,7 @@ const styles = StyleSheet.create({
   planImage: {
     width: '100%',
     height: '100%',
-    backgroundColor: colors.canvas,
+    backgroundColor: '#f5f5f5',
   },
   imageOverlay: {
     position: 'absolute',
@@ -735,24 +734,24 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.3)',
   },
   planNameTitle: {
-    color: colors.surface,
+    color: '#fff',
     fontSize: 22,
-    fontFamily: fonts.bold,
+    fontWeight: 'bold',
   },
   planBadge: {
     position: 'absolute',
     top: 16,
     right: 16,
-    backgroundColor: colors.primary,
+    backgroundColor: '#FF6B00',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     zIndex: 10,
   },
   planBadgeText: {
-    color: colors.surface,
+    color: '#fff',
     fontSize: 11,
-    fontFamily: fonts.bold,
+    fontWeight: 'bold',
   },
   premiumPriceSection: {
     alignItems: 'center',
@@ -765,19 +764,19 @@ const styles = StyleSheet.create({
   },
   premiumCurrency: {
     fontSize: 24,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: '600',
+    color: '#1a1a1a',
     marginTop: 4,
   },
   premiumAmount: {
     fontSize: 44,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
   },
   premiumDuration: {
     fontSize: 16,
-    color: colors.textSecondary,
-    marginBottom: 12, fontFamily: fonts.regular,
+    color: '#666',
+    marginBottom: 12,
   },
   premiumPerDayBadge: {
     backgroundColor: '#eefdf5',
@@ -790,7 +789,7 @@ const styles = StyleSheet.create({
   premiumPerDayText: {
     color: '#16a34a',
     fontSize: 14,
-    fontFamily: fonts.bold,
+    fontWeight: '600',
   },
   premiumButtonContainer: {
     padding: 20,
@@ -800,14 +799,14 @@ const styles = StyleSheet.create({
   premiumSubscribeBtn: {
     height: 52,
     borderRadius: 12,
-    backgroundColor: colors.primary,
+    backgroundColor: '#FF6B00',
     justifyContent: 'center',
     alignItems: 'center',
   },
   premiumSubscribeText: {
-    color: colors.surface,
+    color: '#fff',
     fontSize: 16,
-    fontFamily: fonts.bold,
+    fontWeight: 'bold',
   },
   premiumDetailsBtn: {
     height: 52,
@@ -819,9 +818,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   premiumDetailsText: {
-    color: colors.text,
+    color: '#1a1a1a',
     fontSize: 15,
-    fontFamily: fonts.bold,
+    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
@@ -829,7 +828,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     minHeight: '60%',
@@ -843,41 +842,41 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
   },
   modalBody: {
     flex: 1,
   },
   modalPriceContainer: {
     alignItems: 'center',
-    backgroundColor: colors.primarySoft,
+    backgroundColor: '#FFF5F0',
     padding: 16,
     borderRadius: 16,
     marginBottom: 20,
   },
   modalPrice: {
     fontSize: 32,
-    fontFamily: fonts.bold,
-    color: colors.primary,
+    fontWeight: 'bold',
+    color: '#FF6B00',
   },
   modalDuration: {
     fontSize: 14,
-    color: colors.textSecondary, fontFamily: fonts.regular,
+    color: '#666',
   },
   modalDescription: {
     fontSize: 15,
-    color: colors.textSecondary,
+    color: '#666',
     lineHeight: 22,
-    marginBottom: 24, fontFamily: fonts.regular,
+    marginBottom: 24,
   },
   modalFeatures: {
     marginBottom: 24,
   },
   featuresTitle: {
     fontSize: 16,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
     marginBottom: 12,
   },
   modalFeatureItem: {
@@ -888,10 +887,10 @@ const styles = StyleSheet.create({
   },
   modalFeatureText: {
     fontSize: 14,
-    color: '#475569', fontFamily: fonts.regular,
+    color: '#475569',
   },
   modalButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#FF6B00',
     height: 56,
     borderRadius: 16,
     justifyContent: 'center',
@@ -899,17 +898,17 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   modalButtonText: {
-    color: colors.surface,
+    color: '#fff',
     fontSize: 18,
-    fontFamily: fonts.bold,
+    fontWeight: 'bold',
   },
   historyCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#eee',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -918,19 +917,19 @@ const styles = StyleSheet.create({
   },
   historyPlanName: {
     fontSize: 18,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
     marginBottom: 4,
   },
   historyChefInfo: {
     fontSize: 13,
-    color: colors.textTertiary,
-    marginBottom: 2, fontFamily: fonts.regular,
+    color: '#888',
+    marginBottom: 2,
   },
   historyDate: {
     fontSize: 13,
-    color: colors.textTertiary,
-    marginBottom: 16, fontFamily: fonts.regular,
+    color: '#888',
+    marginBottom: 16,
   },
   historyStatsRow: {
     flexDirection: 'row',
@@ -942,13 +941,13 @@ const styles = StyleSheet.create({
   },
   historyStatLabel: {
     fontSize: 12,
-    color: colors.textTertiary,
-    marginBottom: 2, fontFamily: fonts.regular,
+    color: '#999',
+    marginBottom: 2,
   },
   historyStatValue: {
     fontSize: 14,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: 'bold',
+    color: '#333',
   },
   historyStatusBar: {
     paddingVertical: 8,
@@ -957,9 +956,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   historyStatusText: {
-    color: colors.surface,
+    color: '#fff',
     fontSize: 12,
-    fontFamily: fonts.bold,
+    fontWeight: 'bold',
     textTransform: 'capitalize',
   },
   emptyCard: {
@@ -969,12 +968,12 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: colors.textTertiary,
-    marginTop: 16, fontFamily: fonts.regular,
+    color: '#999',
+    marginTop: 16,
   },
   browseText: {
-    color: colors.primary,
-    fontFamily: fonts.bold,
+    color: '#FF6B00',
+    fontWeight: 'bold',
     marginTop: 8,
   },
   center: {

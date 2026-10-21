@@ -8,7 +8,7 @@ import { RootStackParamList } from '../../navigation/RootNavigator';
 import { useAuth } from '../../context/AuthContext';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import { Button, Input, Notice } from '../../components/common';
-import { colors, spacing, type, fonts } from '../../theme';
+import { colors, spacing, type } from '../../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Register'>;
 type RouteType = RouteProp<RootStackParamList, 'Register'>;
@@ -71,7 +71,7 @@ export default function RegisterScreen() {
   return (
     <AuthLayout
       title="Create your account"
-      subtitle="Takes a minute. Then order home-cooked food from your neighbourhood."
+      subtitle="Join Dabba Nation today"
       footer={
         <Text style={styles.footerText}>
           Already have an account?{' '}

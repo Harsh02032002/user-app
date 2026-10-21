@@ -14,14 +14,11 @@ import {
 import { Image } from 'expo-image';
 import { useNavigation, useRoute, RouteProp, useIsFocused } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { SegmentedControl, Skeleton, EmptyState } from '../components/common';
-import { PlanCard } from '../components/cards';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import api, { API_ENDPOINTS, getImageUrl, getSubscriptionPlanImage } from '../config/api';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { AppHeader } from '../components/common/AppHeader';
-import { colors, fonts, radius, spacing, type } from '../theme';
 
 const { width } = Dimensions.get('window');
 
@@ -178,70 +175,141 @@ export default function SubscriptionPlansScreen() {
 
   if (loading && !mounted) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={{ padding: spacing.screen, gap: spacing.md }}>
-          <Skeleton width="50%" height={30} />
-          <Skeleton height={44} radius={14} />
-          <Skeleton height={220} radius={radius.xl} />
-          <Skeleton height={220} radius={radius.xl} />
+      <View style={styles.container}>
+        <AppHeader showSearch={true} />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#6366f1" />
+          <Text style={styles.loadingText}>Loading premium plans...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.pageHeader}>
-        <Text style={type.display}>Tiffin plans</Text>
-        <Text style={[type.body, { color: colors.textSecondary }]}>Prepaid daily meals from one home kitchen.</Text>
+    <View style={styles.container}>
+      <AppHeader showSearch={true} />
+      
+      {/* Tabs Switcher - Matching Website */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'plans' && styles.activeTab]}
+          onPress={() => setActiveTab('plans')}
+        >
+          <Text style={[styles.tabText, activeTab === 'plans' && styles.activeTabText]}>Plans</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'my-plan' && styles.activeTab]}
+          onPress={() => setActiveTab('my-plan')}
+        >
+          <Text style={[styles.tabText, activeTab === 'my-plan' && styles.activeTabText]}>My Plan</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'history' && styles.activeTab]}
+          onPress={() => setActiveTab('history')}
+        >
+          <Text style={[styles.tabText, activeTab === 'history' && styles.activeTabText]}>History</Text>
+        </TouchableOpacity>
       </View>
-      <SegmentedControl
-        style={{ marginHorizontal: spacing.screen, marginBottom: spacing.md }}
-        value={activeTab as any}
-        onChange={(k: any) => setActiveTab(k)}
-        options={[
-          { key: 'plans', label: 'Plans' },
-          { key: 'my-plan', label: 'My plan' },
-          { key: 'history', label: 'History' },
-        ] as any}
-      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 }]}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadAllData(); }} colors={[colors.primary]} tintColor={colors.primary} />
+          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadAllData(); }} colors={['#6366f1']} />
         }
       >
         {activeTab === 'plans' && (
-          <View style={{ gap: spacing.md }}>
-            {plans.length === 0 ? (
-              <EmptyState icon="calendar-outline" title="No plans right now" subtitle="New tiffin plans will show up here." />
-            ) : (
-              plans.map((plan) => (
-                <PlanCard
-                  key={plan._id}
-                  plan={{ ...plan, per_day_value: plan.per_day_value ? Math.round(plan.per_day_value) : undefined } as any}
-                  onPress={() => setSelectedPlan(plan)}
-                  onSubscribe={() => handleSelectPlan(plan)}
-                />
-              ))
-            )}
-
-            <View style={styles.howItWorks}>
-              <Text style={[type.overline, { marginBottom: spacing.sm }]}>How plans work</Text>
-              {[
-                ['wallet-outline', 'Pay once for the whole plan.'],
-                ['home-outline', 'Pick the home kitchen that will cook for you.'],
-                ['restaurant-outline', 'Order from that kitchen as usual — your plan balance is used automatically.'],
-              ].map(([icon, text]) => (
-                <View key={text} style={styles.howRow}>
-                  <Ionicons name={icon as any} size={18} color={colors.text} />
-                  <Text style={[type.small, { flex: 1 }]}>{text}</Text>
-                </View>
-              ))}
+          <>
+            {/* Top Promo Banner */}
+            <View style={styles.promoBanner}>
+              <Ionicons name="gift-outline" size={20} color="#FF6B00" />
+              <Text style={styles.promoText}>Save up to 30% with monthly subscription plans</Text>
             </View>
-          </View>
+
+            {plans.map((plan, index) => {
+              const perDay = plan.per_day_value || Math.round(plan.total_amount / plan.total_days);
+              
+              // Resolve banner image reliably using local assets (backend URLs are currently broken)
+              const bannerSource = getBannerSource(plan);
+
+
+              return (
+                <View key={plan._id} style={styles.planCard}>
+                  {/* Card Header */}
+                  <View style={styles.cardHeader}>
+                    {bannerSource ? (
+                      <Image 
+                        source={bannerSource} 
+                        style={styles.headerImage} 
+                        contentFit="cover"
+                        onLoad={() => console.log(`[SubscriptionPlansScreen] Image loaded successfully: ${plan.plan_name}`)}
+                        onError={(err) => console.error(`[SubscriptionPlansScreen] Image load failed for ${plan.plan_name}:`, err)}
+                      />
+                    ) : (
+                      <LinearGradient
+                        colors={['#4a4a4a', '#2d2d2d']}
+                        style={styles.headerGradient}
+                      >
+                        <MaterialCommunityIcons name="chef-hat" size={40} color="#cd853f" />
+                        <Text style={styles.planNameTitle}>{plan.plan_name}</Text>
+                      </LinearGradient>
+                    )}
+                    
+                    {bannerSource && (
+                      <LinearGradient
+                        colors={['transparent', 'rgba(0,0,0,0.7)']}
+                        style={styles.imageOverlay}
+                      >
+                        <Text style={styles.planNameTitle}>{plan.plan_name}</Text>
+                      </LinearGradient>
+                    )}
+                    
+                    {plan.badge && (
+                      <LinearGradient
+                        colors={['#6366f1', '#a855f7']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.badgeContainer}
+                      >
+                        <Text style={styles.badgeText}>{plan.badge.toUpperCase()}</Text>
+                      </LinearGradient>
+                    )}
+                  </View>
+
+                  <View style={styles.priceSection}>
+                    <View style={styles.priceRow}>
+                      <Text style={styles.currencySymbol}>₹</Text>
+                      <Text style={styles.mainPrice}>{plan.total_amount}</Text>
+                    </View>
+                    <Text style={styles.priceForDays}>for {plan.total_days} days</Text>
+                    <View style={styles.perDayBadge}>
+                      <Text style={styles.perDayText}>₹ {perDay} per day</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.buttonContainer}>
+                    <TouchableOpacity onPress={() => handleSelectPlan(plan)}>
+                      <LinearGradient
+                        colors={['#6366f1', '#a855f7']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.subscribeButton}
+                      >
+                        <Text style={styles.subscribeButtonText}>Subscribe Now</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                      style={styles.detailsButton} 
+                      onPress={() => setSelectedPlan(plan)}
+                    >
+                      <Text style={styles.detailsButtonText}>View Details</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            })}
+          </>
         )}
 
         {activeTab === 'my-plan' && (
@@ -385,22 +453,17 @@ export default function SubscriptionPlansScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  pageHeader: { paddingHorizontal: spacing.screen, paddingTop: spacing.md, paddingBottom: spacing.lg },
-  howItWorks: { marginTop: spacing.sm, padding: spacing.lg, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  howRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: 6 },
-
   container: {
     flex: 1,
-    backgroundColor: colors.canvas, // Light cream background from screenshot
+    backgroundColor: '#fdf8f1', // Light cream background from screenshot
   },
   scrollContent: {
     paddingBottom: 20,
-    paddingHorizontal: spacing.screen,
   },
   loadingContainer: {
     flex: 1,
@@ -410,28 +473,28 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: colors.text,
-    fontFamily: fonts.medium,
+    color: '#6366f1',
+    fontWeight: '500',
   },
   promoBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
     margin: 16,
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#ffe5d6',
     gap: 10,
   },
   promoText: {
     fontSize: 13,
-    color: colors.text,
-    fontFamily: fonts.medium,
+    color: '#1a1a1a',
+    fontWeight: '500',
     flex: 1,
   },
   planCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
     marginHorizontal: 16,
     marginBottom: 24,
     borderRadius: 20,
@@ -442,7 +505,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#f0f0f0',
   },
   cardHeader: {
     height: 200,
@@ -460,7 +523,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     left: 0,
-    backgroundColor: colors.canvas,
+    backgroundColor: '#f5f5f5',
   },
   imageOverlay: {
     position: 'absolute',
@@ -472,9 +535,9 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   planNameTitle: {
-    color: colors.surface,
+    color: '#fff',
     fontSize: 22,
-    fontFamily: fonts.bold,
+    fontWeight: 'bold',
     ...Platform.select<any>({
       web: { textShadow: '-1px 1px 10px rgba(0, 0, 0, 0.75)' },
       default: {
@@ -493,14 +556,14 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   badgeText: {
-    color: colors.surface,
+    color: '#fff',
     fontSize: 11,
-    fontFamily: fonts.bold,
+    fontWeight: 'bold',
   },
   priceSection: {
     alignItems: 'center',
     paddingVertical: 20,
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
   },
   priceRow: {
     flexDirection: 'row',
@@ -509,19 +572,19 @@ const styles = StyleSheet.create({
   },
   currencySymbol: {
     fontSize: 24,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: '600',
+    color: '#1a1a1a',
     marginTop: 4,
   },
   mainPrice: {
     fontSize: 44,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
   },
   priceForDays: {
     fontSize: 16,
-    color: colors.textSecondary,
-    marginBottom: 12, fontFamily: fonts.regular,
+    color: '#666',
+    marginBottom: 12,
   },
   perDayBadge: {
     backgroundColor: '#eefdf5',
@@ -534,7 +597,7 @@ const styles = StyleSheet.create({
   perDayText: {
     color: '#16a34a',
     fontSize: 14,
-    fontFamily: fonts.bold,
+    fontWeight: '600',
   },
   featuresList: {
     paddingHorizontal: 20,
@@ -550,7 +613,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#475569',
     flex: 1,
-    lineHeight: 20, fontFamily: fonts.regular,
+    lineHeight: 20,
   },
   buttonContainer: {
     padding: 20,
@@ -564,23 +627,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   subscribeButtonText: {
-    color: colors.surface,
+    color: '#fff',
     fontSize: 16,
-    fontFamily: fonts.bold,
+    fontWeight: 'bold',
   },
   detailsButton: {
     height: 52,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.canvas,
+    backgroundColor: '#fdf8f1',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#ffe5d6',
   },
   detailsButtonText: {
-    color: colors.text,
+    color: '#1a1a1a',
     fontSize: 15,
-    fontFamily: fonts.bold,
+    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
@@ -588,7 +651,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     minHeight: '60%',
@@ -602,41 +665,41 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
   },
   modalBody: {
     flex: 1,
   },
   modalPriceContainer: {
     alignItems: 'center',
-    backgroundColor: colors.primarySoft,
+    backgroundColor: '#FFF5F0',
     padding: 16,
     borderRadius: 16,
     marginBottom: 20,
   },
   modalPrice: {
     fontSize: 32,
-    fontFamily: fonts.bold,
-    color: colors.primary,
+    fontWeight: 'bold',
+    color: '#FF6B00',
   },
   modalDuration: {
     fontSize: 14,
-    color: colors.textSecondary, fontFamily: fonts.regular,
+    color: '#666',
   },
   modalDescription: {
     fontSize: 15,
-    color: colors.textSecondary,
+    color: '#666',
     lineHeight: 22,
-    marginBottom: 24, fontFamily: fonts.regular,
+    marginBottom: 24,
   },
   modalFeatures: {
     marginBottom: 24,
   },
   featuresTitle: {
     fontSize: 16,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
     marginBottom: 12,
   },
   modalFeatureItem: {
@@ -647,10 +710,10 @@ const styles = StyleSheet.create({
   },
   modalFeatureText: {
     fontSize: 14,
-    color: '#475569', fontFamily: fonts.regular,
+    color: '#475569',
   },
   modalButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#FF6B00',
     height: 56,
     borderRadius: 16,
     justifyContent: 'center',
@@ -658,41 +721,41 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   modalButtonText: {
-    color: colors.surface,
+    color: '#fff',
     fontSize: 18,
-    fontFamily: fonts.bold,
+    fontWeight: 'bold',
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
     paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 10,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: '#f0f0f0',
   },
   tab: {
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 8,
-    backgroundColor: colors.canvas,
+    backgroundColor: '#f5f5f5',
   },
   activeTab: {
-    backgroundColor: colors.text,
+    backgroundColor: '#6366f1',
   },
   tabText: {
     fontSize: 14,
-    fontFamily: fonts.bold,
-    color: colors.textSecondary,
+    fontWeight: '600',
+    color: '#666',
   },
   activeTabText: {
-    color: colors.surface,
+    color: '#fff',
   },
   tabContent: {
-    paddingVertical: spacing.xs,
+    padding: 16,
   },
   activePlanCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
     borderRadius: 16,
     padding: 20,
     elevation: 4,
@@ -710,8 +773,8 @@ const styles = StyleSheet.create({
   },
   activePlanTitle: {
     fontSize: 18,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
   },
   activeBadge: {
     backgroundColor: '#22c55e',
@@ -720,15 +783,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   activeBadgeText: {
-    color: colors.surface,
+    color: '#fff',
     fontSize: 10,
-    fontFamily: fonts.bold,
+    fontWeight: 'bold',
   },
   activePlanChef: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: '#666',
     marginBottom: 20,
-    marginLeft: 32, // Offset for logo, fontFamily: fonts.regular,
+    marginLeft: 32, // Offset for logo
   },
   activePlanChefInfo: {
     flexDirection: 'row',
@@ -740,13 +803,13 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.canvas,
+    backgroundColor: '#f5f5f5',
   },
   chefSmallLogoPlaceholder: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.primarySoft,
+    backgroundColor: '#fff5f0',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -757,23 +820,23 @@ const styles = StyleSheet.create({
   },
   statBox: {
     flex: 1,
-    backgroundColor: colors.canvas,
+    backgroundColor: '#fdf8f1',
     padding: 12,
     borderRadius: 12,
     alignItems: 'center',
   },
   statVal: {
     fontSize: 18,
-    fontFamily: fonts.bold,
-    color: colors.primary,
+    fontWeight: 'bold',
+    color: '#FF6B00',
   },
   statLabel: {
     fontSize: 11,
     color: '#8b7355',
-    marginTop: 2, fontFamily: fonts.regular,
+    marginTop: 2,
   },
   usageBtn: {
-    backgroundColor: colors.text,
+    backgroundColor: '#6366f1',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -782,40 +845,40 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   usageBtnText: {
-    color: colors.surface,
-    fontFamily: fonts.bold,
+    color: '#fff',
+    fontWeight: 'bold',
     fontSize: 14,
   },
   historyCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#eee',
   },
   historyPlanName: {
     fontSize: 16,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: 'bold',
+    color: '#333',
   },
   historyDate: {
     fontSize: 12,
-    color: colors.textTertiary,
-    marginTop: 4, fontFamily: fonts.regular,
+    color: '#888',
+    marginTop: 4,
   },
   historyStatus: {
     marginTop: 8,
     alignSelf: 'flex-start',
-    backgroundColor: colors.border,
+    backgroundColor: '#f0f0f0',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
   },
   historyStatusText: {
     fontSize: 10,
-    fontFamily: fonts.bold,
-    color: colors.textSecondary,
+    fontWeight: 'bold',
+    color: '#666',
     textTransform: 'uppercase',
   },
   emptyContainer: {
@@ -825,21 +888,21 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: colors.textTertiary,
+    color: '#999',
     marginTop: 16,
-    textAlign: 'center', fontFamily: fonts.regular,
+    textAlign: 'center',
   },
   browseBtn: {
     marginTop: 20,
-    backgroundColor: colors.canvas,
+    backgroundColor: '#fdf8f1',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#ffe5d6',
   },
   browseBtnText: {
-    color: colors.primary,
-    fontFamily: fonts.bold,
+    color: '#FF6B00',
+    fontWeight: 'bold',
   },
 });

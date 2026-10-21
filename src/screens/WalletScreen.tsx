@@ -15,7 +15,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { useAuth } from '../context/AuthContext';
-import { colors, fonts } from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Wallet'>;
 
@@ -208,7 +207,7 @@ export default function WalletScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.canvas,
+    backgroundColor: '#f8f9fa',
   },
   header: {
     flexDirection: 'row',
@@ -217,9 +216,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 50,
     paddingBottom: 16,
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: '#f0f0f0',
   },
   backButton: {
     width: 40,
@@ -229,8 +228,8 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: '600',
+    color: '#1a1a1a',
   },
   loadingContainer: {
     flex: 1,
@@ -242,7 +241,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   balanceCard: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#FF6B00',
     borderRadius: 16,
     padding: 24,
     marginBottom: 20,
@@ -250,12 +249,12 @@ const styles = StyleSheet.create({
   balanceLabel: {
     fontSize: 14,
     color: 'rgba(255,255,255,0.8)',
-    marginBottom: 8, fontFamily: fonts.regular,
+    marginBottom: 8,
   },
   balanceAmount: {
     fontSize: 36,
-    fontFamily: fonts.bold,
-    color: colors.surface,
+    fontWeight: 'bold',
+    color: '#fff',
     marginBottom: 20,
   },
   balanceActions: {
@@ -272,17 +271,17 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   rechargeButtonText: {
-    color: colors.surface,
+    color: '#fff',
     fontSize: 14,
-    fontFamily: fonts.bold,
+    fontWeight: '600',
   },
   section: {
     marginBottom: 24,
   },
   sectionTitle: {
     fontSize: 18,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: '600',
+    color: '#1a1a1a',
     marginBottom: 16,
   },
   presetAmounts: {
@@ -292,42 +291,42 @@ const styles = StyleSheet.create({
   },
   presetButton: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#e5e5e5',
   },
   presetText: {
     fontSize: 14,
-    fontFamily: fonts.bold,
-    color: colors.primary,
+    fontWeight: '600',
+    color: '#FF6B00',
   },
   customAmountContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
     borderRadius: 12,
     paddingHorizontal: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#e5e5e5',
   },
   currencySymbol: {
     fontSize: 20,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: '600',
+    color: '#333',
     marginRight: 8,
   },
   amountInput: {
     flex: 1,
     paddingVertical: 16,
     fontSize: 16,
-    color: colors.text, fontFamily: fonts.regular,
+    color: '#1a1a1a',
   },
   rechargeNowButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#FF6B00',
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
@@ -336,12 +335,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#ccc',
   },
   rechargeNowText: {
-    color: colors.surface,
+    color: '#fff',
     fontSize: 16,
-    fontFamily: fonts.bold,
+    fontWeight: '600',
   },
   transactionsCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
     shadowColor: '#000',
@@ -376,17 +375,17 @@ const styles = StyleSheet.create({
   },
   transactionDescription: {
     fontSize: 14,
-    fontFamily: fonts.medium,
-    color: colors.text,
+    fontWeight: '500',
+    color: '#1a1a1a',
   },
   transactionDate: {
     fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 2, fontFamily: fonts.regular,
+    color: '#666',
+    marginTop: 2,
   },
   transactionAmount: {
     fontSize: 14,
-    fontFamily: fonts.bold,
+    fontWeight: '600',
   },
   creditText: {
     color: '#22c55e',
@@ -396,7 +395,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: colors.border,
+    backgroundColor: '#f0f0f0',
   },
   emptyContainer: {
     alignItems: 'center',
@@ -404,7 +403,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
-    color: colors.textTertiary,
-    marginTop: 12, fontFamily: fonts.regular,
+    color: '#999',
+    marginTop: 12,
   },
 });

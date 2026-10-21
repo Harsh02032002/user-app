@@ -1,6 +1,5 @@
 import React, { useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { View, StyleSheet, Platform, ActivityIndicator } from 'react-native';
-import { colors, fonts } from '../../theme';
 
 const WebView = Platform.OS !== 'web' ? require('react-native-webview').WebView : null;
 
@@ -276,7 +275,7 @@ export const DeliveryMap = forwardRef<any, DeliveryMapProps>(({
 
   // Base Store -> Customer road route
   var fullRouteLine = L.polyline([[pickupPos.lat, pickupPos.lng], [dropPos.lat, dropPos.lng]], {
-    color: colors.textTertiary, weight: 4, opacity: 0.65, dashArray: '6,8'
+    color: '#94A3B8', weight: 4, opacity: 0.65, dashArray: '6,8'
   }).addTo(map);
   var activeRouteLine = null;
 
@@ -308,7 +307,7 @@ export const DeliveryMap = forwardRef<any, DeliveryMapProps>(({
   function updateActiveRoute(rLat, rLng, stage) {
     var target = stage === 'to_restaurant' ? pickupPos : dropPos;
     var label = stage === 'to_restaurant' ? 'Rider reaching kitchen' : 'Arriving at your location';
-    var lineColor = stage === 'to_restaurant' ? colors.primary : colors.success;
+    var lineColor = stage === 'to_restaurant' ? '#FF6B00' : '#16A34A';
 
     var movedKm = lastRoutedPos ? haversineKm(lastRoutedPos.lat, lastRoutedPos.lng, rLat, rLng) : 999;
     if (movedKm < 0.03 && lastRoutedStage === stage) return;
@@ -454,7 +453,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#E5E7EB',
     backgroundColor: '#E8EFF5',
   },
   map: {

@@ -14,7 +14,6 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { getImageUrl } from '../services/api';
-import { colors, fonts } from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -27,9 +26,9 @@ interface MenuItemProps {
   color?: string;
 }
 
-const MenuItem = ({ icon, title, subtitle, onPress, showArrow = true, color = colors.text }: MenuItemProps) => (
+const MenuItem = ({ icon, title, subtitle, onPress, showArrow = true, color = '#1a1a1a' }: MenuItemProps) => (
   <TouchableOpacity style={styles.menuItem} onPress={onPress}>
-    <View style={[styles.menuIcon, { backgroundColor: color === '#FF3B30' ? '#FFE5E5' : colors.canvas }]}>
+    <View style={[styles.menuIcon, { backgroundColor: color === '#FF3B30' ? '#FFE5E5' : '#f5f5f5' }]}>
       <Ionicons name={icon} size={22} color={color} />
     </View>
     <View style={styles.menuContent}>
@@ -199,23 +198,23 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.canvas,
+    backgroundColor: '#f5f5f5',
   },
   header: {
     paddingHorizontal: 20,
     paddingTop: 60,
     paddingBottom: 16,
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
   },
   headerTitle: {
     fontSize: 28,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
   },
   profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
     padding: 20,
     marginBottom: 20,
   },
@@ -223,7 +222,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: colors.primary,
+    backgroundColor: '#FF6B00',
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
@@ -234,8 +233,8 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontSize: 28,
-    fontFamily: fonts.bold,
-    color: colors.surface,
+    fontWeight: 'bold',
+    color: '#fff',
   },
   profileInfo: {
     flex: 1,
@@ -243,24 +242,24 @@ const styles = StyleSheet.create({
   },
   profileName: {
     fontSize: 20,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
   },
   profilePhone: {
     fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 2, fontFamily: fonts.regular,
+    color: '#666',
+    marginTop: 2,
   },
   profileEmail: {
     fontSize: 14,
-    color: colors.textTertiary,
-    marginTop: 2, fontFamily: fonts.regular,
+    color: '#888',
+    marginTop: 2,
   },
   editBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.primarySoft,
+    backgroundColor: '#FFF5F0',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -269,21 +268,21 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 13,
-    fontFamily: fonts.bold,
-    color: colors.textTertiary,
+    fontWeight: '600',
+    color: '#888',
     marginLeft: 20,
     marginBottom: 8,
     textTransform: 'uppercase',
   },
   menuCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: '#f0f0f0',
   },
   menuIcon: {
     width: 42,
@@ -298,18 +297,18 @@ const styles = StyleSheet.create({
   },
   menuTitle: {
     fontSize: 15,
-    fontFamily: fonts.medium,
-    color: colors.text,
+    fontWeight: '500',
+    color: '#1a1a1a',
   },
   menuSubtitle: {
     fontSize: 12,
-    color: colors.textTertiary,
-    marginTop: 2, fontFamily: fonts.regular,
+    color: '#888',
+    marginTop: 2,
   },
   version: {
     textAlign: 'center',
-    color: colors.textTertiary,
+    color: '#888',
     fontSize: 12,
-    marginTop: 16, fontFamily: fonts.regular,
+    marginTop: 16,
   },
 });

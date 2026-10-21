@@ -1,97 +1,38 @@
 /**
- * Commerce cards shared across Home, All Menus, Search, Restaurant, Wishlist and plan screens.
- *
- * Image policy: show the seller's own photos only. Stock photos the backend substitutes for
- * missing images are treated as "no image" and replaced by a designed placeholder, so a
- * Rajma Chawal never shows up as a salad bowl.
+ * Product cards shared across Home, All Menus, Search, Restaurant, Wishlist and subscription screens.
  */
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, StyleProp, ViewStyle, ImageStyle } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { getImageUrl } from '../config/api';
-import { colors, fonts, formatPrice, radius, spacing, type } from '../theme';
-import { AddToCartButton, VegIndicator } from './common';
+import { colors, elevation, formatPrice, radius, spacing, type } from '../theme';
+import { AddToCartButton, Badge, Rating, VegIndicator } from './common';
 
 const isHomeChef = (t?: string) => t === 'home_chef' || t === 'home-chef';
 
-/** Generic stock/clip-art images the backend uses as defaults are not the seller's food */
-export const isStockPlaceholder = (url?: string | null) =>
-  !url || /images\.unsplash\.com|cdn-icons-png\.flaticon\.com|placeholder\.svg/i.test(url);
+/** Neutral image placeholder — never substitute unrelated stock photos for a seller's own images */
+const ImageFallback: React.FC<{ icon: React.ComponentProps<typeof Ionicons>['name']; style?: StyleProp<ViewStyle> }> = ({ icon, style }) => (
+  <View style={[styles.fallback, style]}>
+    <Ionicons name={icon} size={28} color={colors.primaryBorder} />
+  </View>
+);
 
-/** Absolute URL for a seller/dish image, or null when it's missing or a stock default */
-export const realImageUrl = (path?: string | null) => {
-  if (!path || isStockPlaceholder(path)) return null;
-  const url = getImageUrl(path);
-  return url && !isStockPlaceholder(url) ? url : null;
-};
-
-// ─── Placeholders ─────────────────────────────────────────────────────
-
-const TINTS = [
-  { bg: '#F6E3C6', fg: '#8A5A0B' }, // saffron
-  { bg: '#DCEBD8', fg: '#2F6B3A' }, // curry leaf
-  { bg: '#F3D9D2', fg: '#9B3A2C' }, // chilli
-  { bg: '#F5EBC8', fg: '#7A6512' }, // turmeric
-  { bg: '#E9DCCD', fg: '#6E4B2E' }, // clay
-  { bg: '#E3E4EF', fg: '#3E4677' }, // indigo
-];
-const hash = (s: string) => {
-  let h = 0;
-  for (let i = 0; i < s.length; i += 1) h = (h * 31 + s.charCodeAt(i)) | 0;
-  return Math.abs(h);
-};
-export const tintFor = (key?: string) => TINTS[hash(key || 'dabba') % TINTS.length];
-
-const initials = (name?: string, max = 2) =>
-  String(name || '')
-    .replace(/[^A-Za-z\s]/g, ' ')
-    .split(/\s+/)
-    .filter((w) => w.length > 1 && !/^(the|and|ki|ka|ke|of|with)$/i.test(w))
-    .slice(0, max)
-    .map((w) => w[0].toUpperCase())
-    .join('') || 'D';
-
-/** Designed stand-in for a missing dish photo: a tinted tile with the dish's initial */
-export const DishArt: React.FC<{ name?: string; category?: string; style?: StyleProp<ViewStyle>; compact?: boolean }> = ({ name, category, style, compact }) => {
-  const tint = tintFor(category || name);
-  return (
-    <View style={[styles.dishArt, { backgroundColor: tint.bg }, style]} accessibilityElementsHidden importantForAccessibility="no">
-      <Text style={[styles.dishArtLetter, { color: tint.fg }, compact && { fontSize: 30, lineHeight: 36 }]}>{initials(name, 1)}</Text>
-      {!compact && category ? <Text style={[styles.dishArtCaption, { color: tint.fg }]} numberOfLines={1}>{category}</Text> : null}
-    </View>
-  );
-};
-
-/** Seller logo or a monogram when the kitchen hasn't uploaded one */
-export const KitchenMark: React.FC<{ name?: string; logo?: string | null; size?: number; style?: StyleProp<ViewStyle> }> = ({ name, logo, size = 56, style }) => {
+/** Remote image that falls back to a neutral placeholder when missing or when it fails to load */
+const SmartImage: React.FC<{ uri?: string | null; icon: React.ComponentProps<typeof Ionicons>['name']; style?: StyleProp<ImageStyle | ViewStyle> }> = ({ uri, icon, style }) => {
   const [failed, setFailed] = React.useState(false);
-  const url = realImageUrl(logo);
-  const box = { width: size, height: size, borderRadius: size * 0.28 };
-  if (url && !failed) {
-    return <Image source={{ uri: url }} style={[box, styles.markImage, style as StyleProp<ImageStyle>]} contentFit="cover" onError={() => setFailed(true)} />;
-  }
-  return (
-    <View style={[box, styles.monogram, style]}>
-      <Text style={[styles.monogramText, { fontSize: size * 0.36, lineHeight: size * 0.44 }]}>{initials(name)}</Text>
-    </View>
-  );
-};
-
-/** Dish photo with graceful fallback to DishArt */
-const DishImage: React.FC<{ item: FoodItemData; style?: StyleProp<ViewStyle>; compact?: boolean }> = ({ item, style, compact }) => {
-  const [failed, setFailed] = React.useState(false);
-  const url = realImageUrl(item.image);
-  React.useEffect(() => setFailed(false), [url]);
-  if (!url || failed) return <DishArt name={item.name} category={item.category} style={style} compact={compact} />;
-  return <Image source={{ uri: url }} style={style as StyleProp<ImageStyle>} contentFit="cover" transition={150} onError={() => setFailed(true)} />;
+  React.useEffect(() => setFailed(false), [uri]);
+  if (!uri || failed) return <ImageFallback icon={icon} style={style as StyleProp<ViewStyle>} />;
+  return <Image source={{ uri }} style={style as any} contentFit="cover" transition={150} onError={() => setFailed(true)} />;
 };
 
 export const SellerTypeBadge: React.FC<{ sellerType?: string; style?: StyleProp<ViewStyle> }> = ({ sellerType, style }) => (
-  <View style={[styles.typeTag, style]}>
-    <Ionicons name={isHomeChef(sellerType) ? 'home-outline' : 'restaurant-outline'} size={11} color={colors.textSecondary} />
-    <Text style={styles.typeTagText}>{isHomeChef(sellerType) ? 'Home kitchen' : 'Restaurant'}</Text>
-  </View>
+  <Badge
+    text={isHomeChef(sellerType) ? 'Home Chef' : 'Restaurant'}
+    icon={isHomeChef(sellerType) ? 'home' : 'restaurant'}
+    variant={isHomeChef(sellerType) ? 'success' : 'primary'}
+    style={style}
+  />
 );
 
 // ─── Seller ───────────────────────────────────────────────────────────
@@ -106,61 +47,49 @@ export interface SellerCardData {
   logo?: string;
   coverImage?: string;
   image?: string;
-  description?: string;
   distanceKm?: number | null;
   address?: { city?: string; area?: string; street?: string };
 }
 
-/** 0.7 → "700 m", 3.25 → "3.3 km", 0 → "Very close" */
-export const formatDistance = (km: number) => {
-  const d = Number(km);
-  if (!Number.isFinite(d)) return '';
-  if (d < 0.1) return 'Very close';
-  if (d < 1) return `${Math.round(d * 10) * 100} m`;
-  return `${d.toFixed(d < 10 ? 1 : 0)} km`;
-};
-
-const sellerMeta = (seller: SellerCardData) =>
-  [
-    seller.distanceKm != null ? formatDistance(seller.distanceKm) : null,
-    seller.address?.city || seller.address?.area || null,
-  ].filter(Boolean).join(' · ');
-
-/** Kitchen row: monogram/logo, name, cuisines, rating · distance */
 export const SellerCard: React.FC<{
   seller: SellerCardData;
   onPress: () => void;
   width?: number;
   style?: StyleProp<ViewStyle>;
 }> = ({ seller, onPress, width, style }) => {
-  const meta = sellerMeta(seller);
-  const cuisines = seller.cuisines && seller.cuisines.length ? seller.cuisines.slice(0, 3).join(' · ') : seller.description || '';
+  const cover = getImageUrl(seller.coverImage || seller.image);
+  const logo = getImageUrl(seller.logo);
+  const meta = [
+    seller.distanceKm != null ? `${seller.distanceKm} km` : null,
+    seller.address?.city || seller.address?.area || null,
+  ].filter(Boolean).join(' · ');
   return (
     <TouchableOpacity
       style={[styles.sellerCard, width ? { width } : null, style]}
-      activeOpacity={0.85}
+      activeOpacity={0.9}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${seller.businessName}, ${isHomeChef(seller.type) ? 'home kitchen' : 'restaurant'}${meta ? `, ${meta}` : ''}`}
+      accessibilityLabel={`${seller.businessName}, ${isHomeChef(seller.type) ? 'Home Chef' : 'Restaurant'}`}
     >
-      <KitchenMark name={seller.businessName} logo={seller.logo} size={60} />
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={styles.sellerName} numberOfLines={1}>{seller.businessName}</Text>
-        {cuisines ? <Text style={type.caption} numberOfLines={1}>{cuisines}</Text> : null}
-        <View style={styles.sellerMetaRow}>
-          {seller.rating ? (
-            <View style={styles.ratingPill}>
-              <Ionicons name="star" size={10} color={colors.textInverse} />
-              <Text style={styles.ratingPillText}>{Number(seller.rating).toFixed(1)}</Text>
-            </View>
-          ) : (
-            <Text style={styles.newTag}>New</Text>
-          )}
-          <SellerTypeBadge sellerType={seller.type} />
-          {meta ? <Text style={type.caption} numberOfLines={1}>{meta}</Text> : null}
+      <View style={styles.sellerCover}>
+        <SmartImage uri={cover} icon="restaurant-outline" style={StyleSheet.absoluteFill} />
+        <SellerTypeBadge sellerType={seller.type} style={styles.sellerTypeBadge} />
+      </View>
+      <View style={styles.sellerBody}>
+        <View style={styles.sellerLogoWrap}>
+          <SmartImage uri={logo} icon="storefront-outline" style={styles.sellerLogo} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={type.subheading} numberOfLines={1}>{seller.businessName}</Text>
+          <Text style={type.caption} numberOfLines={1}>
+            {seller.cuisines && seller.cuisines.length ? seller.cuisines.join(', ') : isHomeChef(seller.type) ? 'Home-cooked meals' : 'Multi-cuisine'}
+          </Text>
+          <View style={styles.sellerMeta}>
+            {seller.rating ? <Rating rating={seller.rating} size={12} /> : <Text style={[type.caption, { color: colors.successStrong }]}>New</Text>}
+            {meta ? <Text style={type.caption} numberOfLines={1}>  ·  {meta}</Text> : null}
+          </View>
         </View>
       </View>
-      <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
     </TouchableOpacity>
   );
 };
@@ -193,7 +122,7 @@ export const getFoodPricing = (item: FoodItemData) => {
   return { final, strike, discountPercent };
 };
 
-/** Vertical dish card for carousels and grids */
+/** Vertical card for carousels and grids */
 export const FoodCard: React.FC<{
   item: FoodItemData;
   quantity: number;
@@ -205,7 +134,8 @@ export const FoodCard: React.FC<{
   showSeller?: boolean;
   style?: StyleProp<ViewStyle>;
 }> = ({ item, quantity, onAdd, onIncrement, onDecrement, onPress, width, showSeller = true, style }) => {
-  const { final, strike } = getFoodPricing(item);
+  const { final, strike, discountPercent } = getFoodPricing(item);
+  const img = getImageUrl(item.image);
   const sellerName = typeof item.sellerId === 'object' ? item.sellerId?.businessName : undefined;
   const unavailable = item.isAvailable === false;
   return (
@@ -215,17 +145,29 @@ export const FoodCard: React.FC<{
       onPress={onPress}
       disabled={!onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${item.name}, ${formatPrice(final)}${sellerName ? `, from ${sellerName}` : ''}`}
+      accessibilityLabel={`${item.name}, ${formatPrice(final)}`}
     >
-      <DishImage item={item} style={styles.foodImage} />
+      <View style={styles.foodImage}>
+        <SmartImage uri={img} icon="fast-food-outline" style={StyleSheet.absoluteFill} />
+        {discountPercent > 0 ? <Badge text={`${discountPercent}% OFF`} variant="success" style={styles.discountBadge} /> : null}
+      </View>
       <View style={styles.foodBody}>
         <View style={styles.foodTitleRow}>
           <VegIndicator isVeg={!!item.isVeg} size={12} />
-          <Text style={styles.foodName} numberOfLines={1}>{item.name}</Text>
+          <Text style={[type.subheading, { flex: 1 }]} numberOfLines={1}>{item.name}</Text>
         </View>
-        {showSeller && sellerName ? <Text style={type.caption} numberOfLines={1}>by {sellerName}</Text> : null}
+        {showSeller && sellerName ? <Text style={type.caption} numberOfLines={1}>{sellerName}</Text> : null}
+        <View style={styles.foodMeta}>
+          {item.rating ? <Rating rating={item.rating} size={12} /> : null}
+          {item.preparationTime ? (
+            <View style={styles.inlineMeta}>
+              <Ionicons name="time-outline" size={12} color={colors.textSecondary} />
+              <Text style={type.caption}>{item.preparationTime} min</Text>
+            </View>
+          ) : null}
+        </View>
         <View style={styles.foodFooter}>
-          <View style={{ flexShrink: 1 }}>
+          <View>
             <Text style={type.price}>{formatPrice(final)}</Text>
             {strike ? <Text style={styles.strike}>{formatPrice(strike)}</Text> : null}
           </View>
@@ -236,7 +178,7 @@ export const FoodCard: React.FC<{
   );
 };
 
-/** Menu row (kitchen menu, wishlist, search): details left, photo + ADD right */
+/** Horizontal menu row (restaurant menu, wishlist) — image on the right like most food apps */
 export const FoodRow: React.FC<{
   item: FoodItemData;
   quantity: number;
@@ -244,30 +186,27 @@ export const FoodRow: React.FC<{
   onIncrement: () => void;
   onDecrement: () => void;
   right?: React.ReactNode;
-  showSeller?: boolean;
-}> = ({ item, quantity, onAdd, onIncrement, onDecrement, right, showSeller }) => {
-  const { final, strike, discountPercent } = getFoodPricing(item);
+}> = ({ item, quantity, onAdd, onIncrement, onDecrement, right }) => {
+  const { final, strike } = getFoodPricing(item);
+  const img = getImageUrl(item.image);
   const unavailable = item.isAvailable === false;
-  const sellerName = showSeller && typeof item.sellerId === 'object' ? item.sellerId?.businessName : undefined;
   return (
-    <View style={[styles.foodRow, unavailable && { opacity: 0.55 }]}>
-      <View style={{ flex: 1, paddingRight: spacing.lg }}>
-        <View style={styles.rowTags}>
-          <VegIndicator isVeg={!!item.isVeg} size={13} />
-          {discountPercent > 0 ? <Text style={styles.offTag}>{discountPercent}% off</Text> : null}
-        </View>
-        <Text style={styles.rowName} numberOfLines={2}>{item.name}</Text>
-        {sellerName ? <Text style={type.caption} numberOfLines={1}>by {sellerName}</Text> : null}
+    <View style={[styles.foodRow, unavailable && { opacity: 0.6 }]}>
+      <View style={{ flex: 1, paddingRight: spacing.md }}>
+        <VegIndicator isVeg={!!item.isVeg} size={12} />
+        <Text style={[type.subheading, { marginTop: spacing.xs }]} numberOfLines={2}>{item.name}</Text>
         <View style={styles.rowPrice}>
           <Text style={type.price}>{formatPrice(final)}</Text>
           {strike ? <Text style={styles.strike}>{formatPrice(strike)}</Text> : null}
         </View>
-        {item.description ? <Text style={[type.small, { color: colors.textSecondary }]} numberOfLines={2}>{item.description}</Text> : null}
-        {unavailable ? <Text style={[type.caption, { color: colors.danger, marginTop: spacing.xs }]}>Not available right now</Text> : null}
+        {item.rating ? <Rating rating={item.rating} size={12} /> : null}
+        {item.description ? <Text style={[type.caption, { marginTop: spacing.xs }]} numberOfLines={2}>{item.description}</Text> : null}
         {right}
       </View>
       <View style={styles.rowImageCol}>
-        <DishImage item={item} style={styles.rowImage} compact />
+        <View style={styles.rowImage}>
+          <SmartImage uri={img} icon="fast-food-outline" style={StyleSheet.absoluteFill} />
+        </View>
         <View style={styles.rowAdd}>
           <AddToCartButton quantity={quantity} onAdd={onAdd} onIncrement={onIncrement} onDecrement={onDecrement} disabled={unavailable} />
         </View>
@@ -292,7 +231,6 @@ export interface PlanCardData {
   plan_image?: string;
 }
 
-/** Kept for screens that still show the plan banner image */
 export const getPlanImage = (plan: PlanCardData) => {
   let imgPath = plan.banner_image || plan.image || plan.plan_image;
   if (!imgPath) {
@@ -302,7 +240,6 @@ export const getPlanImage = (plan: PlanCardData) => {
   return getImageUrl(imgPath);
 };
 
-/** Tiffin plan as a dark "pass" card: what you pay, for how long, per day */
 export const PlanCard: React.FC<{
   plan: PlanCardData;
   onPress: () => void;
@@ -312,99 +249,81 @@ export const PlanCard: React.FC<{
   style?: StyleProp<ViewStyle>;
 }> = ({ plan, onPress, onSubscribe, width, compact, style }) => {
   const perDay = plan.per_day_value || (plan.total_days ? Math.round(plan.total_amount / plan.total_days) : 0);
+  const img = getPlanImage(plan);
   return (
-    <TouchableOpacity style={[styles.planCard, width ? { width } : null, style]} activeOpacity={0.9} onPress={onPress} accessibilityRole="button" accessibilityLabel={`${plan.plan_name}, ${formatPrice(plan.total_amount)} for ${plan.total_days} days`}>
-      <View style={styles.planTop}>
-        <Text style={styles.planDays}>{plan.total_days}</Text>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.planDaysLabel}>DAY TIFFIN PLAN</Text>
-          {plan.badge ? <Text style={styles.planBadge}>{plan.badge}</Text> : null}
-        </View>
+    <TouchableOpacity style={[styles.planCard, width ? { width } : null, style]} activeOpacity={0.9} onPress={onPress} accessibilityRole="button">
+      <View style={styles.planImage}>
+        <SmartImage uri={img} icon="calendar-outline" style={StyleSheet.absoluteFill} />
+        {plan.badge ? <Badge text={plan.badge} variant="primary" style={styles.planBadge} /> : null}
       </View>
-      <Text style={styles.planName} numberOfLines={1}>{plan.plan_name}</Text>
-      {plan.description ? <Text style={styles.planDesc} numberOfLines={compact ? 1 : 2}>{plan.description}</Text> : null}
-      <View style={styles.planDivider} />
-      <View style={styles.planPriceRow}>
-        <View>
-          <Text style={styles.planPrice}>{formatPrice(plan.total_amount)}</Text>
-          {perDay ? <Text style={styles.planPerDay}>{formatPrice(perDay)} a day</Text> : null}
+      <View style={styles.planBody}>
+        <Text style={type.subheading} numberOfLines={1}>{plan.plan_name}</Text>
+        {plan.description ? <Text style={type.caption} numberOfLines={compact ? 1 : 2}>{plan.description}</Text> : null}
+        <View style={styles.planPriceRow}>
+          <Text style={[type.price, { fontSize: 18 }]}>{formatPrice(plan.total_amount)}</Text>
+          <Text style={type.caption}>  for {plan.total_days} days</Text>
         </View>
+        {perDay ? <Text style={[type.caption, { color: colors.successStrong }]}>{formatPrice(perDay)} per day</Text> : null}
+        {!compact && plan.features && plan.features.length ? (
+          <View style={styles.planFeatures}>
+            {plan.features.slice(0, 3).map((f, i) => (
+              <View key={i} style={styles.planFeature}>
+                <Ionicons name="checkmark-circle" size={14} color={colors.success} />
+                <Text style={[type.caption, { color: colors.text, flex: 1 }]} numberOfLines={1}>{f}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
         {onSubscribe ? (
-          <TouchableOpacity style={styles.planCta} onPress={onSubscribe} accessibilityRole="button" accessibilityLabel={`Subscribe to ${plan.plan_name}`}>
-            <Text style={styles.planCtaText}>Subscribe</Text>
-          </TouchableOpacity>
-        ) : (
-          <Ionicons name="arrow-forward" size={20} color={colors.textOnInk} />
-        )}
+          <View style={styles.planActions}>
+            <TouchableOpacity style={styles.planSecondary} onPress={onPress}>
+              <Text style={[type.label, { color: colors.primary }]}>View details</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.planPrimary} onPress={onSubscribe}>
+              <Text style={[type.label, { color: colors.textInverse }]}>Subscribe</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
       </View>
-      {!compact && plan.features && plan.features.length ? (
-        <View style={styles.planFeatures}>
-          {plan.features.slice(0, 3).map((f, i) => (
-            <View key={i} style={styles.planFeature}>
-              <Ionicons name="checkmark" size={14} color={colors.primary} />
-              <Text style={styles.planFeatureText} numberOfLines={1}>{f}</Text>
-            </View>
-          ))}
-        </View>
-      ) : null}
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
-  dishArt: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  dishArtLetter: { fontFamily: fonts.display, fontSize: 44, lineHeight: 52 },
-  dishArtCaption: { position: 'absolute', bottom: 8, left: 10, right: 10, fontFamily: fonts.bold, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', opacity: 0.75 },
+  fallback: { backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
 
-  markImage: { backgroundColor: colors.surfaceMuted },
-  monogram: { backgroundColor: colors.inkSurface, alignItems: 'center', justifyContent: 'center' },
-  monogramText: { fontFamily: fonts.display, color: colors.textOnInk },
+  sellerCard: { backgroundColor: colors.surface, borderRadius: radius.lg, overflow: 'hidden', ...elevation.card },
+  sellerCover: { aspectRatio: 2, backgroundColor: colors.surfaceMuted },
+  sellerTypeBadge: { position: 'absolute', top: spacing.sm, left: spacing.sm },
+  sellerBody: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md },
+  sellerLogoWrap: { marginTop: -spacing.xxl, borderRadius: radius.md, borderWidth: 2, borderColor: colors.surface, backgroundColor: colors.surface, ...elevation.card },
+  sellerLogo: { width: 48, height: 48, borderRadius: radius.md - 2, overflow: 'hidden' },
+  sellerMeta: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.xs },
 
-  typeTag: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  typeTagText: { ...type.caption, fontFamily: fonts.medium },
-
-  sellerCard: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-    backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.md,
-    borderWidth: 1, borderColor: colors.border,
-  },
-  sellerName: { ...type.heading, fontSize: 16 },
-  sellerMetaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: spacing.sm, rowGap: 4, marginTop: 6 },
-  ratingPill: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: colors.success, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  ratingPillText: { fontFamily: fonts.heavy, fontSize: 11, color: colors.textInverse },
-  newTag: { fontFamily: fonts.heavy, fontSize: 11, color: colors.primaryInk, letterSpacing: 0.4 },
-
-  foodCard: { backgroundColor: colors.surface, borderRadius: radius.xl, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
-  foodImage: { width: '100%', aspectRatio: 1.15, backgroundColor: colors.surfaceMuted },
+  foodCard: { backgroundColor: colors.surface, borderRadius: radius.lg, overflow: 'hidden', ...elevation.card },
+  foodImage: { aspectRatio: 4 / 3, backgroundColor: colors.surfaceMuted },
+  discountBadge: { position: 'absolute', top: spacing.sm, left: spacing.sm },
   foodBody: { padding: spacing.md, gap: 4 },
   foodTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  foodName: { ...type.subheading, flex: 1 },
-  foodFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm, marginTop: spacing.sm },
+  foodMeta: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 16 },
+  inlineMeta: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  foodFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm },
   strike: { ...type.caption, color: colors.textTertiary, textDecorationLine: 'line-through' },
 
-  foodRow: { flexDirection: 'row', paddingVertical: spacing.xl },
-  rowTags: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  offTag: { fontFamily: fonts.bold, fontSize: 11, color: colors.successStrong },
-  rowName: { ...type.heading, marginTop: 6 },
-  rowPrice: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm, marginTop: 4, marginBottom: 6 },
-  rowImageCol: { width: 120, alignItems: 'center' },
-  rowImage: { width: 120, height: 112, borderRadius: radius.lg, overflow: 'hidden', backgroundColor: colors.surfaceMuted },
-  rowAdd: { marginTop: -18 },
+  foodRow: { flexDirection: 'row', paddingVertical: spacing.lg },
+  rowPrice: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm, marginVertical: spacing.xs },
+  rowImageCol: { width: 112, alignItems: 'center' },
+  rowImage: { width: 112, height: 104, borderRadius: radius.md, overflow: 'hidden', backgroundColor: colors.surfaceMuted },
+  rowAdd: { marginTop: -16, ...elevation.card, borderRadius: radius.sm, backgroundColor: colors.surface },
 
-  planCard: { backgroundColor: colors.inkSurface, borderRadius: radius.xl, padding: spacing.xl, gap: 4 },
-  planTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.sm },
-  planDays: { fontFamily: fonts.displayBold, fontSize: 40, lineHeight: 44, color: colors.primary },
-  planDaysLabel: { fontFamily: fonts.bold, fontSize: 11, letterSpacing: 1.4, color: colors.textOnInkMuted },
-  planBadge: { fontFamily: fonts.bold, fontSize: 12, color: colors.primary, marginTop: 2 },
-  planName: { fontFamily: fonts.display, fontSize: 20, lineHeight: 26, color: colors.textOnInk },
-  planDesc: { ...type.small, color: colors.textOnInkMuted },
-  planDivider: { height: 1, backgroundColor: 'rgba(246,239,230,0.12)', marginVertical: spacing.md },
-  planPriceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  planPrice: { fontFamily: fonts.heavy, fontSize: 22, color: colors.textOnInk },
-  planPerDay: { ...type.caption, color: colors.textOnInkMuted },
-  planCta: { backgroundColor: colors.primary, borderRadius: 12, paddingHorizontal: spacing.lg, height: 40, alignItems: 'center', justifyContent: 'center' },
-  planCtaText: { fontFamily: fonts.bold, fontSize: 14, color: colors.textInverse },
-  planFeatures: { gap: 6, marginTop: spacing.md },
-  planFeature: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  planFeatureText: { ...type.small, color: colors.textOnInk, flex: 1 },
+  planCard: { backgroundColor: colors.surface, borderRadius: radius.lg, overflow: 'hidden', ...elevation.card },
+  planImage: { aspectRatio: 2.2, backgroundColor: colors.primarySoft },
+  planBadge: { position: 'absolute', top: spacing.sm, left: spacing.sm },
+  planBody: { padding: spacing.md, gap: 4 },
+  planPriceRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: spacing.xs },
+  planFeatures: { gap: 4, marginTop: spacing.sm },
+  planFeature: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  planActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+  planSecondary: { flex: 1, height: 40, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  planPrimary: { flex: 1, height: 40, borderRadius: radius.sm, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
 });

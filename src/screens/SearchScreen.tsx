@@ -11,8 +11,8 @@ import { RootStackParamList } from '../navigation/RootNavigator';
 import { LOCATION_COORDS_KEY, LOCATION_NAME_KEY } from '../utils/location';
 import { useCart } from '../context/CartContext';
 import { AddToCartButton, Chip, Divider, EmptyState, ErrorState, IconButton, SkeletonList, VegIndicator } from '../components/common';
-import { DishArt, getFoodPricing, realImageUrl } from '../components/cards';
-import { colors, formatPrice, radius, spacing, type, fonts } from '../theme';
+import { getFoodPricing } from '../components/cards';
+import { colors, formatPrice, radius, spacing, type } from '../theme';
 import { SERVICE_RADIUS_KM } from '../config/serviceArea';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -150,11 +150,11 @@ export default function SearchScreen() {
     const seller = sellerOf(item);
     const { final, strike } = getFoodPricing(item);
     const qty = getItemQuantity(item._id);
-    const img = realImageUrl(item.image);
+    const img = getImageUrl(item.image);
     return (
       <TouchableOpacity style={styles.result} onPress={() => openSeller(item)} activeOpacity={0.8} accessibilityRole="button">
         <View style={styles.resultImage}>
-          {img ? <Image source={{ uri: img }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <DishArt name={item.name} category={(item as any).category} compact style={StyleSheet.absoluteFill} />}
+          {img ? <Image source={{ uri: img }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Ionicons name="fast-food-outline" size={22} color={colors.primaryBorder} />}
         </View>
         <View style={{ flex: 1 }}>
           <View style={styles.resultTitleRow}>
@@ -242,7 +242,7 @@ export default function SearchScreen() {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <Divider inset={72} />}
-          ListHeaderComponent={searched && results.length ? <Text style={[type.caption, { marginBottom: spacing.sm }]}>{results.length} {results.length === 1 ? 'dish' : 'dishes'} within {SERVICE_RADIUS_KM} km</Text> : null}
+          ListHeaderComponent={searched && results.length ? <Text style={[type.caption, { marginBottom: spacing.sm }]}>{results.length} dishes within {SERVICE_RADIUS_KM} km</Text> : null}
           ListEmptyComponent={
             searched ? (
               <EmptyState icon="search-outline" title={`No results for "${query.trim()}"`} subtitle="Try a different dish name or a broader term like thali or paneer." />
@@ -255,7 +255,7 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.canvas },
+  container: { flex: 1, backgroundColor: colors.surface },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -275,8 +275,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.surfaceMuted,
   },
-  searchInput: { flex: 1, fontSize: 15, color: colors.text, fontFamily: fonts.regular,
-  },
+  searchInput: { flex: 1, fontSize: 15, color: colors.text },
   idle: { padding: spacing.screen },
   idleHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },

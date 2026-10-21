@@ -17,7 +17,6 @@ import RazorpayCheckout, { isRazorpayAvailable } from '../utils/razorpay';
 import api, { API_ENDPOINTS } from '../config/api';
 import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../navigation/RootNavigator';
-import { colors, fonts } from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteType = RouteProp<RootStackParamList, 'SubscriptionCheckout'>;
@@ -42,6 +41,7 @@ export default function SubscriptionCheckoutScreen() {
   const [useWallet, setUseWallet] = useState(true);
   const [breakdown, setBreakdown] = useState<PaymentBreakdown | null>(null);
   const [razorpayOrderId, setRazorpayOrderId] = useState<string | null>(null);
+  const [onlineModalVisible, setOnlineModalVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -79,7 +79,7 @@ export default function SubscriptionCheckoutScreen() {
   const fetchWalletBalance = React.useCallback(async () => {
     try {
       setError(null);
-      // Same balance source as the Wallet tab
+      // Get user wallet balance - same as web app
       const response = await api.get('/user/wallet/transactions');
       const balance = response.data?.balance || response.data?.data?.balance || 0;
       setWalletBalance(balance);
@@ -101,7 +101,14 @@ export default function SubscriptionCheckoutScreen() {
 
   const verifyHybridPayment = React.useCallback(async (paymentData: any, rzOrderId: string) => {
     try {
-      // The server checks the Razorpay signature and the amount paid before activating
+      // Step 1: Verify payment with Razorpay
+      await api.post(API_ENDPOINTS.VERIFY_RAZORPAY_PAYMENT, {
+        razorpayOrderId: rzOrderId,
+        razorpayPaymentId: paymentData.razorpay_payment_id,
+        razorpaySignature: paymentData.razorpay_signature,
+      });
+
+      // Step 2: Finalize subscription purchase
       await api.post(API_ENDPOINTS.PURCHASE_SUBSCRIPTION, {
         planId,
         sellerId: homeChefId,
@@ -158,6 +165,37 @@ export default function SubscriptionCheckoutScreen() {
     }
   }, [planId, homeChefId, amount, durationDays, planName, homeChefName, navigation]);
 
+  const handleOnlineSuccess = React.useCallback(async (txnId?: string) => {
+    try {
+      setProcessing(true);
+      await api.post(API_ENDPOINTS.PURCHASE_SUBSCRIPTION, {
+        planId,
+        sellerId: homeChefId,
+        totalAmount: amount,
+        totalDays: durationDays,
+        usedWallet: useWallet && (breakdown?.walletAmount || 0) > 0,
+        walletAmount: breakdown?.walletAmount || 0,
+        razorpay_payment_id: txnId || `UPI_${Date.now()}`,
+      });
+
+      await refreshProfile();
+      Alert.alert(
+        'Subscription Activated!',
+        `Your ${planName} subscription with ${homeChefName} is now active!`,
+        [
+          {
+            text: 'View Subscriptions',
+            onPress: () => navigation.navigate('Subscriptions'),
+          },
+        ]
+      );
+    } catch (error: any) {
+      Alert.alert('Error', error?.response?.data?.message || 'Subscription payment verification failed');
+    } finally {
+      setProcessing(false);
+    }
+  }, [planId, homeChefId, amount, durationDays, useWallet, breakdown, planName, homeChefName, navigation, refreshProfile]);
+
   const handlePayment = React.useCallback(async () => {
     if (!breakdown) return;
     
@@ -193,7 +231,6 @@ export default function SubscriptionCheckoutScreen() {
       });
       await verifyHybridPayment(paymentData, rzOrderId);
     } catch (error: any) {
-      // code 2 = closed by the customer
       if (error?.code !== 2) {
         Alert.alert('Payment not completed', error?.response?.data?.message || error?.description || error?.message || 'Please try again');
       }
@@ -282,7 +319,7 @@ export default function SubscriptionCheckoutScreen() {
           >
             <View style={styles.walletHeader}>
               <View style={styles.walletIcon}>
-                <Ionicons name="wallet" size={24} color={useWallet ? colors.primary : colors.textSecondary} />
+                <Ionicons name="wallet" size={24} color={useWallet ? '#FF6B00' : '#666'} />
               </View>
               <View style={styles.walletInfo}>
                 <Text style={styles.walletTitle}>Use Wallet Balance</Text>
@@ -372,6 +409,7 @@ export default function SubscriptionCheckoutScreen() {
         </TouchableOpacity>
       </View>
 
+      
     </SafeAreaView>
   );
 }
@@ -379,13 +417,13 @@ export default function SubscriptionCheckoutScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
   },
   header: {
     flexDirection: 'row',
@@ -394,19 +432,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: '#f0f0f0',
   },
   headerTitle: {
     fontSize: 18,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: '600',
+    color: '#1a1a1a',
   },
   content: {
     flex: 1,
     padding: 20,
   },
   planCard: {
-    backgroundColor: colors.primarySoft,
+    backgroundColor: '#FFF5F0',
     borderRadius: 16,
     padding: 24,
     alignItems: 'center',
@@ -423,14 +461,14 @@ const styles = StyleSheet.create({
   },
   planName: {
     fontSize: 20,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
     marginBottom: 4,
   },
   planSubtitle: {
     fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 12, fontFamily: fonts.regular,
+    color: '#666',
+    marginBottom: 12,
   },
   planMeta: {
     flexDirection: 'row',
@@ -443,19 +481,19 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 13,
-    color: colors.textSecondary, fontFamily: fonts.regular,
+    color: '#666',
   },
   walletCard: {
-    backgroundColor: colors.canvas,
+    backgroundColor: '#f9f9f9',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#eee',
   },
   walletCardActive: {
-    backgroundColor: colors.primarySoft,
-    borderColor: colors.primary,
+    backgroundColor: '#FFF5F0',
+    borderColor: '#FF6B00',
   },
   walletHeader: {
     flexDirection: 'row',
@@ -475,37 +513,37 @@ const styles = StyleSheet.create({
   },
   walletTitle: {
     fontSize: 15,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: '600',
+    color: '#1a1a1a',
   },
   walletBalance: {
     fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 2, fontFamily: fonts.regular,
+    color: '#666',
+    marginTop: 2,
   },
   checkbox: {
     width: 24,
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor: '#ddd',
     justifyContent: 'center',
     alignItems: 'center',
   },
   checkboxActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: '#FF6B00',
+    borderColor: '#FF6B00',
   },
   breakdownCard: {
-    backgroundColor: colors.canvas,
+    backgroundColor: '#f9f9f9',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
   },
   breakdownTitle: {
     fontSize: 16,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: '600',
+    color: '#1a1a1a',
     marginBottom: 16,
   },
   breakdownRow: {
@@ -516,41 +554,41 @@ const styles = StyleSheet.create({
   },
   breakdownLabel: {
     fontSize: 14,
-    color: colors.textSecondary, fontFamily: fonts.regular,
+    color: '#666',
   },
   breakdownValue: {
     fontSize: 14,
-    color: colors.text,
-    fontFamily: fonts.medium,
+    color: '#1a1a1a',
+    fontWeight: '500',
   },
   successText: {
-    color: colors.success,
+    color: '#22C55E',
   },
   divider: {
     height: 1,
-    backgroundColor: colors.border,
+    backgroundColor: '#e0e0e0',
     marginVertical: 12,
   },
   totalLabel: {
     fontSize: 16,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: '600',
+    color: '#1a1a1a',
   },
   totalValue: {
     fontSize: 18,
-    fontFamily: fonts.bold,
-    color: colors.primary,
+    fontWeight: 'bold',
+    color: '#FF6B00',
   },
   paymentMethodCard: {
-    backgroundColor: colors.canvas,
+    backgroundColor: '#f9f9f9',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
   },
   paymentMethodTitle: {
     fontSize: 16,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: '600',
+    color: '#1a1a1a',
     marginBottom: 12,
   },
   methodRow: {
@@ -570,13 +608,13 @@ const styles = StyleSheet.create({
   },
   methodName: {
     fontSize: 15,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: '600',
+    color: '#1a1a1a',
   },
   methodDesc: {
     fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 2, fontFamily: fonts.regular,
+    color: '#666',
+    marginTop: 2,
   },
   securityNote: {
     flexDirection: 'row',
@@ -590,32 +628,32 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 12,
     fontSize: 13,
-    color: colors.text,
-    lineHeight: 18, fontFamily: fonts.regular,
+    color: '#1a1a1a',
+    lineHeight: 18,
   },
   bottomContainer: {
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
     padding: 20,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: '#f0f0f0',
   },
   totalContainer: {
     marginBottom: 12,
   },
   totalAmountLabel: {
     fontSize: 14,
-    color: colors.textTertiary, fontFamily: fonts.regular,
+    color: '#888',
   },
   totalAmountValue: {
     fontSize: 24,
-    fontFamily: fonts.bold,
-    color: colors.text,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
   },
   payButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: '#FF6B00',
     borderRadius: 12,
     padding: 16,
   },
@@ -623,39 +661,39 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFB380',
   },
   payButtonText: {
-    color: colors.surface,
+    color: '#fff',
     fontSize: 16,
-    fontFamily: fonts.bold,
+    fontWeight: '600',
     marginRight: 8,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: colors.textSecondary, fontFamily: fonts.regular,
+    color: '#666',
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: colors.surface,
+    backgroundColor: '#fff',
   },
   errorText: {
     marginTop: 16,
     fontSize: 16,
-    color: colors.textSecondary,
+    color: '#666',
     textAlign: 'center',
-    marginBottom: 24, fontFamily: fonts.regular,
+    marginBottom: 24,
   },
   retryButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#FF6B00',
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 8,
   },
   retryText: {
-    color: colors.surface,
+    color: '#fff',
     fontSize: 16,
-    fontFamily: fonts.bold,
+    fontWeight: '600',
   },
 });
