@@ -325,28 +325,15 @@ export const api = {
       return apiRequest('/user/recommendations');
     },
     
-    // Cart
+    // Cart (server copy, shared with the website)
     getCart: async () => {
       return apiRequest('/user/cart');
     },
-    
-    addToCart: async (data: Record<string, unknown>) => {
-      return apiRequest('/user/cart/add', {
-        method: 'POST',
+
+    saveCart: async (data: { sellerId: string | null; items: { menuItemId: string; quantity: number; selectedSize?: string | null }[] }) => {
+      return apiRequest('/user/cart', {
+        method: 'PUT',
         body: JSON.stringify(data),
-      });
-    },
-    
-    updateCartQuantity: async (itemId: string, quantity: number) => {
-      return apiRequest('/user/cart/update', {
-        method: 'PATCH',
-        body: JSON.stringify({ itemId, quantity }),
-      });
-    },
-    
-    removeFromCart: async (itemId: string) => {
-      return apiRequest(`/user/cart/remove/${itemId}`, {
-        method: 'DELETE',
       });
     },
     

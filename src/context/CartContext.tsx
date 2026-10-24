@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Alert } from 'react-native';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { Alert, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { api } from '../services/api';
+import { useAuth } from './AuthContext';
 
 /**
  * Unit price the backend charges (services/order-pricing.service.js → getUnitPrice):
@@ -14,6 +16,9 @@ export const getCartUnitPrice = (item: { price: number; discountPrice?: number }
 
 export interface CartItem {
   id: string;
+  /** Product id; differs from `id` only for half/full plate lines added on the website */
+  menuItemId?: string;
+  selectedSize?: 'half' | 'full';
   name: string;
   price: number;
   discountPrice?: number;
@@ -38,6 +43,37 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
+// Server cart (GET/PUT /api/user/cart) is shared with the website
+const toServerCart = (items: CartItem[]) => ({
+  sellerId: items.find(i => !!i.sellerId)?.sellerId || null,
+  items: items.map(i => ({ menuItemId: i.menuItemId || i.id, quantity: i.quantity, selectedSize: i.selectedSize || null })),
+});
+
+const fromServerCart = (data: any): CartItem[] =>
+  (Array.isArray(data?.items) ? data.items : [])
+    .filter((i: any) => i?.menuItem?._id)
+    .map((i: any) => {
+      const p = i.menuItem;
+      const size: 'half' | 'full' | undefined = i.selectedSize === 'half' || i.selectedSize === 'full' ? i.selectedSize : undefined;
+      const sizePrice = Number(size === 'half' ? p.halfPlatePrice : size === 'full' ? p.fullPlatePrice : 0) || 0;
+      return {
+        id: size ? `${p._id}_${size}` : String(p._id),
+        menuItemId: String(p._id),
+        selectedSize: size,
+        name: size ? `${p.name} (${size === 'half' ? 'Half' : 'Full'} Plate)` : p.name,
+        price: sizePrice > 0 ? sizePrice : Number(p.sellingPrice) || 0,
+        discountPrice: sizePrice > 0 ? undefined : p.discountPrice,
+        quantity: i.quantity,
+        image: p.image || '',
+        sellerId: String(data.sellerId || p.sellerId || ''),
+        sellerName: data.sellerName || 'Restaurant',
+        isVeg: !!p.isVeg,
+        description: p.description || '',
+      };
+    });
+
+const sameCart = (a: CartItem[], b: CartItem[]) => JSON.stringify(toServerCart(a)) === JSON.stringify(toServerCart(b));
+
 export const useCart = () => {
   const context = useContext(CartContext);
   if (!context) {
@@ -55,11 +91,79 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loadCart();
   }, []);
 
-  // Save cart to storage whenever items change (after initialization)
-  useEffect(() => {
-    if (isInitialized) {
-      saveCart();
+  const { token } = useAuth();
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+  const prevTokenRef = useRef(token);
+  // Token whose server cart has been loaded; local changes are pushed only after that
+  const syncedTokenRef = useRef<string | null>(null);
+  const skipPushRef = useRef(false);
+  const pendingPushRef = useRef(false);
+
+  const applyRemoteCart = React.useCallback((next: CartItem[]) => {
+    if (sameCart(next, itemsRef.current)) return;
+    skipPushRef.current = true;
+    setItems(next);
+  }, []);
+
+  const pullServerCart = React.useCallback(async (authToken: string, isLogin: boolean) => {
+    try {
+      const res: any = await api.user.getCart();
+      const server = fromServerCart(res?.data);
+      if (server.length > 0 || !isLogin) {
+        applyRemoteCart(server);
+      } else if (itemsRef.current.length > 0) {
+        // Server empty at login: keep what was added before logging in
+        api.user.saveCart(toServerCart(itemsRef.current)).catch(() => {});
+      }
+      syncedTokenRef.current = authToken;
+    } catch (error: any) {
+      console.warn('[CartContext] Failed to load server cart:', error?.message);
     }
+  }, [applyRemoteCart]);
+
+  // Load the account's cart on login (once local storage is read); drop it on logout
+  useEffect(() => {
+    if (!isInitialized) return;
+    const prevToken = prevTokenRef.current;
+    prevTokenRef.current = token;
+    if (!token) {
+      syncedTokenRef.current = null;
+      if (prevToken) applyRemoteCart([]);
+      return;
+    }
+    pullServerCart(token, true);
+  }, [token, isInitialized]);
+
+  // Pick up changes made on the website when the app comes back to the foreground
+  useEffect(() => {
+    if (!token) return;
+    const sub = AppState.addEventListener('change', state => {
+      if (state !== 'active' || pendingPushRef.current) return;
+      pullServerCart(token, syncedTokenRef.current !== token);
+    });
+    return () => sub.remove();
+  }, [token, pullServerCart]);
+
+  // Save cart to storage whenever items change (after initialization), and to the server when logged in
+  useEffect(() => {
+    if (!isInitialized) return;
+    saveCart();
+    if (skipPushRef.current) {
+      skipPushRef.current = false;
+      return;
+    }
+    if (!token || syncedTokenRef.current !== token) return;
+    pendingPushRef.current = true;
+    const timer = setTimeout(() => {
+      api.user.saveCart(toServerCart(items))
+        .catch((error: any) => console.warn('[CartContext] Failed to save server cart:', error?.message))
+        .finally(() => { pendingPushRef.current = false; });
+    }, 400);
+    return () => {
+      clearTimeout(timer);
+      pendingPushRef.current = false;
+    };
   }, [items, isInitialized]);
 
   const loadCart = React.useCallback(async () => {

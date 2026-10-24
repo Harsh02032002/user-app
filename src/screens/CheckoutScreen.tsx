@@ -186,7 +186,7 @@ export function CheckoutScreen() {
     let alive = true;
     api.user.quoteOrder({
       sellerId: typeof quoteSellerId === 'object' ? (quoteSellerId as any)?._id : quoteSellerId,
-      items: cartItems.map(i => ({ menuItemId: i.id, quantity: i.quantity })),
+      items: cartItems.map(i => ({ menuItemId: i.menuItemId || i.id, quantity: i.quantity, selectedSize: i.selectedSize })),
       deliveryAddress: { state: deliveryAddress.state, location: { type: 'Point', coordinates: [userLocation[0], userLocation[1]] } },
     })
       .then((res: any) => { if (alive) { setServerQuote(res?.quote || null); setQuoteProblem(null); } })
@@ -369,7 +369,8 @@ export function CheckoutScreen() {
           // Full subscription payment
           const subscriptionOrderData = {
             items: cartItems.map(item => ({
-              menuItemId: item.id,
+              menuItemId: item.menuItemId || item.id,
+              selectedSize: item.selectedSize,
               name: item.name,
               price: getCartUnitPrice(item),
               quantity: item.quantity,
@@ -405,7 +406,8 @@ export function CheckoutScreen() {
 
       const orderData = {
         items: cartItems.map(item => ({
-          menuItemId: item.id,
+          menuItemId: item.menuItemId || item.id,
+          selectedSize: item.selectedSize,
           name: item.name,
           sellingPrice: getCartUnitPrice(item),
           quantity: item.quantity,
@@ -996,7 +998,8 @@ export function CheckoutScreen() {
 
             const orderData = {
               items: cartItems.map(item => ({
-                menuItemId: item.id,
+                menuItemId: item.menuItemId || item.id,
+                selectedSize: item.selectedSize,
                 name: item.name,
                 sellingPrice: getCartUnitPrice(item),
                 quantity: item.quantity,
