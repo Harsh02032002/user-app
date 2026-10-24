@@ -792,9 +792,7 @@ export function CheckoutScreen() {
                     </View>
                     <Text style={styles.itemPrice}>₹{itemTotal.toFixed(0)}</Text>
                   </View>
-                  <Text style={{ fontSize: 11, color: '#777', marginTop: 2 }}>
-                    + GST ({foodGstRate.toFixed(1)}%) ₹{(itemTotal * (foodGstRate / 100)).toFixed(2)}
-                  </Text>
+                  
                 </View>
               );
             })}
@@ -809,10 +807,7 @@ export function CheckoutScreen() {
               <Text style={styles.billValue}>₹{totalAmount.toFixed(2)}</Text>
             </View>
 
-            <View style={styles.billRow}>
-              <Text style={[styles.billLabel, { color: '#15803d', fontWeight: '600' }]}>Total GST</Text>
-              <Text style={[styles.billValue, { color: '#15803d', fontWeight: '600' }]}>₹{(serverQuote?.taxTotal ?? totalGst).toFixed(2)}</Text>
-            </View>
+            
 
             <View style={[styles.billRow, styles.totalRow]}>
               <Text style={styles.totalLabel}>You pay</Text>

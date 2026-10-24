@@ -173,10 +173,7 @@ export function CartScreen() {
                 <Text style={styles.billLabel}>Subtotal</Text>
                 <Text style={styles.billValue}>₹{totalAmount}</Text>
               </View>
-              <View style={styles.billRow}>
-                <Text style={styles.billLabel}>GST ({foodGstRate}%)</Text>
-                <Text style={styles.billValue}>₹{gst}</Text>
-              </View>
+              
               <View style={[styles.billRow, styles.totalRow]}>
                 <Text style={styles.totalLabel}>Total</Text>
                 <Text style={styles.totalValue}>₹{total}</Text>
