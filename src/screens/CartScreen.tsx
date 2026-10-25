@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { AppHeader } from '../components/common/AppHeader';
-import { useCart } from '../context/CartContext';
+import { useCart, getCartUnitPrice } from '../context/CartContext';
 import { getImageUrl } from '../config/api';
 import api from '../services/api';
 import { colors, fonts, radius, spacing, surfaces } from '../theme';
@@ -142,9 +142,10 @@ export function CartScreen() {
                   {item.sellerName ? <Text style={styles.itemSeller} numberOfLines={1}>{item.sellerName}</Text> : null}
                   <View style={styles.itemBottomRow}>
                     <View style={styles.priceContainer}>
-                      {item.discountPrice ? (
+                      {/* Strike through the selling price only for a real discount (same rule as the bill) */}
+                      {getCartUnitPrice(item) < Number(item.price) ? (
                         <>
-                          <Text style={styles.itemPrice}>₹{item.discountPrice}</Text>
+                          <Text style={styles.itemPrice}>₹{getCartUnitPrice(item)}</Text>
                           <Text style={styles.originalPrice}>₹{item.price}</Text>
                         </>
                       ) : (
