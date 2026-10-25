@@ -6,3 +6,7 @@ ios/
 .expo/
 dist/
 web-build/
+
+# Local env files hold LAN dev URLs; never upload them to EAS builds
+.env
+.env*.local
