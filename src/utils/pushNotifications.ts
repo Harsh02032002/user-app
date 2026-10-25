@@ -87,7 +87,7 @@ export async function registerForPushNotifications(authToken: string | null): Pr
       body: JSON.stringify({ pushToken, fcmToken: pushToken }),
     });
 
-    console.log('[Push] Customer push token registered:', pushToken);
+    if (__DEV__) console.log('[Push] Customer push token registered');
     return pushToken;
   } catch (err: any) {
     console.log('[Push] Registration failed:', err?.message || err);

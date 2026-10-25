@@ -253,22 +253,14 @@ export function CheckoutScreen() {
     return true;
   };
 
-  const processWalletPayment = React.useCallback(async (orderId: string) => {
-    try {
-      await api.payment.processWalletPayment({
-        orderId,
-        amount: total,
-      });
-      
-      await refreshProfile();
-      clearCart();
-      Alert.alert('Success', 'Order placed successfully using wallet!', [
-        { text: 'OK', onPress: () => navigation.navigate('MainTabs' as any, { screen: 'Orders' }) }
-      ]);
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Wallet payment failed');
-    }
-  }, [total, clearCart, navigation]);
+  // The server debits the wallet while placing a 'wallet' order, so there is nothing left to pay here
+  const processWalletPayment = React.useCallback(async () => {
+    clearCart();
+    await refreshProfile().catch(() => {});
+    Alert.alert('Success', 'Order placed successfully using wallet!', [
+      { text: 'OK', onPress: () => navigation.navigate('MainTabs' as any, { screen: 'Orders' }) }
+    ]);
+  }, [clearCart, navigation, refreshProfile]);
 
   const processPaymentSuccess = React.useCallback(async (orderId: string, paymentId: string, razorpayOrderId?: string, razorpaySignature?: string) => {
     try {
@@ -323,6 +315,12 @@ export function CheckoutScreen() {
     }
 
     if (!validateAddress()) {
+      return;
+    }
+
+    // The rider calls this number, so never send a made-up one
+    if (!String(deliveryAddress?.phone || user?.phone || '').trim()) {
+      Alert.alert('Phone Number Required', 'Add a phone number to your profile or address so the rider can reach you.');
       return;
     }
 
@@ -417,7 +415,7 @@ export function CheckoutScreen() {
         sellerId: resolvedSellerId,
         deliveryAddress: {
           name: deliveryAddress.name || user?.name || 'Customer',
-          phone: deliveryAddress.phone || user?.phone || '9876543210',
+          phone: deliveryAddress.phone || user?.phone || '',
           street: deliveryAddress.street?.trim() || '',
           city: deliveryAddress.city?.trim() || 'Chandigarh',
           state: deliveryAddress.state?.trim() || 'Chandigarh',
@@ -434,8 +432,8 @@ export function CheckoutScreen() {
 
       const orderResponse = await api.user.placeOrder(orderData);
       
-      if (selectedPayment.type === 'wallet' && walletBalance >= total) {
-        await processWalletPayment(orderResponse.order._id);
+      if (selectedPayment.type === 'wallet') {
+        await processWalletPayment();
       } else {
         // COD placed successfully - show success popup modal
         clearCart();
@@ -1007,7 +1005,7 @@ export function CheckoutScreen() {
               sellerId: resolvedSellerId,
               deliveryAddress: {
                 name: deliveryAddress.name || user?.name || 'Customer',
-                phone: deliveryAddress.phone || user?.phone || '9876543210',
+                phone: deliveryAddress.phone || user?.phone || '',
                 street: deliveryAddress.street?.trim() || '',
                 city: deliveryAddress.city?.trim() || 'Chandigarh',
                 state: deliveryAddress.state?.trim() || 'Chandigarh',

@@ -125,9 +125,7 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}, requireAu
       token = await getAuthToken();
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
-        // Debug: Log token preview (first 20 chars)
-        console.log(`[API] Token sent: ${token.substring(0, 20)}...`);
-      } else {
+      } else if (__DEV__) {
         console.warn(`[API] No token found for protected endpoint: ${endpoint}`);
       }
     }
@@ -137,7 +135,7 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}, requireAu
       Object.assign(headers, options.headers);
     }
     
-    console.log(`[API] ${endpoint}`, requireAuth ? '(with auth)' : '(no auth)', token ? '✓ token' : '✗ no token');
+    if (__DEV__) console.log(`[API] ${endpoint}`, requireAuth ? '(with auth)' : '(no auth)', token ? '✓ token' : '✗ no token');
     
     const response = await fetchWithTimeout(url, {
       ...options,
@@ -589,13 +587,6 @@ export const api = {
   payment: {
     createRazorpayOrder: async (data: Record<string, unknown>) => {
       return apiRequest('/payment/razorpay/create-order', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
-    },
-    
-    processWalletPayment: async (data: Record<string, unknown>) => {
-      return apiRequest('/payment/wallet', {
         method: 'POST',
         body: JSON.stringify(data),
       });

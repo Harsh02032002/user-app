@@ -27,7 +27,6 @@ import NotificationsScreen from '../screens/NotificationsScreen';
 import OrderDetailsScreen from '../screens/OrderDetailsScreen';
 import { OrdersScreen } from '../screens/tabs/OrdersScreen';
 import PaymentMethodsScreen from '../screens/PaymentMethodsScreen';
-import PaymentScreen from '../screens/PaymentScreen';
 import RestaurantScreen from '../screens/RestaurantScreen';
 import SearchScreen from '../screens/SearchScreen';
 import SelectHomeChefScreen from '../screens/SelectHomeChefScreen';
@@ -63,13 +62,6 @@ export type RootStackParamList = {
     perDayValue: number;
     homeChefId: string;
     homeChefName: string;
-  };
-  Payment: { 
-    type: 'order' | 'subscription';
-    orderId?: string;
-    subscriptionData?: any;
-    amount: number;
-    razorpayOrderId: string;
   };
   AddAddress: { edit?: boolean; addressId?: string };
   Search: undefined;
@@ -128,7 +120,6 @@ export default function RootNavigator() {
             <Stack.Screen name="SubscriptionPlans" component={SubscriptionPlansScreen} options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="SelectHomeChef" component={SelectHomeChefScreen} options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="SubscriptionCheckout" component={SubscriptionCheckoutScreen} options={{ animation: 'slide_from_bottom' }} />
-            <Stack.Screen name="Payment" component={PaymentScreen} options={{ animation: 'slide_from_bottom' }} />
             <Stack.Screen name="AddAddress" component={AddAddressScreen} options={{ animation: 'slide_from_bottom' }} />
             <Stack.Screen name="Search" component={SearchScreen} options={{ animation: 'fade' }} />
             <Stack.Screen name="Addresses" component={AddressesScreen} options={{ animation: 'slide_from_right' }} />

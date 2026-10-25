@@ -219,11 +219,11 @@ export default function SubscriptionCheckoutScreen() {
     try {
       const { data } = await api.post(API_ENDPOINTS.CREATE_RAZORPAY_ORDER, { amount: breakdown.razorpayAmount });
       const rzOrderId = data?.orderId;
-      if (!rzOrderId) throw new Error(data?.message || 'Could not start the payment');
+      if (!rzOrderId || !data?.key) throw new Error(data?.message || 'Could not start the payment');
       const paymentData = await RazorpayCheckout.open({
         description: `${planName} with ${homeChefName}`,
         currency: 'INR',
-        key: data.key || API_ENDPOINTS.RAZORPAY_KEY,
+        key: data.key,
         amount: data.amount,
         name: 'Dabba Nation',
         order_id: rzOrderId,
