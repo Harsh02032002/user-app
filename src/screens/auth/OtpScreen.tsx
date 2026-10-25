@@ -147,7 +147,7 @@ export default function OtpScreen() {
 }
 
 const styles = StyleSheet.create({
-  destination: { ...type.subheading, color: colors.text },
+  destination: { ...type.subheading, color: colors.white },
   otpRow: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm, marginBottom: spacing.xxl },
   otpInput: {
     flex: 1,

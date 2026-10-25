@@ -17,7 +17,9 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/RootNavigator';
 import { useAuth } from '../../context/AuthContext';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { colors, fonts } from '../../theme';
+import { colors, elevation, fonts, gradients, radius, spacing, surfaces, type } from '../../theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -143,35 +145,35 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Back to Home Button */}
-          <TouchableOpacity 
-            style={styles.backButton} 
-            onPress={() => navigation.navigate('Landing' as any)}
-          >
-            <Feather name="arrow-left" size={18} color={colors.textSecondary} />
-            <Text style={styles.backText}>Back to Home</Text>
-          </TouchableOpacity>
+          {/* Brand hero — same as Landing and the shared AuthLayout */}
+          <LinearGradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
+            <Image source={require('../../../assets/images/hero-bg.jpg')} style={styles.heroTexture} resizeMode="cover" />
+            <SafeAreaView edges={['top']} style={styles.heroInner}>
+              <View style={styles.heroTopRow}>
+                <TouchableOpacity
+                  style={styles.backButton}
+                  onPress={() => navigation.navigate('Landing' as any)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Back to Home"
+                >
+                  <Feather name="arrow-left" size={18} color={colors.white} />
+                </TouchableOpacity>
+                <View style={styles.logoContainer}>
+                  <Image source={require('../../../assets/images/logo.png')} style={styles.logoImage} resizeMode="cover" />
+                  <Text style={styles.brandName}>Dabba Nation</Text>
+                </View>
+                <View style={styles.backSpacer} />
+              </View>
 
-          {/* Logo Section */}
-          <View style={styles.logoContainer}>
-            <View style={styles.logoCircle}>
-              <Image 
-                source={require('../../../assets/images/logo.png')} 
-                style={styles.logoImage}
-                resizeMode="contain"
-              />
-            </View>
-          </View>
-
-          {/* Header Text */}
-          <View style={styles.headerSection}>
-            <Text style={styles.title}>{otpStep ? 'Verify OTP' : 'Welcome Back!'}</Text>
-            <Text style={styles.subtitle}>
-              {otpStep
-                ? `Enter the 6-digit OTP sent to ${[otpInfo.maskedEmail, otpInfo.maskedPhone].filter(Boolean).join(' & ') || 'your Email & Phone'}`
-                : 'Sign in with your Email or Phone Number'}
-            </Text>
-          </View>
+              {/* Header Text */}
+              <Text style={styles.title}>{otpStep ? 'Verify OTP' : 'Welcome back'}</Text>
+              <Text style={styles.subtitle}>
+                {otpStep
+                  ? `Enter the 6-digit OTP sent to ${[otpInfo.maskedEmail, otpInfo.maskedPhone].filter(Boolean).join(' & ') || 'your Email & Phone'}`
+                  : 'Sign in with your Email or Phone Number'}
+              </Text>
+            </SafeAreaView>
+          </LinearGradient>
 
           {/* Form Section */}
           <View style={styles.formContainer}>
@@ -304,12 +306,13 @@ export default function LoginScreen() {
               </>
             )}
 
-            <View style={styles.registerLinkContainer}>
-              <Text style={styles.registerText}>Don't have an account? </Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Register', { phone: '' })}>
-                <Text style={styles.registerLink}>Sign Up</Text>
-              </TouchableOpacity>
-            </View>
+          </View>
+
+          <View style={styles.registerLinkContainer}>
+            <Text style={styles.registerText}>Don't have an account? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Register', { phone: '' })}>
+              <Text style={styles.registerLink}>Sign Up</Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -327,24 +330,35 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 40,
-    paddingBottom: 40,
+    paddingBottom: spacing.xxxl,
   },
+  hero: {
+    paddingBottom: spacing.xxxl * 2,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    overflow: 'hidden',
+  },
+  heroTexture: { ...StyleSheet.absoluteFill, width: '100%', height: '100%', opacity: 0.12 },
+  heroInner: { width: '100%', maxWidth: 440, alignSelf: 'center', paddingHorizontal: spacing.xl },
+  heroTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: spacing.md },
+  backSpacer: { width: 38, height: 38 },
+  brandName: { fontFamily: fonts.displayBold, fontSize: 17, lineHeight: 22, color: colors.white },
   backButton: {
-    flexDirection: 'row',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
-    alignSelf: 'flex-end',
-    gap: 4,
-    marginBottom: 20,
+    justifyContent: 'center',
   },
   backText: {
     fontSize: 13, fontFamily: fonts.regular,
     color: colors.textSecondary,
   },
   logoContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 20,
+    gap: spacing.sm,
   },
   logoCircle: {
     width: 90,
@@ -359,28 +373,40 @@ const styles = StyleSheet.create({
     })
   },
   logoImage: {
-    width: 70,
-    height: 70,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.white,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.6)',
   },
   headerSection: {
     alignItems: 'center',
     marginBottom: 24,
   },
   title: {
-    fontSize: 28,
+    fontSize: 30,
+    lineHeight: 36,
     fontFamily: fonts.displayBold,
-    color: colors.text,
-    marginBottom: 8,
-    textAlign: 'center',
+    color: colors.white,
+    marginTop: spacing.xxxl,
   },
   subtitle: {
-    fontSize: 14, fontFamily: fonts.regular,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    paddingHorizontal: 10,
+    ...type.body,
+    color: 'rgba(255,255,255,0.85)',
+    marginTop: spacing.xs,
   },
   formContainer: {
-    width: '100%',
+    ...surfaces.card,
+    ...elevation.raised,
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: radius.xl,
+    marginTop: -spacing.xxxl,
+    marginHorizontal: spacing.screen,
+    padding: spacing.xl,
+    width: undefined,
+    maxWidth: 440,
+    alignSelf: 'stretch',
   },
   modeToggleContainer: {
     flexDirection: 'row',
@@ -484,7 +510,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: spacing.xl,
   },
   registerText: {
     fontSize: 14, fontFamily: fonts.regular,
