@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { colors, fonts } from '../../theme';
 
 export const AppFooter = () => {
   // Footer is not needed in mobile app
@@ -10,7 +11,7 @@ export const AppFooter = () => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: colors.inkSurface,
     paddingTop: 40,
     paddingBottom: 20,
     marginTop: 20,
@@ -23,13 +24,13 @@ const styles = StyleSheet.create({
   },
   brandTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FF6B00',
+    fontFamily: fonts.displayBold,
+    color: colors.primary,
     marginBottom: 12,
   },
   description: {
-    fontSize: 14,
-    color: '#ccc',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textTertiary,
     lineHeight: 20,
     marginBottom: 20,
   },
@@ -55,24 +56,24 @@ const styles = StyleSheet.create({
   },
   columnTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontFamily: fonts.bold,
+    color: colors.white,
     marginBottom: 16,
   },
   linkText: {
-    fontSize: 14,
-    color: '#999',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textTertiary,
     marginBottom: 12,
   },
   contactItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
-    marginBottom: 15,
+    marginBottom: 16,
   },
   contactText: {
-    fontSize: 14,
-    color: '#ccc',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textTertiary,
     flex: 1,
     lineHeight: 20,
   },
@@ -83,12 +84,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   copyright: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   madeIn: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
 });

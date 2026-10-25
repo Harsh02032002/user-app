@@ -273,7 +273,7 @@ export function EditProfileScreen() {
         {/* Profile Information Card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Ionicons name="person-outline" size={20} color="#FF6B00" />
+            <Ionicons name="person-outline" size={20} color={colors.primary} />
             <Text style={styles.cardTitle}>Profile Information</Text>
           </View>
 
@@ -293,16 +293,16 @@ export function EditProfileScreen() {
                 />
               ) : (
                 <View style={styles.avatarPlaceholder}>
-                  <Ionicons name="person" size={40} color="#FF6B00" />
+                  <Ionicons name="person" size={40} color={colors.primary} />
                 </View>
               )}
               {uploadingType === 'profileImage' && (
                 <View style={styles.avatarLoadingOverlay}>
-                  <ActivityIndicator size="small" color="#fff" />
+                  <ActivityIndicator size="small" color={colors.white} />
                 </View>
               )}
               <View style={styles.cameraButton}>
-                <Ionicons name="camera" size={16} color="#fff" />
+                <Ionicons name="camera" size={16} color={colors.white} />
               </View>
             </TouchableOpacity>
             <TouchableOpacity
@@ -312,9 +312,9 @@ export function EditProfileScreen() {
               activeOpacity={0.8}
             >
               {uploadingType === 'profileImage' ? (
-                <ActivityIndicator size="small" color="#FF6B00" />
+                <ActivityIndicator size="small" color={colors.primary} />
               ) : (
-                <Ionicons name="camera-outline" size={16} color="#FF6B00" />
+                <Ionicons name="camera-outline" size={16} color={colors.primary} />
               )}
               <Text style={styles.changePhotoText}>
                 {uploadingType === 'profileImage' ? 'Uploading...' : 'Change Photo'}
@@ -331,8 +331,8 @@ export function EditProfileScreen() {
                 disabled={uploadingType === 'banner'}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
               >
-                <Ionicons name="cloud-upload-outline" size={15} color="#FF6B00" />
-                <Text style={{ fontSize: 13, fontWeight: '600', color: colors.primary }}>
+                <Ionicons name="cloud-upload-outline" size={15} color={colors.primary} />
+                <Text style={{ fontSize: 13, fontFamily: fonts.semiBold, color: colors.primary }}>
                   {uploadingType === 'banner'
                     ? 'Uploading...'
                     : resolvedBannerUri && !bannerLoadError
@@ -356,14 +356,14 @@ export function EditProfileScreen() {
                     onError={() => setBannerLoadError(true)}
                   />
                   <View style={styles.bannerEditBadge}>
-                    <Ionicons name="camera" size={14} color="#fff" />
+                    <Ionicons name="camera" size={14} color={colors.white} />
                     <Text style={styles.bannerEditBadgeText}>Tap to change</Text>
                   </View>
                 </>
               ) : (
                 <View style={styles.bannerPlaceholder}>
                   <View style={styles.bannerUploadIconCircle}>
-                    <Ionicons name="camera-outline" size={24} color="#FF6B00" />
+                    <Ionicons name="camera-outline" size={24} color={colors.primary} />
                   </View>
                   <Text style={styles.bannerPlaceholderText}>Tap to Upload Banner Photo</Text>
                   <Text style={{ fontSize: 11, color: colors.textTertiary }}>JPG, PNG or WEBP (16:9 recommended)</Text>
@@ -371,8 +371,8 @@ export function EditProfileScreen() {
               )}
               {uploadingType === 'banner' && (
                 <View style={styles.bannerLoadingOverlay}>
-                  <ActivityIndicator size="large" color="#fff" />
-                  <Text style={{ color: colors.surface, fontSize: 13, fontWeight: '600', marginTop: 6 }}>
+                  <ActivityIndicator size="large" color={colors.white} />
+                  <Text style={{ color: colors.surface, fontSize: 13, fontFamily: fonts.semiBold, marginTop: 6 }}>
                     Uploading Banner...
                   </Text>
                 </View>
@@ -434,10 +434,10 @@ export function EditProfileScreen() {
 
           <TouchableOpacity style={styles.saveButton} onPress={handleSaveProfile} disabled={loading}>
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.white} />
             ) : (
               <>
-                <Ionicons name="save-outline" size={18} color="#fff" />
+                <Ionicons name="save-outline" size={18} color={colors.white} />
                 <Text style={styles.saveButtonText}>Save Changes</Text>
               </>
             )}
@@ -447,7 +447,7 @@ export function EditProfileScreen() {
         {/* Change Password */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Ionicons name="lock-closed-outline" size={20} color="#FF6B00" />
+            <Ionicons name="lock-closed-outline" size={20} color={colors.primary} />
             <Text style={styles.cardTitle}>Change Password</Text>
           </View>
 
@@ -485,7 +485,7 @@ export function EditProfileScreen() {
 
           <TouchableOpacity style={styles.saveButton} onPress={handleChangePassword} disabled={loading}>
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.white} />
             ) : (
               <Text style={styles.saveButtonText}>Update Password</Text>
             )}
@@ -519,27 +519,27 @@ export function EditProfileScreen() {
               onPress={() => pickerModalType && launchCameraPicker(pickerModalType)}
             >
               <View style={[styles.pickerOptionIcon, { backgroundColor: colors.primarySoft }]}>
-                <Ionicons name="camera" size={22} color="#FF6B00" />
+                <Ionicons name="camera" size={22} color={colors.primary} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.pickerOptionTitle}>Take Photo</Text>
                 <Text style={styles.pickerOptionDesc}>Use your camera to capture a new photo</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+              <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.pickerOptionBtn}
               onPress={() => pickerModalType && launchGalleryPicker(pickerModalType)}
             >
-              <View style={[styles.pickerOptionIcon, { backgroundColor: '#EFF6FF' }]}>
-                <Ionicons name="images" size={22} color="#3B82F6" />
+              <View style={[styles.pickerOptionIcon, { backgroundColor: colors.infoSoft }]}>
+                <Ionicons name="images" size={22} color={colors.info} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.pickerOptionTitle}>Choose from Gallery</Text>
                 <Text style={styles.pickerOptionDesc}>Select an existing photo from your device</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+              <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -558,7 +558,7 @@ export function EditProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F2E8',
+    backgroundColor: colors.canvas,
   },
   header: {
     padding: 16,
@@ -568,7 +568,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontFamily: fonts.bold,
+    fontFamily: fonts.displayBold,
     color: colors.text,
   },
   scrollView: {
@@ -580,7 +580,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
-    shadowColor: '#000',
+    shadowColor: '#403126',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -594,7 +594,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 18,
-    fontFamily: fonts.bold,
+    fontFamily: fonts.displayBold,
     color: colors.text,
   },
   profileSection: {
@@ -624,7 +624,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#FFCFB3',
+    borderColor: colors.primaryBorder,
   },
   avatarLoadingOverlay: {
     position: 'absolute',
@@ -658,7 +658,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#FFCFB3',
+    borderColor: colors.primaryBorder,
     gap: 8,
   },
   changePhotoText: {
@@ -670,9 +670,9 @@ const styles = StyleSheet.create({
     height: 140,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: '#FFF9F5',
+    backgroundColor: colors.primarySoft,
     borderWidth: 2,
-    borderColor: '#FFCFB3',
+    borderColor: colors.primaryBorder,
     borderStyle: 'dashed',
     position: 'relative',
   },
@@ -690,7 +690,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#FFF0E5',
+    backgroundColor: colors.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -705,7 +705,7 @@ const styles = StyleSheet.create({
     right: 10,
     backgroundColor: 'rgba(0,0,0,0.65)',
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 4,
     borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
@@ -735,19 +735,19 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    padding: 22,
+    padding: 24,
     paddingBottom: 32,
   },
   pickerModalTitle: {
     fontSize: 18,
-    fontFamily: fonts.bold,
+    fontFamily: fonts.displayBold,
     color: colors.text,
     marginBottom: 4,
   },
   pickerModalSubtitle: {
     fontSize: 13,
     color: colors.textSecondary,
-    marginBottom: 18, fontFamily: fonts.regular,
+    marginBottom: 16, fontFamily: fonts.regular,
   },
   pickerOptionBtn: {
     flexDirection: 'row',
@@ -778,7 +778,7 @@ const styles = StyleSheet.create({
   },
   pickerCancelBtn: {
     marginTop: 6,
-    paddingVertical: 13,
+    paddingVertical: 12,
     borderRadius: 12,
     backgroundColor: colors.canvas,
     alignItems: 'center',
@@ -786,24 +786,24 @@ const styles = StyleSheet.create({
   pickerCancelText: {
     fontSize: 15,
     fontFamily: fonts.bold,
-    color: '#374151',
+    color: colors.textSecondary,
   },
   formRow: {
     flexDirection: 'row',
     gap: 12,
   },
   inputGroup: {
-    marginBottom: 14,
+    marginBottom: 16,
   },
   label: {
     fontSize: 13,
     fontFamily: fonts.medium,
-    color: '#374151',
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,

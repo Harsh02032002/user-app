@@ -4,7 +4,7 @@ import Toast from 'react-native-toast-message';
 import { Ionicons } from '@expo/vector-icons';
 import { PAYMENT_QR_DATA } from '../assets/qrCodeData';
 import { BottomSheet, Button, Input } from './common';
-import { colors, formatPrice, radius, spacing, type } from '../theme';
+import { colors, formatPrice, radius, spacing, type, fonts } from '../theme';
 
 interface OnlinePaymentModalProps {
   visible: boolean;
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
   steps: { gap: spacing.sm, marginBottom: spacing.lg },
   step: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   stepDot: { width: 20, height: 20, borderRadius: 10, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' },
-  stepDotText: { fontSize: 11, fontWeight: '700', color: colors.textSecondary },
+  stepDotText: { fontSize: 11, fontFamily: fonts.bold, color: colors.textSecondary },
   qrWrapper: { alignSelf: 'center', padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, marginBottom: spacing.md },
   qrImage: { width: 220, height: 220 },
   payee: { borderRadius: radius.md, borderWidth: 1, borderColor: colors.border },

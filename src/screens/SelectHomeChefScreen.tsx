@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   chefCardSelected: { borderColor: colors.primary, borderWidth: 1.5, backgroundColor: colors.primarySoft },
   chefImage: { width: 56, height: 56, borderRadius: radius.md, overflow: 'hidden', backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
   chefMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
-  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  radio: { width: 22, height: 22, borderRadius: 12, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   radioSelected: { borderColor: colors.primary },
   radioDot: { width: 11, height: 11, borderRadius: 6, backgroundColor: colors.primary },
   footerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },

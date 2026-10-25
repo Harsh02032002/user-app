@@ -12,6 +12,7 @@ import { OrdersScreen } from '../screens/tabs/OrdersScreen';
 import SubscriptionPlansScreen from '../screens/SubscriptionPlansScreen';
 import { WalletScreen } from '../screens/tabs/WalletScreen';
 import { SettingsScreen } from '../screens/tabs/SettingsScreen';
+import { colors, fonts } from '../theme';
 
 export type MainTabParamList = {
   Home: undefined;
@@ -84,12 +85,12 @@ export default function MainTabNavigator() {
             </View>
           );
         },
-        tabBarActiveTintColor: '#FF6B00',
-        tabBarInactiveTintColor: '#999',
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textTertiary,
         tabBarStyle: { display: 'none' }, // Using custom MobileNavBar instead
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: '600',
+          fontFamily: fonts.semiBold,
         },
       })}
     >
@@ -127,7 +128,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -5,
     right: -10,
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     borderRadius: 10,
     width: 18,
     height: 18,
@@ -135,8 +136,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   badgeText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 10,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
   },
 });

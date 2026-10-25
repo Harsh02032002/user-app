@@ -8,7 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import { Button, Notice } from '../../components/common';
-import { colors, radius, spacing, type } from '../../theme';
+import { colors, radius, spacing, type, fonts } from '../../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Otp'>;
 type RouteType = RouteProp<RootStackParamList, 'Otp'>;
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     textAlign: 'center',
     fontSize: 22,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: colors.text,
   },
   otpInputFilled: { borderColor: colors.primary, backgroundColor: colors.primarySoft },

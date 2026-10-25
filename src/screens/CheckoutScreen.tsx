@@ -25,6 +25,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LOCATION_COORDS_KEY, LOCATION_NAME_KEY } from '../utils/location';
 import { OnlinePaymentModal } from '../components/OnlinePaymentModal';
 import { SERVICE_RADIUS_KM } from '../config/serviceArea';
+import { colors, fonts } from '../theme';
 // WebView is only available on native platforms
 const WebViewComponent = Platform.OS !== 'web' ? require('react-native-webview').WebView : null;
 
@@ -585,7 +586,7 @@ export function CheckoutScreen() {
       
       <View style={styles.headerSection}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.pageTitle}>Checkout</Text>
       </View>
@@ -598,7 +599,7 @@ export function CheckoutScreen() {
         {/* Delivery Address Section */}
         <View style={styles.section}>
           <View style={styles.sectionTitleRow}>
-            <Ionicons name="location-outline" size={20} color="#FF6B00" />
+            <Ionicons name="location-outline" size={20} color={colors.primary} />
             <Text style={styles.sectionTitle}>Delivery Address</Text>
           </View>
           
@@ -609,9 +610,9 @@ export function CheckoutScreen() {
             disabled={isDetectingLocation}
           >
             {isDetectingLocation ? (
-              <ActivityIndicator size={16} color="#FF6B00" />
+              <ActivityIndicator size={16} color={colors.primary} />
             ) : (
-              <Ionicons name="location" size={16} color="#FF6B00" />
+              <Ionicons name="location" size={16} color={colors.primary} />
             )}
             <Text style={styles.locationButtonText}>
               {isDetectingLocation ? 'Detecting location...' : 'Detect My Current Location'}
@@ -685,7 +686,7 @@ export function CheckoutScreen() {
         {/* Payment Methods Section */}
         <View style={styles.section}>
           <View style={styles.sectionTitleRow}>
-            <Ionicons name="card-outline" size={20} color="#FF6B00" />
+            <Ionicons name="card-outline" size={20} color={colors.primary} />
             <Text style={styles.sectionTitle}>Payment Method</Text>
           </View>
           
@@ -695,8 +696,8 @@ export function CheckoutScreen() {
               style={[styles.paymentMethod, selectedPayment?.type === 'subscription' && styles.selectedPayment]}
               onPress={() => setSelectedPayment({ id: 'subscription', name: 'Pay from Subscription Balance', icon: 'star', type: 'subscription' })}
             >
-              <View style={[styles.paymentIconContainer, { backgroundColor: '#6366f1' }]}>
-                <Ionicons name="star" size={20} color="#fff" />
+              <View style={[styles.paymentIconContainer, { backgroundColor: colors.primary }]}>
+                <Ionicons name="star" size={20} color={colors.white} />
               </View>
               <View style={styles.paymentDetails}>
                 <Text style={styles.paymentName}>Subscription Balance</Text>
@@ -705,13 +706,13 @@ export function CheckoutScreen() {
                   {activeSubs.length > 1 ? ` (${activeSubs.length} plans combined)` : ''}
                 </Text>
                 {totalSubBalance < total && (
-                  <Text style={[styles.paymentDescription, { color: '#FF6B00' }]}>
+                  <Text style={[styles.paymentDescription, { color: colors.primary }]}>
                     ₹{(total - totalSubBalance).toLocaleString('en-IN')} extra will be charged online
                   </Text>
                 )}
               </View>
               {selectedPayment?.type === 'subscription' && (
-                <Ionicons name="checkmark-circle" size={20} color="#FF6B00" />
+                <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
               )}
             </TouchableOpacity>
           )}
@@ -722,8 +723,8 @@ export function CheckoutScreen() {
             onPress={() => walletBalance > 0 && setSelectedPayment({ id: 'wallet', name: 'Wallet', icon: 'wallet', type: 'wallet' })}
             disabled={walletBalance === 0}
           >
-            <View style={[styles.paymentIconContainer, { backgroundColor: '#22c55e' }]}>
-              <Ionicons name="wallet" size={20} color="#fff" />
+            <View style={[styles.paymentIconContainer, { backgroundColor: colors.success }]}>
+              <Ionicons name="wallet" size={20} color={colors.white} />
             </View>
             <View style={styles.paymentDetails}>
               <View style={styles.paymentNameRow}>
@@ -737,7 +738,7 @@ export function CheckoutScreen() {
               </Text>
             </View>
             {selectedPayment?.type === 'wallet' && (
-              <Ionicons name="checkmark-circle" size={20} color="#FF6B00" />
+              <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
             )}
           </TouchableOpacity>
           
@@ -764,15 +765,15 @@ export function CheckoutScreen() {
             style={[styles.paymentMethod, selectedPayment?.type === 'cod' && styles.selectedPayment]}
             onPress={() => setSelectedPayment({ id: 'cod', name: 'Cash on Delivery', icon: 'cash', type: 'cod' })}
           >
-            <View style={[styles.paymentIconContainer, { backgroundColor: '#22c55e' }]}>
-              <Ionicons name="cash" size={20} color="#fff" />
+            <View style={[styles.paymentIconContainer, { backgroundColor: colors.success }]}>
+              <Ionicons name="cash" size={20} color={colors.white} />
             </View>
             <View style={styles.paymentDetails}>
               <Text style={styles.paymentName}>Cash on Delivery</Text>
               <Text style={styles.paymentDescription}>Pay when your order arrives</Text>
             </View>
             {selectedPayment?.type === 'cod' && (
-              <Ionicons name="checkmark-circle" size={20} color="#FF6B00" />
+              <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
             )}
           </TouchableOpacity>
         </View>
@@ -809,51 +810,49 @@ export function CheckoutScreen() {
               <Text style={styles.billValue}>₹{totalAmount.toFixed(2)}</Text>
             </View>
 
-            
-
-            <View style={[styles.billRow, styles.totalRow]}>
-              <Text style={styles.totalLabel}>You pay</Text>
-              <Text style={styles.totalValue}>₹{payableAmount.toFixed(2)}</Text>
-            </View>
-            {quoteProblem ? (
-              <Text style={{ color: '#DC2626', fontSize: 12, marginTop: 6 }} accessibilityRole="alert">{quoteProblem}</Text>
-            ) : null}
-
             {/* Delivery Fee Breakdown */}
             {isFetchingDeliveryFee ? (
               <View style={styles.billRow}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                  <Ionicons name="bicycle-outline" size={15} color="#FF6B00" />
-                  <Text style={[styles.billLabel, { color: '#FF6B00' }]}>Delivery Fee</Text>
+                  <Ionicons name="bicycle-outline" size={15} color={colors.primary} />
+                  <Text style={[styles.billLabel, { color: colors.primary }]}>Delivery Fee</Text>
                 </View>
-                <ActivityIndicator size="small" color="#FF6B00" />
+                <ActivityIndicator size="small" color={colors.primary} />
               </View>
             ) : deliveryPricing ? (
               <View style={styles.billRow}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                  <Ionicons name="bicycle-outline" size={15} color="#FF6B00" />
-                  <Text style={[styles.billLabel, { color: '#FF6B00' }]}>
+                  <Ionicons name="bicycle-outline" size={15} color={colors.primary} />
+                  <Text style={[styles.billLabel, { color: colors.primary }]}>
                     Delivery Fee
                     {deliveryPricing.distanceKm > 0 ? ` (${deliveryPricing.distanceKm} km)` : ''}
                   </Text>
                 </View>
                 {deliveryPricing.serviceable ? (
-                  <Text style={[styles.billValue, { color: '#FF6B00', fontWeight: '700' }]}>₹{deliveryPricing.customerFee}</Text>
+                  <Text style={[styles.billValue, { color: colors.primary, fontFamily: fonts.bold }]}>₹{deliveryPricing.customerFee}</Text>
                 ) : (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Ionicons name="ban-outline" size={14} color="#ef4444" />
-                    <Text style={[styles.billValue, { color: '#ef4444', fontWeight: '700' }]}>Not Serviceable</Text>
+                    <Ionicons name="ban-outline" size={14} color={colors.danger} />
+                    <Text style={[styles.billValue, { color: colors.danger, fontFamily: fonts.bold }]}>Not Serviceable</Text>
                   </View>
                 )}
               </View>
             ) : (serverQuote?.deliveryFee ?? deliveryFee) > 0 ? (
               <View style={styles.billRow}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                  <Ionicons name="bicycle-outline" size={15} color="#FF6B00" />
-                  <Text style={[styles.billLabel, { color: '#FF6B00' }]}>Delivery Fee</Text>
+                  <Ionicons name="bicycle-outline" size={15} color={colors.primary} />
+                  <Text style={[styles.billLabel, { color: colors.primary }]}>Delivery Fee</Text>
                 </View>
-                <Text style={[styles.billValue, { color: '#FF6B00', fontWeight: '700' }]}>₹{serverQuote?.deliveryFee ?? deliveryFee}</Text>
+                <Text style={[styles.billValue, { color: colors.primary, fontFamily: fonts.bold }]}>₹{serverQuote?.deliveryFee ?? deliveryFee}</Text>
               </View>
+            ) : null}
+
+            <View style={[styles.billRow, styles.totalRow]}>
+              <Text style={styles.totalLabel}>You pay</Text>
+              <Text style={styles.totalValue}>₹{payableAmount.toFixed(2)}</Text>
+            </View>
+            {quoteProblem ? (
+              <Text style={{ color: colors.danger, fontSize: 12, marginTop: 6 }} accessibilityRole="alert">{quoteProblem}</Text>
             ) : null}
 
           </View>
@@ -893,7 +892,7 @@ export function CheckoutScreen() {
               )}
               <View style={styles.walletInfoRow}>
                 <Text style={styles.walletInfoLabel}>Total Sub Balance</Text>
-                <Text style={[styles.walletInfoValue, { color: '#6366f1' }]}>₹{totalSubBalance.toLocaleString('en-IN')}</Text>
+                <Text style={[styles.walletInfoValue, { color: colors.primary }]}>₹{totalSubBalance.toLocaleString('en-IN')}</Text>
               </View>
               <View style={styles.walletInfoRow}>
                 <Text style={styles.walletInfoLabel}>Order Total</Text>
@@ -902,12 +901,12 @@ export function CheckoutScreen() {
               {totalSubBalance >= total ? (
                 <View style={styles.walletInfoRow}>
                   <Text style={styles.walletInfoLabel}>Remaining After Order</Text>
-                  <Text style={[styles.walletInfoValue, { color: '#22c55e' }]}>₹{(totalSubBalance - total).toLocaleString('en-IN')}</Text>
+                  <Text style={[styles.walletInfoValue, { color: colors.success }]}>₹{(totalSubBalance - total).toLocaleString('en-IN')}</Text>
                 </View>
               ) : (
-                <View style={[styles.walletInfoRow, { backgroundColor: '#fff5f0', padding: 8, borderRadius: 8, marginTop: 4 }]}>
-                  <Text style={[styles.walletInfoLabel, { color: '#FF6B00' }]}>Extra to Pay Online</Text>
-                  <Text style={[styles.walletInfoValue, { color: '#FF6B00' }]}>₹{(total - totalSubBalance).toLocaleString('en-IN')}</Text>
+                <View style={[styles.walletInfoRow, { backgroundColor: colors.primarySoft, padding: 8, borderRadius: 8, marginTop: 4 }]}>
+                  <Text style={[styles.walletInfoLabel, { color: colors.primary }]}>Extra to Pay Online</Text>
+                  <Text style={[styles.walletInfoValue, { color: colors.primary }]}>₹{(total - totalSubBalance).toLocaleString('en-IN')}</Text>
                 </View>
               )}
               <Text style={styles.subscriptionNote}>
@@ -928,16 +927,16 @@ export function CheckoutScreen() {
             <View style={{
               flexDirection: 'row',
               alignItems: 'center',
-              backgroundColor: '#FEE2E2',
-              borderColor: '#EF4444',
+              backgroundColor: colors.dangerSoft,
+              borderColor: colors.danger,
               borderWidth: 1,
               borderRadius: 8,
               padding: 10,
               marginBottom: 10,
               gap: 8,
             }}>
-              <Ionicons name="warning-outline" size={18} color="#DC2626" />
-              <Text style={{ flex: 1, color: '#DC2626', fontSize: 12, fontWeight: '600' }}>
+              <Ionicons name="warning-outline" size={18} color={colors.danger} />
+              <Text style={{ flex: 1, color: colors.danger, fontSize: 12, fontFamily: fonts.semiBold }}>
                 Delivery unavailable ({deliveryPricing.distanceKm} km away). We deliver strictly within {SERVICE_RADIUS_KM} km.
               </Text>
             </View>
@@ -947,16 +946,16 @@ export function CheckoutScreen() {
             style={[
               styles.payButton, 
               (loading || (deliveryPricing && !deliveryPricing.serviceable)) && styles.buttonDisabled,
-              deliveryPricing && !deliveryPricing.serviceable && { backgroundColor: '#9CA3AF' }
+              deliveryPricing && !deliveryPricing.serviceable && { backgroundColor: colors.borderStrong }
             ]} 
             onPress={handlePlaceOrder}
             disabled={loading || !!(deliveryPricing && !deliveryPricing.serviceable)}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.white} />
             ) : deliveryPricing && !deliveryPricing.serviceable ? (
               <>
-                <Ionicons name="ban" size={20} color="#fff" />
+                <Ionicons name="ban" size={20} color={colors.white} />
                 <Text style={styles.payButtonText}>
                   Not Serviceable ({deliveryPricing.distanceKm} km {'>'} {SERVICE_RADIUS_KM} km)
                 </Text>
@@ -972,7 +971,7 @@ export function CheckoutScreen() {
                     : selectedPayment?.type === 'cod' ? 'Place Order (COD)'
                     : `Pay ₹${payableAmount}`}
                 </Text>
-                <Ionicons name="arrow-forward" size={20} color="#fff" />
+                <Ionicons name="arrow-forward" size={20} color={colors.white} />
               </>
             )}
           </TouchableOpacity>
@@ -1048,7 +1047,7 @@ export function CheckoutScreen() {
         <View style={styles.successModalOverlay}>
           <View style={styles.successModalCard}>
             <View style={styles.successIconBadge}>
-              <Ionicons name="checkmark-circle" size={68} color="#22C55E" />
+              <Ionicons name="checkmark-circle" size={68} color={colors.success} />
             </View>
 
             <Text style={styles.successModalTitle}>Order Placed!</Text>
@@ -1063,7 +1062,7 @@ export function CheckoutScreen() {
               </View>
               <View style={styles.successRow}>
                 <Text style={styles.successRowLabel}>Total Amount</Text>
-                <Text style={[styles.successRowValue, { color: '#FF6B00', fontWeight: '800' }]}>
+                <Text style={[styles.successRowValue, { color: colors.primary, fontFamily: fonts.heavy }]}>
                   ₹{successOrderData?.total}
                 </Text>
               </View>
@@ -1080,7 +1079,7 @@ export function CheckoutScreen() {
                 navigation.navigate('MainTabs' as any, { screen: 'Orders' });
               }}
             >
-              <Ionicons name="bag-handle" size={18} color="#fff" />
+              <Ionicons name="bag-handle" size={18} color={colors.white} />
               <Text style={styles.successPrimaryBtnText}>View & Track Orders</Text>
             </TouchableOpacity>
 
@@ -1092,7 +1091,7 @@ export function CheckoutScreen() {
               }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                <Ionicons name="home-outline" size={16} color="#4B5563" />
+                <Ionicons name="home-outline" size={16} color={colors.textSecondary} />
                 <Text style={styles.successSecondaryBtnText}>Back to Home</Text>
               </View>
             </TouchableOpacity>
@@ -1106,7 +1105,7 @@ export function CheckoutScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F2E8',
+    backgroundColor: colors.canvas,
   },
   headerSection: {
     flexDirection: 'row',
@@ -1120,14 +1119,14 @@ const styles = StyleSheet.create({
   },
   pageTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.displayBold,
+    color: colors.text,
   },
   scrollView: {
     flex: 1,
   },
   section: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     marginHorizontal: 16,
     marginBottom: 16,
     borderRadius: 12,
@@ -1144,8 +1143,8 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.displayBold,
+    color: colors.text,
   },
   locationButton: {
     flexDirection: 'row',
@@ -1153,43 +1152,43 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 12,
     borderWidth: 1,
-    borderColor: '#e5e5e5',
+    borderColor: colors.border,
     borderRadius: 8,
     gap: 8,
-    backgroundColor: '#fafafa',
+    backgroundColor: colors.inputFill,
   },
   locationButtonText: {
     fontSize: 14,
-    color: '#1a1a1a',
-    fontWeight: '500',
+    color: colors.text,
+    fontFamily: fonts.medium,
   },
   locationHint: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 4,
     marginBottom: 16,
   },
   addressCard: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.inputFill,
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#FF6B00',
+    borderColor: colors.primary,
   },
   addressName: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.semiBold,
+    color: colors.text,
   },
   addressPhone: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     marginVertical: 2,
   },
   addressText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     lineHeight: 20,
   },
   addAddressButton: {
@@ -1198,48 +1197,48 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 16,
     borderWidth: 1,
-    borderColor: '#FF6B00',
+    borderColor: colors.primary,
     borderRadius: 8,
     borderStyle: 'dashed',
     gap: 8,
   },
   addAddressText: {
     fontSize: 16,
-    color: '#FF6B00',
-    fontWeight: '600',
+    color: colors.primary,
+    fontFamily: fonts.semiBold,
   },
   changeAddressButton: {
     marginTop: 12,
     paddingVertical: 8,
     paddingHorizontal: 16,
-    backgroundColor: '#fff5f0',
+    backgroundColor: colors.primarySoft,
     borderRadius: 6,
     alignSelf: 'flex-start',
   },
   changeAddressText: {
     fontSize: 14,
-    color: '#FF6B00',
-    fontWeight: '500',
+    color: colors.primary,
+    fontFamily: fonts.medium,
   },
   addressForm: {
     marginTop: 8,
   },
   formLabel: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#1a1a1a',
+    fontFamily: fonts.medium,
+    color: colors.text,
     marginBottom: 6,
     marginTop: 12,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#e5e5e5',
+    borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    fontSize: 14,
-    color: '#1a1a1a',
-    backgroundColor: '#fafafa',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.text,
+    backgroundColor: colors.inputFill,
   },
   rowInputs: {
     flexDirection: 'row',
@@ -1249,16 +1248,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   saveAddressButton: {
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 20,
   },
   saveAddressText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
   },
   cancelButton: {
     paddingVertical: 12,
@@ -1266,23 +1265,23 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   cancelButtonText: {
-    color: '#666',
+    color: colors.textSecondary,
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
   },
   paymentMethod: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     borderWidth: 2,
-    borderColor: '#e5e5e5',
+    borderColor: colors.border,
     borderRadius: 12,
     marginBottom: 12,
     gap: 12,
   },
   selectedPayment: {
-    borderColor: '#FF6B00',
-    backgroundColor: '#fff5f0',
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
   },
   disabledPayment: {
     opacity: 0.6,
@@ -1291,7 +1290,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#22c55e',
+    backgroundColor: colors.success,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1305,20 +1304,20 @@ const styles = StyleSheet.create({
   },
   paymentName: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.semiBold,
+    color: colors.text,
   },
   walletBalance: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#22c55e',
+    fontFamily: fonts.semiBold,
+    color: colors.success,
   },
   insufficientBalance: {
-    color: '#ef4444',
+    color: colors.danger,
   },
   paymentDescription: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     marginTop: 2,
   },
   cartItemsContainer: {
@@ -1336,21 +1335,21 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   itemName: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
   itemQuantity: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
   itemPrice: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.semiBold,
+    color: colors.text,
   },
   divider: {
     height: 1,
-    backgroundColor: '#e5e5e5',
+    backgroundColor: colors.border,
     marginVertical: 12,
   },
   billBreakdown: {
@@ -1363,32 +1362,32 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   billLabel: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
   billValue: {
     fontSize: 14,
-    color: '#1a1a1a',
-    fontWeight: '500',
+    color: colors.text,
+    fontFamily: fonts.medium,
   },
   totalRow: {
     borderTopWidth: 1,
-    borderTopColor: '#e5e5e5',
+    borderTopColor: colors.border,
     paddingTop: 12,
     marginTop: 8,
   },
   totalLabel: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   totalValue: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FF6B00',
+    fontFamily: fonts.bold,
+    color: colors.primary,
   },
   walletInfoCard: {
-    backgroundColor: '#f0fdf4',
+    backgroundColor: colors.successSoft,
     padding: 12,
     borderRadius: 8,
     marginBottom: 16,
@@ -1399,17 +1398,17 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   walletInfoLabel: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
   walletInfoValue: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.semiBold,
+    color: colors.text,
   },
   subscriptionNote: {
-    fontSize: 12,
-    color: '#FF6B00',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.primary,
     marginTop: 8,
     fontStyle: 'italic',
   },
@@ -1418,8 +1417,8 @@ const styles = StyleSheet.create({
   },
   subBreakdownTitle: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#6366f1',
+    fontFamily: fonts.semiBold,
+    color: colors.primary,
     marginBottom: 6,
   },
   subBreakdownRow: {
@@ -1428,25 +1427,25 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   subBreakdownName: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
   subBreakdownAmount: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#6366f1',
+    fontFamily: fonts.semiBold,
+    color: colors.primary,
   },
   subDivider: {
     height: 1,
-    backgroundColor: '#e5e5e5',
+    backgroundColor: colors.border,
     marginVertical: 8,
   },
   payButton: {
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 18,
+    padding: 16,
     borderRadius: 12,
     marginTop: 10,
     marginBottom: 10,
@@ -1454,31 +1453,31 @@ const styles = StyleSheet.create({
   },
   locationButtonDisabled: {
     opacity: 0.7,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: colors.inputFill,
   },
   buttonDisabled: {
-    backgroundColor: '#FFB380',
+    backgroundColor: colors.primaryDisabled,
   },
   payButtonText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
+    fontFamily: fonts.semiBold,
+    color: colors.white,
   },
   paymentNote: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 12,
   },
   fixedBottomContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: Platform.OS === 'ios' ? 24 : 16,
     borderTopWidth: 1,
-    borderTopColor: '#e5e5e5',
+    borderTopColor: colors.border,
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.08, shadowRadius: 8 },
+      ios: { shadowColor: '#403126', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.08, shadowRadius: 8 },
       android: { elevation: 8 },
       web: { boxShadow: '0px -4px 8px rgba(0,0,0,0.08)' },
     }),
@@ -1493,13 +1492,13 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   successModalCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 24,
     padding: 24,
     width: '100%',
     maxWidth: 400,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: '#403126',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.25,
     shadowRadius: 20,
@@ -1509,34 +1508,34 @@ const styles = StyleSheet.create({
     width: 84,
     height: 84,
     borderRadius: 42,
-    backgroundColor: '#F0FDF4',
+    backgroundColor: colors.successSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
     borderWidth: 2,
-    borderColor: '#DCFCE7',
+    borderColor: colors.successSoft,
   },
   successModalTitle: {
     fontSize: 22,
-    fontWeight: '800',
-    color: '#1a1a1a',
+    fontFamily: fonts.displayBold,
+    color: colors.text,
     marginBottom: 4,
     textAlign: 'center',
   },
   successModalSubtitle: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     marginBottom: 20,
     textAlign: 'center',
   },
   successOrderBox: {
-    backgroundColor: '#FAF8F5',
+    backgroundColor: colors.inputFill,
     borderRadius: 16,
     padding: 16,
     width: '100%',
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#EFEBE4',
+    borderColor: colors.border,
   },
   successRow: {
     flexDirection: 'row',
@@ -1545,20 +1544,20 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   successRowLabel: {
-    fontSize: 13,
-    color: '#666',
+    fontSize: 13, fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
   successRowValue: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   successPrimaryBtn: {
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
+    paddingVertical: 16,
     paddingHorizontal: 20,
     borderRadius: 14,
     width: '100%',
@@ -1567,15 +1566,15 @@ const styles = StyleSheet.create({
   },
   successPrimaryBtnText: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#fff',
+    fontFamily: fonts.bold,
+    color: colors.white,
   },
   successSecondaryBtn: {
     paddingVertical: 10,
   },
   successSecondaryBtnText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
+    fontFamily: fonts.semiBold,
+    color: colors.textSecondary,
   },
 });

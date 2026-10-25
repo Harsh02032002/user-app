@@ -23,10 +23,11 @@ import { useAuth } from '../context/AuthContext';
 import { DEFAULT_LOCATION_LABEL, getReadableLocation, getCurrentCoordinates, LOCATION_COORDS_KEY, LOCATION_NAME_KEY } from '../utils/location';
 import * as Location from 'expo-location';
 import { Alert } from 'react-native';
+import { colors, fonts } from '../theme';
 
 const { width, height } = Dimensions.get('window');
 
-const PRIMARY = "#FF6B00";
+const PRIMARY = colors.primary;
 
 // Static image sources (module-level so their identity never changes between renders)
 const heroBg     = require('../../assets/images/hero-bg.jpg');
@@ -77,6 +78,7 @@ const AnimatedCharacter = ({ side, imageSource, delay = 0, onLoad }: AnimatedCha
 
   return (
     <Animated.View
+      pointerEvents="none"
       style={[
         styles.animatedChar,
         side === 'left' ? styles.charLeft : styles.charRight,
@@ -197,7 +199,7 @@ export default function LandingScreen() {
               onPress={() => navigation.navigate('SimpleLogin')}
             >
               <LinearGradient
-                colors={['#FF6B00', '#4CAF50']}
+                colors={[colors.primary, colors.success]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.joinBtn}
@@ -223,7 +225,7 @@ export default function LandingScreen() {
                   {detecting ? 'Locating...' : location || 'Detect my location'}
                 </Text>
               </View>
-              <Ionicons name="chevron-down" size={16} color="#555" />
+              <Ionicons name="chevron-down" size={16} color={colors.textSecondary} />
             </TouchableOpacity>
 
           </View>
@@ -239,9 +241,9 @@ export default function LandingScreen() {
             {/* Fix: Added missing subtitle line from web */}
             <Text style={styles.heroSub}>
               From the warmth of a{' '}
-              <Text style={{ fontWeight: '700', color: PRIMARY }}>Home Kitchen</Text>
+              <Text style={{ fontFamily: fonts.bold, color: PRIMARY }}>Home Kitchen</Text>
               {' '}to the bold flavors of your{' '}
-              <Text style={{ fontWeight: '700', color: PRIMARY }}>Favorite Bistro</Text>
+              <Text style={{ fontFamily: fonts.bold, color: PRIMARY }}>Favorite Bistro</Text>
             </Text>
           </View>
 
@@ -260,7 +262,7 @@ export default function LandingScreen() {
                 resizeMode="cover" 
               />
               <View style={styles.cardOverlay}>
-                <MaterialCommunityIcons name="home-heart" size={22} color="#fff" />
+                <MaterialCommunityIcons name="home-heart" size={22} color={colors.white} />
                 <Text style={styles.cardTitle}>Home Chef</Text>
                 <Text style={styles.cardSub}>Ghar jaisa swad. Fresh dabbas made with love.</Text>
               </View>
@@ -278,7 +280,7 @@ export default function LandingScreen() {
                 resizeMode="cover" 
               />
               <View style={styles.cardOverlay}>
-                <MaterialCommunityIcons name="store" size={22} color="#fff" />
+                <MaterialCommunityIcons name="store" size={22} color={colors.white} />
                 <Text style={styles.cardTitle}>Restaurant</Text>
                 <Text style={styles.cardSub}>Signature dishes from top-rated restaurants.</Text>
               </View>
@@ -297,7 +299,7 @@ export default function LandingScreen() {
           </TouchableOpacity>
 
           {/* Spacer so characters don't overlap browse text */}
-          <View style={{ height: 100 }} />
+          <View style={{ height: width * 0.4 }} />
 
         </ScrollView>
       </SafeAreaView>
@@ -363,10 +365,10 @@ const styles = StyleSheet.create({
   },
 
   sellerBtnText: {
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     fontSize: 13,
     // gradient text effect via orange (closest we can do without extra lib)
-    color: '#FF6B00',
+    color: colors.primary,
   },
 
   // Join Us — solid gradient fill
@@ -375,7 +377,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...Platform.select({
       ios: {
-        shadowColor: '#FF6B00',
+        shadowColor: colors.primary,
         shadowOffset: { width: 0, height: 3 },
         shadowOpacity: 0.35,
         shadowRadius: 6,
@@ -384,20 +386,20 @@ const styles = StyleSheet.create({
         elevation: 5,
       },
       web: {
-        boxShadow: '0px 3px 6px rgba(255, 107, 0, 0.35)',
+        boxShadow: '0px 3px 6px rgba(220, 40, 40, 0.35)',
       },
     }),
   },
 
   joinBtn: {
     paddingHorizontal: 16,
-    paddingVertical: 7,
+    paddingVertical: 8,
     borderRadius: 20,
   },
 
   joinBtnText: {
-    color: '#fff',
-    fontWeight: '700',
+    color: colors.white,
+    fontFamily: fonts.bold,
     fontSize: 13,
   },
 
@@ -410,14 +412,14 @@ const styles = StyleSheet.create({
   location: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingHorizontal: 14,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 25,
-    marginBottom: 25,
+    marginBottom: 24,
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
+        shadowColor: '#403126',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.08,
         shadowRadius: 4,
@@ -433,14 +435,14 @@ const styles = StyleSheet.create({
 
   locLabel: {
     fontSize: 10,
-    color: '#888',
+    color: colors.textTertiary,
     letterSpacing: 0.5,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
   },
 
   locValue: {
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
   },
 
   hero: {
@@ -449,8 +451,9 @@ const styles = StyleSheet.create({
   },
 
   heroText: {
-    fontSize: 30,
-    fontWeight: 'bold',
+    fontSize: 32,
+    fontFamily: fonts.displayBold,
+    color: colors.text,
     textAlign: 'center',
     lineHeight: 38,
   },
@@ -458,8 +461,8 @@ const styles = StyleSheet.create({
   // New: subtitle matching web
   heroSub: {
     marginTop: 8,
-    fontSize: 13,
-    color: '#666',
+    fontSize: 13, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
     maxWidth: width * 0.75,
@@ -478,7 +481,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
+        shadowColor: '#403126',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.18,
         shadowRadius: 8,
@@ -503,45 +506,45 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 14,
+    padding: 16,
     // gradient effect via semi-transparent black
     backgroundColor: 'rgba(0,0,0,0.35)',
   },
 
   cardTitle: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: fonts.displayBold,
     marginTop: 2,
   },
 
   cardSub: {
     color: 'rgba(255,255,255,0.9)',
-    fontSize: 11,
+    fontSize: 11, fontFamily: fonts.regular,
     marginTop: 2,
   },
 
   browse: {
-    marginTop: 18,
-    color: '#666',
-    fontSize: 13,
+    marginTop: 16,
+    color: colors.textSecondary,
+    fontSize: 13, fontFamily: fonts.regular,
   },
 
   // Fixed character positioning to prevent cutting and removed overflow: hidden
   animatedChar: {
     position: 'absolute',
-    width: width * 0.35,
-    height: width * 0.60,
+    width: width * 0.26,
+    height: width * 0.46,
     zIndex: 10,
-    bottom: 45, // Moved up slightly
+    bottom: 8, // sits below the cards so it never covers their labels
   },
 
   charLeft: {
-    left: -10,
+    left: -6,
   },
 
   charRight: {
-    right: -10,
+    right: -6,
   },
 
   charImage: {
@@ -560,6 +563,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
     color: PRIMARY,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
   },
 });

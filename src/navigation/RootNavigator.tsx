@@ -40,6 +40,7 @@ import { WishlistScreen } from '../screens/tabs/WishlistScreen';
 import { SettingsScreen } from '../screens/tabs/SettingsScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { MobileNavBar } from '../components/common/MobileNavBar';
+import { colors } from '../theme';
 
 export type RootStackParamList = {
   Landing: undefined;
@@ -94,8 +95,8 @@ export default function RootNavigator() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-        <ActivityIndicator size="large" color="#FF6B00" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.canvas }}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -105,7 +106,7 @@ export default function RootNavigator() {
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: '#fff' },
+          contentStyle: { backgroundColor: colors.canvas },
         }}
       >
         {!isAuthenticated ? (

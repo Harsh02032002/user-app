@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import api from '../../services/api';
+import { colors, fonts } from '../../theme';
 
 // Wishlist item type
 interface WishlistItem {
@@ -61,7 +62,7 @@ export function WishlistScreen() {
         <View style={styles.itemHeader}>
           <Text style={styles.itemName}>{item.name}</Text>
           <TouchableOpacity style={styles.removeButton}>
-            <Ionicons name="heart" size={20} color="#FF4444" />
+            <Ionicons name="heart" size={20} color={colors.danger} />
           </TouchableOpacity>
         </View>
         
@@ -82,13 +83,13 @@ export function WishlistScreen() {
           <View style={styles.priceContainer}>
             <Text style={styles.price}>₹{item.price}</Text>
             <View style={styles.ratingContainer}>
-              <Ionicons name="star" size={12} color="#FFD700" />
+              <Ionicons name="star" size={12} color={colors.warning} />
               <Text style={styles.rating}>{item.rating}</Text>
             </View>
           </View>
           
           <TouchableOpacity style={styles.addToCartButton}>
-            <Ionicons name="cart-outline" size={16} color="#fff" />
+            <Ionicons name="cart-outline" size={16} color={colors.white} />
             <Text style={styles.addToCartText}>Add</Text>
           </TouchableOpacity>
         </View>
@@ -108,12 +109,12 @@ export function WishlistScreen() {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#FF6B00" />
+            <ActivityIndicator size="large" color={colors.primary} />
             <Text style={styles.loadingText}>Loading wishlist...</Text>
           </View>
         ) : error ? (
           <View style={styles.emptyState}>
-            <Ionicons name="alert-circle-outline" size={64} color="#ff4444" />
+            <Ionicons name="alert-circle-outline" size={64} color={colors.danger} />
             <Text style={styles.emptyTitle}>Error loading wishlist</Text>
             <Text style={styles.emptySubtitle}>{error}</Text>
             <TouchableOpacity style={styles.browseButton} onPress={fetchWishlist}>
@@ -123,7 +124,7 @@ export function WishlistScreen() {
         ) : wishlistItems.length > 0 ? (
           <>
             <View style={styles.wishlistInfo}>
-              <Ionicons name="heart" size={20} color="#FF6B00" />
+              <Ionicons name="heart" size={20} color={colors.primary} />
               <Text style={styles.wishlistCount}>
                 You have {wishlistItems.length} items in your wishlist
               </Text>
@@ -137,7 +138,7 @@ export function WishlistScreen() {
           </>
         ) : (
           <View style={styles.emptyState}>
-            <Ionicons name="heart-outline" size={64} color="#ccc" />
+            <Ionicons name="heart-outline" size={64} color={colors.textTertiary} />
             <Text style={styles.emptyTitle}>Your wishlist is empty</Text>
             <Text style={styles.emptySubtitle}>
               Save your favorite dishes and order them later
@@ -166,7 +167,7 @@ export function WishlistScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.canvas,
   },
   header: {
     flexDirection: 'row',
@@ -174,12 +175,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: colors.border,
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.displayBold,
+    color: colors.text,
   },
   clearAllButton: {
     paddingHorizontal: 12,
@@ -187,8 +188,8 @@ const styles = StyleSheet.create({
   },
   clearAllText: {
     fontSize: 14,
-    color: '#FF4444',
-    fontWeight: '600',
+    color: colors.danger,
+    fontFamily: fonts.semiBold,
   },
   scrollView: {
     flex: 1,
@@ -202,35 +203,35 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 12,
-    fontSize: 16,
-    color: '#666',
+    fontSize: 16, fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
   wishlistInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF5F0',
+    backgroundColor: colors.primarySoft,
     padding: 12,
     borderRadius: 8,
     marginBottom: 16,
   },
   wishlistCount: {
-    fontSize: 14,
-    color: '#FF6B00',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.primary,
     marginLeft: 8,
   },
   wishlistItem: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
-    shadowColor: '#000',
+    shadowColor: '#403126',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
     borderWidth: 1,
-    borderColor: '#f0f0f0',
+    borderColor: colors.border,
   },
   itemImage: {
     width: 80,
@@ -249,16 +250,16 @@ const styles = StyleSheet.create({
   },
   itemName: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
     flex: 1,
   },
   removeButton: {
     padding: 4,
   },
   itemDescription: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     marginBottom: 8,
   },
   sellerInfo: {
@@ -267,7 +268,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   sellerTypeContainer: {
-    backgroundColor: '#f0f0f0',
+    backgroundColor: colors.inputFill,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -275,12 +276,12 @@ const styles = StyleSheet.create({
   },
   sellerType: {
     fontSize: 10,
-    color: '#666',
-    fontWeight: '600',
+    color: colors.textSecondary,
+    fontFamily: fonts.semiBold,
   },
   sellerName: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
   itemFooter: {
     flexDirection: 'row',
@@ -293,8 +294,8 @@ const styles = StyleSheet.create({
   },
   price: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FF6B00',
+    fontFamily: fonts.bold,
+    color: colors.primary,
     marginRight: 8,
   },
   ratingContainer: {
@@ -302,22 +303,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   rating: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     marginLeft: 2,
   },
   addToCartButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
   },
   addToCartText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#fff',
+    fontFamily: fonts.semiBold,
+    color: colors.white,
     marginLeft: 4,
   },
   suggestionsContainer: {
@@ -325,8 +326,8 @@ const styles = StyleSheet.create({
   },
   suggestionsTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.displayBold,
+    color: colors.text,
     marginBottom: 16,
   },
   suggestionsGrid: {
@@ -336,11 +337,11 @@ const styles = StyleSheet.create({
   },
   suggestionItem: {
     width: '48%',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     padding: 8,
     marginBottom: 12,
-    shadowColor: '#000',
+    shadowColor: '#403126',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -355,23 +356,23 @@ const styles = StyleSheet.create({
   },
   suggestionName: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.semiBold,
+    color: colors.text,
     marginBottom: 4,
   },
   suggestionPrice: {
     fontSize: 14,
-    fontWeight: 'bold',
-    color: '#FF6B00',
+    fontFamily: fonts.bold,
+    color: colors.primary,
   },
   wishlistButton: {
     position: 'absolute',
     top: 8,
     right: 8,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 4,
-    shadowColor: '#000',
+    shadowColor: '#403126',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 2,
@@ -385,26 +386,26 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.displayBold,
+    color: colors.text,
     marginTop: 16,
     marginBottom: 8,
   },
   emptySubtitle: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 24,
   },
   browseButton: {
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 25,
   },
   browseButtonText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
+    fontFamily: fonts.semiBold,
+    color: colors.white,
   },
 });

@@ -23,7 +23,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, elevation, formatPrice, orderStatusColors, radius, sizes, spacing, type } from '../../theme';
+import { colors, elevation, formatPrice, orderStatusColors, radius, sizes, spacing, type, fonts } from '../../theme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -415,7 +415,7 @@ export const ScreenHeader: React.FC<{
 }> = ({ title, subtitle, onBack, showBack = true, right, style }) => {
   const navigation = useNavigation<any>();
   return (
-    <View style={[styles.screenHeader, style]}>
+    <View style={[styles.screenHeader, !showBack && styles.screenHeaderRoot, style]}>
       {showBack ? (
         <IconButton
           icon="arrow-back"
@@ -425,8 +425,8 @@ export const ScreenHeader: React.FC<{
         />
       ) : null}
       <View style={{ flex: 1 }}>
-        <Text style={type.heading} numberOfLines={1} accessibilityRole="header">{title}</Text>
-        {subtitle ? <Text style={type.caption} numberOfLines={1}>{subtitle}</Text> : null}
+        <Text style={showBack ? type.heading : type.title} numberOfLines={1} accessibilityRole="header">{title}</Text>
+        {subtitle ? <Text style={[type.caption, { marginTop: 2 }]} numberOfLines={1}>{subtitle}</Text> : null}
       </View>
       {right}
     </View>
@@ -728,16 +728,16 @@ const styles = StyleSheet.create({
   },
   buttonSm: { height: sizes.buttonHeightSm, paddingHorizontal: spacing.md, borderRadius: radius.sm },
   buttonTertiary: { paddingHorizontal: spacing.sm },
-  buttonText: { fontSize: 15, lineHeight: 20, fontWeight: '600' },
-  buttonTextSm: { fontSize: 13, lineHeight: 18 },
+  buttonText: { fontSize: 15, lineHeight: 20, fontFamily: fonts.semiBold },
+  buttonTextSm: { fontSize: 13, fontFamily: fonts.regular, lineHeight: 18 },
 
   iconButton: { width: sizes.iconButton, height: sizes.iconButton, borderRadius: sizes.iconButton / 2, alignItems: 'center', justifyContent: 'center' },
   iconButtonFilled: { backgroundColor: colors.surfaceMuted, width: 36, height: 36, borderRadius: 18 },
   iconBadge: {
-    position: 'absolute', top: 2, right: 0, minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9,
+    position: 'absolute', top: 2, right: 0, minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 8,
     backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.surface,
   },
-  iconBadgeText: { color: colors.textInverse, fontSize: 10, fontWeight: '700' },
+  iconBadgeText: { color: colors.textInverse, fontSize: 10, fontFamily: fonts.bold },
 
   inputContainer: { marginBottom: spacing.lg },
   inputLabel: { ...type.label, marginBottom: spacing.xs + 2 },
@@ -756,7 +756,7 @@ const styles = StyleSheet.create({
   inputFocused: { borderColor: colors.primary },
   inputError: { borderColor: colors.danger },
   inputDisabled: { backgroundColor: colors.surfaceMuted },
-  input: { flex: 1, fontSize: 15, color: colors.text, paddingVertical: Platform.OS === 'ios' ? spacing.md : spacing.sm },
+  input: { flex: 1, fontSize: 15, fontFamily: fonts.regular, color: colors.text, paddingVertical: Platform.OS === 'ios' ? spacing.md : spacing.sm },
   inputMultiline: { minHeight: 88, textAlignVertical: 'top', paddingVertical: 0 },
   inputMessageRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.xs + 2 },
   errorText: { ...type.caption, color: colors.danger },
@@ -772,9 +772,9 @@ const styles = StyleSheet.create({
 
   badge: {
     flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4,
-    paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.pill,
   },
-  badgeText: { fontSize: 11, lineHeight: 14, fontWeight: '600' },
+  badgeText: { fontSize: 11, lineHeight: 14, fontFamily: fonts.semiBold },
 
   chipRow: { gap: spacing.sm, paddingHorizontal: spacing.screen },
   chip: {
@@ -784,11 +784,11 @@ const styles = StyleSheet.create({
   chipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipText: { ...type.label, color: colors.textSecondary },
   chipTextSelected: { color: colors.textInverse },
-  chipCount: { minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' },
+  chipCount: { minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 4, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' },
   chipCountSelected: { backgroundColor: colors.surface },
-  chipCountText: { fontSize: 11, fontWeight: '700', color: colors.textSecondary },
+  chipCountText: { fontSize: 11, fontFamily: fonts.bold, color: colors.textSecondary },
 
-  segmented: { flexDirection: 'row', backgroundColor: colors.surfaceMuted, borderRadius: radius.md, padding: 3 },
+  segmented: { flexDirection: 'row', backgroundColor: colors.surfaceMuted, borderRadius: radius.md, padding: 4 },
   segment: { flex: 1, height: 36, borderRadius: radius.sm + 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.sm },
   segmentActive: { backgroundColor: colors.surface, ...elevation.card },
   segmentText: { ...type.label, color: colors.textSecondary },
@@ -799,6 +799,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.screen, backgroundColor: colors.surface,
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
   },
+  // Top-level tab screens: no back button, larger display title
+  screenHeaderRoot: { height: undefined, minHeight: 64, paddingVertical: spacing.md, backgroundColor: colors.canvas, borderBottomWidth: 0 },
   sectionHeader: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.md, marginBottom: spacing.md },
   sectionAction: { ...type.label, color: colors.primary },
 
@@ -832,7 +834,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm, borderWidth: 1, borderColor: colors.primaryBorder, backgroundColor: colors.surface,
   },
   addButtonDisabled: { borderColor: colors.border, backgroundColor: colors.surfaceMuted },
-  addButtonText: { fontSize: 13, fontWeight: '700', color: colors.primary, letterSpacing: 0.3 },
+  addButtonText: { fontSize: 13, fontFamily: fonts.bold, color: colors.primary, letterSpacing: 0.3 },
 
   stickyFooter: {
     backgroundColor: colors.surface, paddingHorizontal: spacing.screen, paddingTop: spacing.md,

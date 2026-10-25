@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { View, StyleSheet, Platform, ActivityIndicator } from 'react-native';
+import { colors } from '../../theme';
 
 const WebView = Platform.OS !== 'web' ? require('react-native-webview').WebView : null;
 
@@ -107,7 +108,7 @@ export const DeliveryMap = forwardRef<any, DeliveryMapProps>(({
   var map = L.map('map', { center: [${u.lat}, ${u.lng}], zoom: 16, zoomControl: false, attributionControl: false });
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, subdomains: 'abc' }).addTo(map);
   var icon = L.divIcon({
-    html: '<div style="background:#FF6B00;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:2.5px solid #fff;box-shadow:0 3px 8px rgba(0,0,0,0.3);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>',
+    html: '<div style="background:#DC2828;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:2.5px solid #fff;box-shadow:0 3px 8px rgba(0,0,0,0.3);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>',
     iconSize: [30, 30], iconAnchor: [15, 30], className: ''
   });
   L.marker([${u.lat}, ${u.lng}], { icon: icon }).addTo(map).bindPopup('<b>Your Location</b>');
@@ -125,7 +126,7 @@ export const DeliveryMap = forwardRef<any, DeliveryMapProps>(({
   html, body, #map { margin: 0; padding: 0; width: 100%; height: 100%; background: #E8EFF5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
   .pulse-ring {
     position: absolute; width: 48px; height: 48px; border-radius: 50%;
-    background: rgba(255,107,0,0.32); top: -4px; left: -4px;
+    background: rgba(220, 40, 40,0.32); top: -4px; left: -4px;
     animation: pul 1.5s ease-out infinite; pointer-events: none;
   }
   @keyframes pul { 0% { transform: scale(0.75); opacity: 1; } 100% { transform: scale(1.9); opacity: 0; } }
@@ -133,7 +134,7 @@ export const DeliveryMap = forwardRef<any, DeliveryMapProps>(({
     position: relative; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
   }
   .rider-bubble {
-    position: relative; background: #FF6B00; border-radius: 50%;
+    position: relative; background: #DC2828; border-radius: 50%;
     width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
     border: 2.5px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.35);
     font-size: 19px; z-index: 2;
@@ -141,7 +142,7 @@ export const DeliveryMap = forwardRef<any, DeliveryMapProps>(({
   .heading-cone {
     position: absolute; top: -8px; left: 11px; width: 0; height: 0;
     border-left: 9px solid transparent; border-right: 9px solid transparent;
-    border-bottom: 12px solid #FF6B00; z-index: 1;
+    border-bottom: 12px solid #DC2828; z-index: 1;
     filter: drop-shadow(0 -1px 2px rgba(0,0,0,0.2));
   }
   #eta-pill {
@@ -207,7 +208,7 @@ export const DeliveryMap = forwardRef<any, DeliveryMapProps>(({
 
   // Pickup marker (Store)
   var pickupIcon = L.divIcon({
-    html: '<div style="background:#FF6B00;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border:2.5px solid #fff;box-shadow:0 3px 8px rgba(0,0,0,0.3);">' + storeSvg + '</div>',
+    html: '<div style="background:#DC2828;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border:2.5px solid #fff;box-shadow:0 3px 8px rgba(0,0,0,0.3);">' + storeSvg + '</div>',
     iconSize: [34, 34], iconAnchor: [17, 34], className: ''
   });
   L.marker([pickupPos.lat, pickupPos.lng], { icon: pickupIcon })
@@ -307,7 +308,7 @@ export const DeliveryMap = forwardRef<any, DeliveryMapProps>(({
   function updateActiveRoute(rLat, rLng, stage) {
     var target = stage === 'to_restaurant' ? pickupPos : dropPos;
     var label = stage === 'to_restaurant' ? 'Rider reaching kitchen' : 'Arriving at your location';
-    var lineColor = stage === 'to_restaurant' ? '#FF6B00' : '#16A34A';
+    var lineColor = stage === 'to_restaurant' ? '#DC2828' : '#16A34A';
 
     var movedKm = lastRoutedPos ? haversineKm(lastRoutedPos.lat, lastRoutedPos.lng, rLat, rLng) : 999;
     if (movedKm < 0.03 && lastRoutedStage === stage) return;
@@ -424,7 +425,7 @@ export const DeliveryMap = forwardRef<any, DeliveryMapProps>(({
   if (!WebView) {
     return (
       <View style={[styles.container, { height, justifyContent: 'center', alignItems: 'center' }, style]}>
-        <ActivityIndicator color="#FF6B00" />
+        <ActivityIndicator color={colors.primary} />
       </View>
     );
   }
@@ -453,8 +454,8 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#E8EFF5',
+    borderColor: colors.border,
+    backgroundColor: colors.infoSoft,
   },
   map: {
     flex: 1,

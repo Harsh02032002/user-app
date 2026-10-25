@@ -26,6 +26,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DeliveryMap } from '../../components/common/DeliveryMap';
 import { trackOrder, untrackOrder, onAnyOrderUpdate } from '../../services/socket';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
+import { colors, fonts } from '../../theme';
 
 const ORDERS_CACHE_KEY = 'orders_screen_cache';
 
@@ -57,27 +58,27 @@ const TRACKING_POLL_MS = 15000;
 
 const getStatusColor = (status: string) => {
   switch (status) {
-    case 'pending': return '#FEF3C7';
-    case 'confirmed': return '#DBEAFE';
+    case 'pending': return colors.warningSoft;
+    case 'confirmed': return colors.infoSoft;
     case 'preparing': return '#E9D5FF';
     case 'ready': return '#CCFBF1';
-    case 'out_for_delivery': return '#FED7AA';
-    case 'delivered': return '#D1FAE5';
-    case 'cancelled': return '#FEE2E2';
-    default: return '#F3F4F6';
+    case 'out_for_delivery': return colors.primaryBorder;
+    case 'delivered': return colors.successSoft;
+    case 'cancelled': return colors.dangerSoft;
+    default: return colors.inputFill;
   }
 };
 
 const getStatusTextColor = (status: string) => {
   switch (status) {
-    case 'pending': return '#92400E';
-    case 'confirmed': return '#1E40AF';
+    case 'pending': return colors.warningStrong;
+    case 'confirmed': return colors.infoStrong;
     case 'preparing': return '#7C3AED';
     case 'ready': return '#0F766E';
-    case 'out_for_delivery': return '#EA580C';
-    case 'delivered': return '#065F46';
-    case 'cancelled': return '#DC2626';
-    default: return '#374151';
+    case 'out_for_delivery': return colors.primary;
+    case 'delivered': return colors.successStrong;
+    case 'cancelled': return colors.danger;
+    default: return colors.textSecondary;
   }
 };
 
@@ -418,7 +419,7 @@ export function OrdersScreen() {
                   idx <= currentIdx ? styles.stepDotActive : styles.stepDotInactive
                 ]}>
                   {idx <= currentIdx ? (
-                    <Ionicons name="checkmark" size={12} color="#fff" />
+                    <Ionicons name="checkmark" size={12} color={colors.white} />
                   ) : (
                     <Text style={styles.stepDotTextInactive}>{idx + 1}</Text>
                   )}
@@ -484,7 +485,7 @@ export function OrdersScreen() {
         {['confirmed', 'preparing', 'ready', 'out_for_delivery'].includes(order.status) && (
           <View style={styles.trackingSection}>
             <View style={styles.trackingHeader}>
-              <Ionicons name="bicycle" size={16} color="#FF6B00" />
+              <Ionicons name="bicycle" size={16} color={colors.primary} />
               <Text style={styles.trackingTitle}>
                 {order.status === 'out_for_delivery' ? 'Your order is on the way!' :
                  order.deliveryStatus ? 'Delivery partner assigned' :
@@ -518,7 +519,7 @@ export function OrdersScreen() {
           {/* Rating Button */}
           {order.status === 'delivered' && !order.rating && (
             <TouchableOpacity style={styles.rateButton} onPress={() => handleRateOrder(order)}>
-              <Ionicons name="star-outline" size={14} color="#FF6B00" />
+              <Ionicons name="star-outline" size={14} color={colors.primary} />
               <Text style={styles.rateButtonText}>Rate Order</Text>
             </TouchableOpacity>
           )}
@@ -531,7 +532,7 @@ export function OrdersScreen() {
                   key={s} 
                   name={s <= order.rating! ? 'star' : 'star-outline'} 
                   size={14} 
-                  color={s <= order.rating! ? '#FFD700' : '#999'} 
+                  color={s <= order.rating! ? colors.warning : colors.textTertiary} 
                 />
               ))}
             </View>
@@ -539,14 +540,14 @@ export function OrdersScreen() {
 
           {/* Invoice Button */}
           <TouchableOpacity style={styles.invoiceButton} onPress={() => downloadInvoice(order._id)}>
-            <Ionicons name="download-outline" size={14} color="#666" />
+            <Ionicons name="download-outline" size={14} color={colors.textSecondary} />
             <Text style={styles.invoiceButtonText}>Invoice</Text>
           </TouchableOpacity>
 
           {/* Cancel Button */}
           {['pending', 'confirmed', 'preparing'].includes(order.status) && (
             <TouchableOpacity style={styles.cancelButton} onPress={() => handleCancelOrder(order)}>
-              <Ionicons name="close-circle-outline" size={14} color="#DC2626" />
+              <Ionicons name="close-circle-outline" size={14} color={colors.danger} />
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
           )}
@@ -554,7 +555,7 @@ export function OrdersScreen() {
           {/* Track Button */}
           {ACTIVE_STATUSES.includes(order.status) && (
             <TouchableOpacity style={styles.trackButton} onPress={() => showOrderTracking(order)}>
-              <Ionicons name="location-outline" size={14} color="#fff" />
+              <Ionicons name="location-outline" size={14} color={colors.white} />
               <Text style={styles.trackButtonText}>Track</Text>
             </TouchableOpacity>
           )}
@@ -606,12 +607,12 @@ export function OrdersScreen() {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#FF6B00" />
+            <ActivityIndicator size="large" color={colors.primary} />
             <Text style={styles.loadingText}>Loading orders...</Text>
           </View>
         ) : error ? (
           <View style={styles.emptyState}>
-            <Ionicons name="alert-circle-outline" size={64} color="#ff4444" />
+            <Ionicons name="alert-circle-outline" size={64} color={colors.danger} />
             <Text style={styles.emptyTitle}>Error loading orders</Text>
             <Text style={styles.emptySubtitle}>{error}</Text>
             <TouchableOpacity style={styles.retryButton} onPress={() => fetchOrders()}>
@@ -622,7 +623,7 @@ export function OrdersScreen() {
           filteredOrders.map(renderOrderCard)
         ) : (
           <View style={styles.emptyState}>
-            <Ionicons name="bag-outline" size={64} color="#ccc" />
+            <Ionicons name="bag-outline" size={64} color={colors.textTertiary} />
             <Text style={styles.emptyTitle}>No orders found</Text>
             <Text style={styles.emptySubtitle}>Start ordering delicious food!</Text>
             <TouchableOpacity
@@ -662,7 +663,7 @@ export function OrdersScreen() {
                 )}
               </View>
               <TouchableOpacity onPress={closeTrackingModal} style={styles.trackingCloseBtn}>
-                <Ionicons name="close" size={22} color="#333" />
+                <Ionicons name="close" size={22} color={colors.text} />
               </TouchableOpacity>
             </View>
 
@@ -681,7 +682,7 @@ export function OrdersScreen() {
             {trackingData?.riderInfo && (
               <View style={styles.trackingRiderCard}>
                 <View style={styles.trackingRiderAvatar}>
-                  <Ionicons name="bicycle" size={20} color="#166534" />
+                  <Ionicons name="bicycle" size={20} color={colors.successStrong} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.trackingRiderName}>{trackingData.riderInfo.name}</Text>
@@ -696,7 +697,7 @@ export function OrdersScreen() {
                     style={styles.trackingCallBtn}
                     onPress={() => Linking.openURL(`tel:${trackingData.riderInfo.phone}`)}
                   >
-                    <Ionicons name="call" size={18} color="#fff" />
+                    <Ionicons name="call" size={18} color={colors.white} />
                   </TouchableOpacity>
                 ) : null}
               </View>
@@ -709,7 +710,7 @@ export function OrdersScreen() {
               return (
                 <View style={styles.trackingSellerRow}>
                   <View style={styles.trackingSellerIcon}>
-                    <Ionicons name="restaurant" size={20} color="#FF6B00" />
+                    <Ionicons name="restaurant" size={20} color={colors.primary} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.trackingSellerName}>{sellerName}</Text>
@@ -724,7 +725,7 @@ export function OrdersScreen() {
 
             {trackingLoading && (
               <View style={styles.trackingInfoRow}>
-                <ActivityIndicator size="small" color="#FF6B00" />
+                <ActivityIndicator size="small" color={colors.primary} />
                 <Text style={styles.trackingInfoText}>Loading latest status...</Text>
               </View>
             )}
@@ -733,8 +734,8 @@ export function OrdersScreen() {
                 style={[styles.trackingInfoRow, styles.trackingErrorRow]}
                 onPress={() => selectedOrder && loadTracking(selectedOrder._id, true)}
               >
-                <Ionicons name="cloud-offline-outline" size={16} color="#B91C1C" />
-                <Text style={[styles.trackingInfoText, { color: '#B91C1C' }]}>{trackingError} Tap to retry.</Text>
+                <Ionicons name="cloud-offline-outline" size={16} color={colors.primaryInk} />
+                <Text style={[styles.trackingInfoText, { color: colors.primaryInk }]}>{trackingError} Tap to retry.</Text>
               </TouchableOpacity>
             )}
 
@@ -753,7 +754,7 @@ export function OrdersScreen() {
                   return (
                     <View style={styles.cancelledState}>
                       <View style={styles.cancelledIconCircle}>
-                        <Ionicons name="close-circle" size={48} color="#DC2626" />
+                        <Ionicons name="close-circle" size={48} color={colors.danger} />
                       </View>
                       <Text style={styles.cancelledStateTitle}>Order Cancelled</Text>
                       <Text style={styles.cancelledStateSubtitle}>Your order has been cancelled</Text>
@@ -773,11 +774,11 @@ export function OrdersScreen() {
                           <View style={styles.stepLeftCol}>
                             {isActive ? (
                               <Animated.View style={[styles.stepDotActive, { transform: [{ scale: pulseAnim }] }]}>
-                                <Ionicons name="ellipse" size={12} color="#fff" />
+                                <Ionicons name="ellipse" size={12} color={colors.white} />
                               </Animated.View>
                             ) : isCompleted ? (
                               <View style={styles.stepDotDone}>
-                                <Ionicons name="checkmark" size={12} color="#fff" />
+                                <Ionicons name="checkmark" size={12} color={colors.white} />
                               </View>
                             ) : (
                               <View style={styles.stepDotPending} />
@@ -816,8 +817,8 @@ export function OrdersScreen() {
             {/* Bottom status message */}
             {(trackingData?.status === 'delivered' || selectedOrder?.status === 'delivered') && (
               <View style={styles.trackingInfoRow}>
-                <Ionicons name="checkmark-circle" size={16} color="#16A34A" />
-                <Text style={[styles.trackingInfoText, { color: '#16A34A' }]}>
+                <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+                <Text style={[styles.trackingInfoText, { color: colors.success }]}>
                   Delivered{trackingData?.actualDelivery ? ` at ${new Date(trackingData.actualDelivery).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}` : ''}
                 </Text>
               </View>
@@ -854,7 +855,7 @@ export function OrdersScreen() {
                   <Ionicons 
                     name={star <= rating ? 'star' : 'star-outline'} 
                     size={32} 
-                    color={star <= rating ? '#FFD700' : '#999'} 
+                    color={star <= rating ? colors.warning : colors.textTertiary} 
                   />
                 </TouchableOpacity>
               ))}
@@ -885,7 +886,7 @@ export function OrdersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F2E8',
+    backgroundColor: colors.canvas,
   },
   headerSection: {
     paddingHorizontal: 16,
@@ -893,16 +894,16 @@ const styles = StyleSheet.create({
   },
   pageTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.displayBold,
+    color: colors.text,
     marginBottom: 4,
   },
   orderCount: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
   tabsSection: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.inputFill,
     paddingVertical: 8,
     paddingHorizontal: 4,
     marginHorizontal: 16,
@@ -924,8 +925,8 @@ const styles = StyleSheet.create({
     minHeight: 36,
   },
   activeFilterTab: {
-    backgroundColor: '#fff',
-    shadowColor: '#000',
+    backgroundColor: colors.surface,
+    shadowColor: '#403126',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -933,15 +934,15 @@ const styles = StyleSheet.create({
   },
   filterTabText: {
     fontSize: 13,
-    fontWeight: '500',
-    color: '#6b7280',
+    fontFamily: fonts.medium,
+    color: colors.textSecondary,
   },
   activeFilterTabText: {
-    color: '#1f2937',
-    fontWeight: '600',
+    color: colors.text,
+    fontFamily: fonts.semiBold,
   },
   tabBadge: {
-    backgroundColor: '#e5e7eb',
+    backgroundColor: colors.border,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 10,
@@ -949,15 +950,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   activeTabBadge: {
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
   },
   tabBadgeText: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#6b7280',
+    fontFamily: fonts.semiBold,
+    color: colors.textSecondary,
   },
   activeTabBadgeText: {
-    color: '#fff',
+    color: colors.white,
   },
   scrollView: {
     flex: 1,
@@ -971,15 +972,15 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 12,
-    fontSize: 16,
-    color: '#666',
+    fontSize: 16, fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
   orderCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
-    shadowColor: '#000',
+    shadowColor: '#403126',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -1000,14 +1001,14 @@ const styles = StyleSheet.create({
   },
   orderNumber: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.semiBold,
+    color: colors.text,
     flexShrink: 1,
   },
   orderPrice: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
     textAlign: 'right',
   },
   statusBadge: {
@@ -1017,11 +1018,11 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 10,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
   },
   sellerInfo: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     marginBottom: 12,
   },
   itemsContainer: {
@@ -1033,7 +1034,7 @@ const styles = StyleSheet.create({
   itemCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.inputFill,
     borderRadius: 8,
     padding: 8,
     gap: 8,
@@ -1044,8 +1045,8 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   itemText: {
-    fontSize: 14,
-    color: '#1a1a1a',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.text,
   },
   trackerContainer: {
     marginVertical: 16,
@@ -1072,39 +1073,39 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   stepDotInactive: {
-    backgroundColor: '#e5e5e5',
+    backgroundColor: colors.border,
   },
   stepDotText: {
     fontSize: 10,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
   },
   stepDotTextActive: {
-    color: '#fff',
+    color: colors.white,
   },
   stepDotTextInactive: {
-    color: '#999',
+    color: colors.textTertiary,
   },
   stepLabel: {
-    fontSize: 10,
+    fontSize: 10, fontFamily: fonts.regular,
     textAlign: 'center',
     lineHeight: 12,
   },
   stepLabelActive: {
-    color: '#FF6B00',
-    fontWeight: '600',
+    color: colors.primary,
+    fontFamily: fonts.semiBold,
   },
   stepLabelInactive: {
-    color: '#999',
+    color: colors.textTertiary,
   },
   stepLine: {
     width: 24,
     height: 2,
   },
   stepLineActive: {
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
   },
   stepLineInactive: {
-    backgroundColor: '#e5e5e5',
+    backgroundColor: colors.border,
   },
   cancelledTracker: {
     flexDirection: 'row',
@@ -1116,20 +1117,20 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#DC2626',
+    backgroundColor: colors.danger,
   },
   cancelledText: {
     fontSize: 14,
-    color: '#DC2626',
-    fontWeight: '600',
+    color: colors.danger,
+    fontFamily: fonts.semiBold,
   },
   trackingSection: {
-    backgroundColor: '#f0f9ff',
+    backgroundColor: colors.infoSoft,
     borderRadius: 8,
     padding: 12,
     marginVertical: 12,
     borderWidth: 1,
-    borderColor: '#e0f2fe',
+    borderColor: colors.infoSoft,
   },
   trackingHeader: {
     flexDirection: 'row',
@@ -1139,13 +1140,13 @@ const styles = StyleSheet.create({
   },
   trackingTitle: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#0369a1',
+    fontFamily: fonts.semiBold,
+    color: colors.infoStrong,
   },
   mapButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0ea5e9',
+    backgroundColor: colors.info,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
@@ -1154,42 +1155,42 @@ const styles = StyleSheet.create({
   },
   mapButtonText: {
     fontSize: 12,
-    color: '#fff',
-    fontWeight: '600',
+    color: colors.white,
+    fontFamily: fonts.semiBold,
   },
   subscriptionInfo: {
-    backgroundColor: '#f0fdf4',
+    backgroundColor: colors.successSoft,
     borderRadius: 8,
     padding: 12,
     marginVertical: 8,
     borderWidth: 1,
-    borderColor: '#bbf7d0',
+    borderColor: colors.successSoft,
   },
   subscriptionTitle: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#166534',
+    fontFamily: fonts.semiBold,
+    color: colors.successStrong,
   },
   subscriptionAmount: {
-    fontSize: 12,
-    color: '#16a34a',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.success,
   },
   subscriptionDays: {
-    fontSize: 12,
-    color: '#16a34a',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.success,
   },
   subscriptionPaid: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#166534',
+    fontFamily: fonts.semiBold,
+    color: colors.successStrong,
     marginTop: 4,
     paddingTop: 4,
     borderTopWidth: 1,
-    borderTopColor: '#bbf7d0',
+    borderTopColor: colors.successSoft,
   },
   paymentMethod: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     marginBottom: 16,
   },
   actionButtons: {
@@ -1201,9 +1202,9 @@ const styles = StyleSheet.create({
   rateButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff5f0',
+    backgroundColor: colors.primarySoft,
     borderWidth: 1,
-    borderColor: '#FF6B00',
+    borderColor: colors.primary,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -1211,8 +1212,8 @@ const styles = StyleSheet.create({
   },
   rateButtonText: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#FF6B00',
+    fontFamily: fonts.semiBold,
+    color: colors.primary,
   },
   ratingDisplay: {
     flexDirection: 'row',
@@ -1221,7 +1222,7 @@ const styles = StyleSheet.create({
   invoiceButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.inputFill,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -1229,15 +1230,15 @@ const styles = StyleSheet.create({
   },
   invoiceButtonText: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#666',
+    fontFamily: fonts.semiBold,
+    color: colors.textSecondary,
   },
   cancelButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fef2f2',
+    backgroundColor: colors.dangerSoft,
     borderWidth: 1,
-    borderColor: '#DC2626',
+    borderColor: colors.danger,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -1245,13 +1246,13 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#DC2626',
+    fontFamily: fonts.semiBold,
+    color: colors.danger,
   },
   trackButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -1259,8 +1260,8 @@ const styles = StyleSheet.create({
   },
   trackButtonText: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#fff',
+    fontFamily: fonts.semiBold,
+    color: colors.white,
   },
   emptyState: {
     flex: 1,
@@ -1270,38 +1271,38 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.displayBold,
+    color: colors.text,
     marginTop: 16,
     marginBottom: 8,
   },
   emptySubtitle: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 24,
   },
   retryButton: {
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 25,
   },
   retryButtonText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
+    fontFamily: fonts.semiBold,
+    color: colors.white,
   },
   browseButton: {
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 25,
   },
   browseButtonText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
+    fontFamily: fonts.semiBold,
+    color: colors.white,
   },
   modalOverlay: {
     flex: 1,
@@ -1310,7 +1311,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   ratingModal: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 24,
     margin: 20,
@@ -1318,13 +1319,13 @@ const styles = StyleSheet.create({
   },
   ratingModalTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.displayBold,
+    color: colors.text,
     marginBottom: 8,
   },
   ratingModalSubtitle: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 24,
   },
@@ -1342,25 +1343,25 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: colors.border,
   },
   ratingCancelText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
   ratingSubmitButton: {
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
   },
   ratingSubmitDisabled: {
-    backgroundColor: '#FFB380',
+    backgroundColor: colors.primaryDisabled,
   },
   ratingSubmitText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
+    fontFamily: fonts.semiBold,
+    color: colors.white,
   },
 
   // ─── Swiggy-Style Tracking Modal ───────────────
@@ -1370,7 +1371,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   trackingModalContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 20,
@@ -1382,21 +1383,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 14,
+    marginBottom: 16,
   },
   trackingModalTitle: {
     fontSize: 20,
-    fontWeight: '700',
-    color: '#111',
+    fontFamily: fonts.displayBold,
+    color: colors.text,
   },
   trackingModalOrderNum: {
     fontSize: 13,
-    color: '#FF6B00',
-    fontWeight: '600',
+    color: colors.primary,
+    fontFamily: fonts.semiBold,
     marginTop: 2,
   },
   trackingCloseBtn: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.inputFill,
     borderRadius: 20,
     width: 36,
     height: 36,
@@ -1406,34 +1407,34 @@ const styles = StyleSheet.create({
   trackingRiderCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0FDF4',
+    backgroundColor: colors.successSoft,
     borderRadius: 14,
     padding: 12,
     marginVertical: 10,
     borderWidth: 1,
-    borderColor: '#BBF7D0',
+    borderColor: colors.successSoft,
     gap: 10,
   },
   trackingRiderAvatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: colors.successSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   trackingRiderName: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#166534',
+    fontFamily: fonts.bold,
+    color: colors.successStrong,
   },
   trackingRiderVehicle: {
-    fontSize: 12,
-    color: '#15803D',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.successStrong,
     marginTop: 1,
   },
   trackingCallBtn: {
-    backgroundColor: '#16A34A',
+    backgroundColor: colors.success,
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -1443,38 +1444,38 @@ const styles = StyleSheet.create({
   trackingSellerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF8F3',
+    backgroundColor: colors.primarySoft,
     borderRadius: 14,
     padding: 12,
     marginVertical: 8,
     gap: 12,
     borderWidth: 1,
-    borderColor: '#FFE4CC',
+    borderColor: colors.primaryBorder,
   },
   trackingSellerIcon: {
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: '#FFF0E5',
+    backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#FFD5AE',
+    borderColor: colors.primaryBorder,
   },
   trackingSellerName: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#111',
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   trackingItemsText: {
-    fontSize: 12,
-    color: '#888',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.textTertiary,
     marginTop: 2,
   },
   trackingTotalBadge: {
     fontSize: 16,
-    fontWeight: '800',
-    color: '#FF6B00',
+    fontFamily: fonts.heavy,
+    color: colors.primary,
   },
   stepsContainer: {
     paddingTop: 8,
@@ -1492,7 +1493,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#22C55E',
+    backgroundColor: colors.success,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1500,10 +1501,10 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#FF6B00',
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
     shadowRadius: 8,
@@ -1513,45 +1514,45 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.border,
     borderWidth: 2,
-    borderColor: '#D1D5DB',
+    borderColor: colors.border,
   },
   stepConnector: {
     width: 2,
     flex: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.border,
     marginVertical: 4,
   },
   stepConnectorDone: {
-    backgroundColor: '#22C55E',
+    backgroundColor: colors.success,
   },
   stepRightCol: {
     flex: 1,
-    paddingLeft: 14,
+    paddingLeft: 16,
     paddingBottom: 16,
   },
   stepName: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#333',
+    fontFamily: fonts.semiBold,
+    color: colors.text,
     paddingTop: 4,
   },
   stepNameActive: {
-    color: '#FF6B00',
-    fontWeight: '700',
+    color: colors.primary,
+    fontFamily: fonts.bold,
     fontSize: 16,
   },
   stepNameDone: {
-    color: '#22C55E',
+    color: colors.success,
   },
   stepNamePending: {
-    color: '#9CA3AF',
-    fontWeight: '400',
+    color: colors.textTertiary,
+    fontFamily: fonts.regular,
   },
   stepActiveSubLabel: {
-    fontSize: 12,
-    color: '#888',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.textTertiary,
     marginTop: 4,
     lineHeight: 18,
   },
@@ -1564,13 +1565,13 @@ const styles = StyleSheet.create({
   },
   cancelledStateTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#DC2626',
+    fontFamily: fonts.displayBold,
+    color: colors.danger,
     marginBottom: 6,
   },
   cancelledStateSubtitle: {
-    fontSize: 13,
-    color: '#888',
+    fontSize: 13, fontFamily: fonts.regular,
+    color: colors.textTertiary,
   },
   trackingInfoRow: {
     flexDirection: 'row',
@@ -1581,37 +1582,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.inputFill,
   },
   trackingErrorRow: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: colors.dangerSoft,
   },
   trackingInfoText: {
     flex: 1,
     fontSize: 12,
-    fontWeight: '600',
-    color: '#4B5563',
+    fontFamily: fonts.semiBold,
+    color: colors.textSecondary,
   },
   trackingStatusBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0FFF4',
+    backgroundColor: colors.successSoft,
     borderRadius: 12,
     padding: 12,
     marginTop: 12,
     gap: 8,
     borderWidth: 1,
-    borderColor: '#BBF7D0',
+    borderColor: colors.successSoft,
   },
   trackingStatusDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#22C55E',
+    backgroundColor: colors.success,
   },
   trackingStatusBarText: {
     fontSize: 12,
-    color: '#15803D',
-    fontWeight: '600',
+    color: colors.successStrong,
+    fontFamily: fonts.semiBold,
   },
 });

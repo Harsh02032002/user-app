@@ -5,7 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../services/api';
 import { Divider, EmptyState, ErrorState, ScreenHeader, SkeletonList } from '../components/common';
-import { colors, spacing, type } from '../theme';
+import { colors, spacing, type, fonts } from '../theme';
 
 const ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
   order: 'receipt-outline',
@@ -98,7 +98,7 @@ export default function NotificationsScreen() {
       </View>
       <View style={{ flex: 1 }}>
         <View style={styles.titleRow}>
-          <Text style={[type.subheading, { flex: 1 }, item.isRead && { fontWeight: '400' }]} numberOfLines={1}>{item.title}</Text>
+          <Text style={[type.subheading, { flex: 1 }, item.isRead && { fontFamily: fonts.regular }]} numberOfLines={1}>{item.title}</Text>
           <Text style={type.caption}>{timeAgo(item.createdAt)}</Text>
         </View>
         <Text style={[type.small, { color: colors.textSecondary, marginTop: 2 }]} numberOfLines={3}>{item.message}</Text>

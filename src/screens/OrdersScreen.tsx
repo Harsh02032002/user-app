@@ -15,6 +15,7 @@ import api, { API_ENDPOINTS } from '../config/api';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { DeliveryMap } from '../components/common/DeliveryMap';
 import { extractCoordinates } from '../utils/location';
+import { colors, fonts } from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -77,15 +78,15 @@ export default function OrdersScreen() {
     switch (status) {
       case 'confirmed':
       case 'preparing':
-        return '#2196F3';
+        return colors.info;
       case 'out_for_delivery':
-        return '#FF9800';
+        return colors.primary;
       case 'delivered':
-        return '#22C55E';
+        return colors.success;
       case 'cancelled':
-        return '#EF4444';
+        return colors.danger;
       default:
-        return '#888';
+        return colors.textTertiary;
     }
   };
 
@@ -162,7 +163,7 @@ export default function OrdersScreen() {
         {['confirmed', 'preparing', 'out_for_delivery'].includes(item.status) && (
           <View style={styles.mapPreviewContainer}>
             <Text style={styles.mapTitle}>
-              <Ionicons name="location" size={12} color="#FF6B00" /> Live Tracking
+              <Ionicons name="location" size={12} color={colors.primary} /> Live Tracking
             </Text>
             <DeliveryMap
               pickupCoords={
@@ -179,11 +180,11 @@ export default function OrdersScreen() {
 
       <View style={styles.orderFooter}>
         <View style={styles.paymentInfo}>
-          <Text style={styles.totalAmount}>Rs. {item.grandTotal}</Text>
+          <Text style={styles.totalAmount}>₹{item.grandTotal}</Text>
           {item.subscriptionAmountUsed > 0 && (
             <View style={styles.hybridBadge}>
-              <Ionicons name="card" size={12} color="#FF6B00" />
-              <Text style={styles.hybridText}>Rs. {item.subscriptionAmountUsed} from subscription</Text>
+              <Ionicons name="card" size={12} color={colors.primary} />
+              <Text style={styles.hybridText}>₹{item.subscriptionAmountUsed} from subscription</Text>
             </View>
           )}
         </View>
@@ -195,7 +196,7 @@ export default function OrdersScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FF6B00" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -235,12 +236,12 @@ export default function OrdersScreen() {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#FF6B00']} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIcon}>
-              <Ionicons name="receipt-outline" size={48} color="#ccc" />
+              <Ionicons name="receipt-outline" size={48} color={colors.textTertiary} />
             </View>
             <Text style={styles.emptyTitle}>No {activeTab} orders</Text>
             <Text style={styles.emptyText}>
@@ -258,32 +259,32 @@ export default function OrdersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.canvas,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.canvas,
   },
   header: {
     paddingHorizontal: 20,
     paddingTop: 60,
     paddingBottom: 16,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
   },
   headerTitle: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.displayBold,
+    color: colors.text,
   },
   tabs: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     paddingHorizontal: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: colors.border,
   },
   tab: {
     flex: 1,
@@ -291,24 +292,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 8,
     marginHorizontal: 4,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.inputFill,
   },
   activeTab: {
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
   },
   tabText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#888',
+    fontFamily: fonts.semiBold,
+    color: colors.textTertiary,
   },
   activeTabText: {
-    color: '#fff',
+    color: colors.white,
   },
   listContent: {
     padding: 20,
   },
   orderCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
@@ -321,12 +322,12 @@ const styles = StyleSheet.create({
   },
   orderNumber: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   sellerName: {
-    fontSize: 14,
-    color: '#888',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textTertiary,
     marginTop: 2,
   },
   statusBadge: {
@@ -336,22 +337,22 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 11,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
   },
   itemsList: {
     marginBottom: 12,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: colors.border,
   },
   itemText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   moreItems: {
-    fontSize: 13,
-    color: '#FF6B00',
+    fontSize: 13, fontFamily: fonts.regular,
+    color: colors.primary,
     marginTop: 4,
   },
   mapPreviewContainer: {
@@ -361,8 +362,8 @@ const styles = StyleSheet.create({
   },
   mapTitle: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#FF6B00',
+    fontFamily: fonts.bold,
+    color: colors.primary,
     marginBottom: 4,
     textTransform: 'uppercase',
   },
@@ -374,8 +375,8 @@ const styles = StyleSheet.create({
   paymentInfo: {},
   totalAmount: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   hybridBadge: {
     flexDirection: 'row',
@@ -383,13 +384,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   hybridText: {
-    fontSize: 11,
-    color: '#FF6B00',
+    fontSize: 11, fontFamily: fonts.regular,
+    color: colors.primary,
     marginLeft: 4,
   },
   orderDate: {
-    fontSize: 12,
-    color: '#888',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.textTertiary,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -402,13 +403,13 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.displayBold,
+    color: colors.text,
     marginBottom: 8,
   },
   emptyText: {
-    fontSize: 14,
-    color: '#888',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textTertiary,
     textAlign: 'center',
   },
 });

@@ -22,6 +22,7 @@ import { getImageUrl } from '../config/api';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { LOCATION_COORDS_KEY } from '../utils/location';
 import { SERVICE_RADIUS_KM } from '../config/serviceArea';
+import { colors, fonts, spacing } from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteType = RouteProp<RootStackParamList, 'Restaurant'>;
@@ -186,7 +187,7 @@ export default function RestaurantScreen() {
   if (loading && !seller) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FF6B00" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -199,7 +200,7 @@ export default function RestaurantScreen() {
           style={styles.backButton} 
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
       </View>
 
@@ -221,6 +222,7 @@ export default function RestaurantScreen() {
         <View style={styles.infoSection}>
           <View style={styles.profileRow}>
             <View style={styles.logoWrapper}>
+              <Ionicons name="storefront-outline" size={28} color={colors.primaryBorder} style={styles.logoFallback} />
               <Image 
                 source={{ uri: getImageUrl(seller?.logo || seller?.image) || 'https://images.unsplash.com/photo-1495195129352-aec325b55b65?w=200&h=200&fit=crop&q=80' }} 
                 style={styles.profileLogo} 
@@ -233,7 +235,7 @@ export default function RestaurantScreen() {
                 <Ionicons 
                   name={seller?.type === 'home_chef' ? 'home' : 'restaurant'} 
                   size={14} 
-                  color={seller?.type === 'home_chef' ? '#059669' : '#C2410C'} 
+                  color={seller?.type === 'home_chef' ? colors.success : colors.primaryInk} 
                 />
                 <Text style={[styles.typeBadgeText, seller?.type === 'home_chef' ? styles.typeBadgeTextHome : styles.typeBadgeTextRest]}>
                   {seller?.type === 'home_chef' ? 'Home-Cooked' : 'Restaurant'}
@@ -244,11 +246,11 @@ export default function RestaurantScreen() {
 
           <View style={styles.metaRow}>
             <View style={styles.ratingBox}>
-              <Ionicons name="star" size={14} color="#FFD700" />
+              <Ionicons name="star" size={14} color={colors.warning} />
               <Text style={styles.ratingValue}>{seller?.rating?.toFixed(1) || '4.0'}</Text>
             </View>
             <View style={styles.locationBox}>
-              <Ionicons name="location" size={14} color="#666" />
+              <Ionicons name="location" size={14} color={colors.textSecondary} />
               <Text style={styles.locationValue}>
                 {getSellerAddressText(seller?.address)}
               </Text>
@@ -261,21 +263,21 @@ export default function RestaurantScreen() {
           <View style={{
             marginHorizontal: 16,
             marginBottom: 16,
-            backgroundColor: '#FEE2E2',
+            backgroundColor: colors.dangerSoft,
             borderWidth: 1,
-            borderColor: '#EF4444',
+            borderColor: colors.danger,
             borderRadius: 12,
-            padding: 14,
+            padding: 16,
             flexDirection: 'row',
             alignItems: 'center',
             gap: 12,
           }}>
-            <Ionicons name="warning" size={26} color="#DC2626" />
+            <Ionicons name="warning" size={26} color={colors.danger} />
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, fontWeight: '700', color: '#DC2626' }}>
+              <Text style={{ fontSize: 14, fontFamily: fonts.bold, color: colors.danger }}>
                 Outside {SERVICE_RADIUS_KM} km Delivery Radius ({deliveryDistanceKm} km away)
               </Text>
-              <Text style={{ fontSize: 12, color: '#991B1B', marginTop: 3, lineHeight: 16 }}>
+              <Text style={{ fontSize: 12, color: colors.primaryInk, marginTop: 4, lineHeight: 16 }}>
                 We strictly deliver within {SERVICE_RADIUS_KM} km of your location. You cannot place orders from this seller to your current address.
               </Text>
             </View>
@@ -328,7 +330,7 @@ export default function RestaurantScreen() {
                     <View
                       style={[
                         styles.vegDot,
-                        { backgroundColor: item.isVeg ? '#22C55E' : '#EF4444' },
+                        { backgroundColor: item.isVeg ? colors.success : colors.danger },
                       ]}
                     />
                   </View>
@@ -339,7 +341,7 @@ export default function RestaurantScreen() {
                         {item.description}
                       </Text>
                     )}
-                    <Text style={styles.menuItemPrice}>Rs. {item.sellingPrice || item.price}</Text>
+                    <Text style={styles.menuItemPrice}>₹{item.sellingPrice || item.price}</Text>
                   </View>
                 </View>
                 <View style={styles.menuItemRight}>
@@ -357,19 +359,19 @@ export default function RestaurantScreen() {
                           style={styles.qtyBtn}
                           onPress={() => handleUpdateQuantity(item._id, -1)}
                         >
-                          <Ionicons name="remove" size={18} color="#FF6B00" />
+                          <Ionicons name="remove" size={18} color={colors.primary} />
                         </TouchableOpacity>
                         <Text style={styles.qtyText}>{qty}</Text>
                         <TouchableOpacity
                           style={styles.qtyBtn}
                           onPress={() => handleUpdateQuantity(item._id, 1)}
                         >
-                          <Ionicons name="add" size={18} color="#FF6B00" />
+                          <Ionicons name="add" size={18} color={colors.primary} />
                         </TouchableOpacity>
                       </View>
                     ) : isNotServiceable ? (
-                      <View style={[styles.addBtn, { backgroundColor: '#F3F4F6', borderColor: '#E5E7EB', paddingHorizontal: 6 }]}>
-                        <Text style={[styles.addBtnText, { color: '#9CA3AF', fontSize: 10, fontWeight: '700' }]}>UNAVAILABLE</Text>
+                      <View style={[styles.addBtn, { backgroundColor: colors.inputFill, borderColor: colors.border, paddingHorizontal: 6 }]}>
+                        <Text style={[styles.addBtnText, { color: colors.textTertiary, fontSize: 10, fontFamily: fonts.bold }]}>UNAVAILABLE</Text>
                       </View>
                     ) : (
                       <TouchableOpacity
@@ -403,11 +405,11 @@ export default function RestaurantScreen() {
         >
           <View style={styles.cartInfo}>
             <Text style={styles.cartItems}>{totalItems} Items</Text>
-            <Text style={styles.cartTotal}>Rs. {totalAmount}</Text>
+            <Text style={styles.cartTotal}>₹{totalAmount}</Text>
           </View>
           <View style={styles.cartAction}>
             <Text style={styles.cartActionText}>View Cart</Text>
-            <Ionicons name="arrow-forward" size={18} color="#fff" />
+            <Ionicons name="arrow-forward" size={18} color={colors.white} />
           </View>
         </TouchableOpacity>
       )}
@@ -418,13 +420,13 @@ export default function RestaurantScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF8F0',
+    backgroundColor: colors.canvas,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FAF8F0',
+    backgroundColor: colors.canvas,
   },
   headerOverlay: {
     position: 'absolute',
@@ -439,7 +441,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: '#403126',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -448,7 +450,7 @@ const styles = StyleSheet.create({
   bannerContainer: {
     width: '100%',
     height: 180,
-    backgroundColor: '#ddd',
+    backgroundColor: colors.border,
   },
   bannerImage: {
     width: '100%',
@@ -456,13 +458,13 @@ const styles = StyleSheet.create({
   },
   bannerGradient: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0,0,0,0.1)',
+    backgroundColor: 'rgba(48,37,29,0.12)',
   },
   infoSection: {
     backgroundColor: 'transparent',
-    paddingHorizontal: 20,
-    marginTop: -30,
-    marginBottom: 20,
+    paddingHorizontal: spacing.screen,
+    marginTop: -32,
+    marginBottom: spacing.lg,
   },
   profileRow: {
     flexDirection: 'row',
@@ -473,28 +475,30 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 12,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     padding: 2,
-    shadowColor: '#000',
+    shadowColor: '#403126',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 5,
   },
+  logoFallback: { position: 'absolute', alignSelf: 'center', top: 26 },
   profileLogo: {
     width: '100%',
     height: '100%',
     borderRadius: 10,
   },
   nameBadgeContainer: {
-    marginLeft: 15,
-    paddingBottom: 5,
+    marginLeft: 16,
+    paddingTop: 38, // keeps the name below the banner edge, next to the overlapping logo
     flex: 1,
   },
   businessName: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    lineHeight: 30,
+    fontFamily: fonts.displayBold,
+    color: colors.text,
     marginBottom: 6,
   },
   typeBadge: {
@@ -508,27 +512,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   homeChefBadge: {
-    backgroundColor: '#ECFDF5', // Emerald-50
-    borderColor: '#D1FAE5', // Emerald-100
+    backgroundColor: colors.successSoft, // Emerald-50
+    borderColor: colors.successSoft, // Emerald-100
   },
   restaurantBadge: {
-    backgroundColor: '#FFF7ED', // Orange-50
-    borderColor: '#FFEDD5', // Orange-100
+    backgroundColor: colors.primarySoft, // Orange-50
+    borderColor: colors.primaryBorder, // Orange-100
   },
   typeBadgeText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
   },
   typeBadgeTextHome: {
-    color: '#059669', // Emerald-600
+    color: colors.success, // Emerald-600
   },
   typeBadgeTextRest: {
-    color: '#C2410C', // Orange-700
+    color: colors.primaryInk, // Orange-700
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 5,
+    marginTop: 4,
     gap: 15,
   },
   ratingBox: {
@@ -538,8 +542,8 @@ const styles = StyleSheet.create({
   },
   ratingValue: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.semiBold,
+    color: colors.text,
   },
   locationBox: {
     flexDirection: 'row',
@@ -547,11 +551,11 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   locationValue: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
   categoriesContainer: {
-    marginBottom: 15,
+    marginBottom: 16,
   },
   categoriesContent: {
     paddingHorizontal: 20,
@@ -559,24 +563,24 @@ const styles = StyleSheet.create({
   categoryChip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 20,
     marginRight: 10,
     borderWidth: 1,
-    borderColor: '#eee',
+    borderColor: colors.border,
   },
   categoryChipActive: {
-    backgroundColor: '#FF6B00',
-    borderColor: '#FF6B00',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   categoryText: {
     fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
+    color: colors.textSecondary,
+    fontFamily: fonts.medium,
   },
   categoryTextActive: {
-    color: '#fff',
-    fontWeight: '600',
+    color: colors.white,
+    fontFamily: fonts.semiBold,
   },
   menuHeader: {
     paddingHorizontal: 20,
@@ -584,13 +588,13 @@ const styles = StyleSheet.create({
   },
   menuTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.displayBold,
+    color: colors.text,
   },
   menuUnderline: {
     width: 40,
     height: 3,
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     marginTop: 4,
     borderRadius: 2,
   },
@@ -599,11 +603,11 @@ const styles = StyleSheet.create({
   },
   menuItem: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 12,
-    marginBottom: 15,
-    shadowColor: '#000',
+    marginBottom: 16,
+    shadowColor: '#403126',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 5,
@@ -616,7 +620,7 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: colors.borderStrong,
     borderRadius: 2,
     justifyContent: 'center',
     alignItems: 'center',
@@ -630,20 +634,20 @@ const styles = StyleSheet.create({
   menuItemDetails: {},
   menuItemName: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.semiBold,
+    color: colors.text,
     marginBottom: 4,
   },
   menuItemDesc: {
-    fontSize: 12,
-    color: '#888',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.textTertiary,
     lineHeight: 18,
     marginBottom: 10,
   },
   menuItemPrice: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   menuItemRight: {
     alignItems: 'center',
@@ -658,35 +662,35 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   addBtn: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#FF6B00',
+    borderColor: colors.primary,
     paddingHorizontal: 20,
     paddingVertical: 6,
     borderRadius: 8,
-    marginTop: 5,
+    marginTop: 4,
     zIndex: 2,
-    shadowColor: '#000',
+    shadowColor: '#403126',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
   addBtnText: {
-    color: '#FF6B00',
-    fontWeight: '700',
+    color: colors.primary,
+    fontFamily: fonts.bold,
     fontSize: 12,
   },
   qtyControl: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#FF6B00',
-    marginTop: 5,
+    borderColor: colors.primary,
+    marginTop: 4,
     zIndex: 2,
-    shadowColor: '#000',
+    shadowColor: '#403126',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -697,19 +701,19 @@ const styles = StyleSheet.create({
   },
   qtyText: {
     fontSize: 14,
-    fontWeight: 'bold',
-    color: '#FF6B00',
+    fontFamily: fonts.bold,
+    color: colors.primary,
     paddingHorizontal: 8,
   },
   unavailableText: {
     fontSize: 12,
-    color: '#EF4444',
-    fontWeight: '600',
+    color: colors.danger,
+    fontFamily: fonts.semiBold,
     marginTop: 10,
   },
   emptyText: {
-    fontSize: 14,
-    color: '#999',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textTertiary,
     textAlign: 'center',
     marginTop: 40,
   },
@@ -718,13 +722,13 @@ const styles = StyleSheet.create({
     bottom: 100,
     left: 20,
     right: 20,
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
-    shadowColor: '#FF6B00',
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
@@ -734,12 +738,12 @@ const styles = StyleSheet.create({
   cartItems: {
     color: 'rgba(255,255,255,0.8)',
     fontSize: 12,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
   },
   cartTotal: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
   },
   cartAction: {
     flexDirection: 'row',
@@ -750,8 +754,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   cartActionText: {
-    color: '#fff',
-    fontWeight: '700',
+    color: colors.white,
+    fontFamily: fonts.bold,
     marginRight: 4,
   },
 });

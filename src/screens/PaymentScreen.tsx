@@ -38,7 +38,7 @@ export default function PaymentScreen() {
         contact: user?.phone || '',
         name: user?.name || '',
       },
-      theme: { color: '#FF6B00' },
+      theme: { color: colors.primary },
     };
 
     try {

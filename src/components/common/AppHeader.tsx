@@ -92,7 +92,7 @@ export const AppHeader = React.memo(function AppHeader({ showSearch = true, show
                 {sellerInfo.rating ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
                     <Text style={type.caption}>·</Text>
-                    <Ionicons name="star" size={11} color="#F59E0B" />
+                    <Ionicons name="star" size={11} color={colors.warning} />
                     <Text style={type.caption}>{sellerInfo.rating}</Text>
                   </View>
                 ) : null}
@@ -246,20 +246,24 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     paddingHorizontal: spacing.md + 2,
     borderRadius: radius.md,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: colors.inputFill,
+    borderWidth: 1,
+    borderColor: colors.border,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
   },
   searchPlaceholder: { ...type.small, color: colors.textTertiary, flex: 1 },
-  menuOverlay: { flex: 1, backgroundColor: 'rgba(17,17,17,0.15)' },
+  menuOverlay: { flex: 1, backgroundColor: 'rgba(48,37,29,0.15)' },
   menu: {
     position: 'absolute',
     top: 64,
     right: spacing.screen,
     minWidth: 240,
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
     paddingVertical: spacing.xs,
     ...elevation.raised,
   },
