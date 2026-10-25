@@ -8,7 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import { Button, Notice } from '../../components/common';
-import { colors, radius, spacing, type } from '../../theme';
+import { colors, radius, spacing, type, fonts } from '../../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Otp'>;
 type RouteType = RouteProp<RootStackParamList, 'Otp'>;
@@ -147,7 +147,7 @@ export default function OtpScreen() {
 }
 
 const styles = StyleSheet.create({
-  destination: { ...type.subheading, color: colors.text },
+  destination: { ...type.subheading, color: colors.white },
   otpRow: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm, marginBottom: spacing.xxl },
   otpInput: {
     flex: 1,
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     textAlign: 'center',
     fontSize: 22,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: colors.text,
   },
   otpInputFilled: { borderColor: colors.primary, backgroundColor: colors.primarySoft },

@@ -17,6 +17,7 @@ import { api } from '../services/api';
 import { getImageUrl, getSubscriptionPlanImage } from '../config/api';
 import { AppHeader } from '../components/common/AppHeader';
 import { AppFooter } from '../components/common/AppFooter';
+import { colors, fonts } from '../theme';
 
 const { width } = Dimensions.get('window');
 
@@ -65,10 +66,10 @@ export default function AllPlansScreen() {
             <Image source={bannerSource} style={styles.headerImage} contentFit="cover" />
           ) : (
             <LinearGradient
-              colors={['#4a4a4a', '#2d2d2d']}
+              colors={[colors.textSecondary, colors.text]}
               style={styles.headerGradient}
             >
-              <MaterialCommunityIcons name="chef-hat" size={40} color="#cd853f" />
+              <MaterialCommunityIcons name="chef-hat" size={40} color={colors.primary} />
               <Text style={styles.planNameTitle}>{plan.plan_name}</Text>
             </LinearGradient>
           )}
@@ -85,7 +86,7 @@ export default function AllPlansScreen() {
           
           {plan.badge && (
             <LinearGradient
-              colors={['#6366f1', '#a855f7']}
+              colors={[colors.primary, colors.primaryGradientEnd]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.badgeContainer}
@@ -111,23 +112,23 @@ export default function AllPlansScreen() {
         {/* Features List */}
         <View style={styles.featuresList}>
           <View style={styles.featureItem}>
-            <Ionicons name="calendar-outline" size={18} color="#6366f1" />
+            <Ionicons name="calendar-outline" size={18} color={colors.primary} />
             <Text style={styles.featureText}>{plan.total_days} Days Validity</Text>
           </View>
           <View style={styles.featureItem}>
-            <Ionicons name="cube-outline" size={18} color="#22c55e" />
+            <Ionicons name="cube-outline" size={18} color={colors.success} />
             <Text style={styles.featureText}>Free Delivery on Monthly Plan</Text>
           </View>
           <View style={styles.featureItem}>
-            <Ionicons name="restaurant-outline" size={18} color="#a855f7" />
+            <Ionicons name="restaurant-outline" size={18} color={colors.primaryGradientEnd} />
             <Text style={styles.featureText}>Daily Homemade Food (Lunch + Dinner)</Text>
           </View>
           <View style={styles.featureItem}>
-            <Ionicons name="star-outline" size={18} color="#eab308" />
+            <Ionicons name="star-outline" size={18} color={colors.warning} />
             <Text style={styles.featureText}>Dabba Delights Priority Support</Text>
           </View>
           <View style={styles.featureItem}>
-            <MaterialCommunityIcons name="silverware-fork-knife" size={18} color="#64748b" />
+            <MaterialCommunityIcons name="silverware-fork-knife" size={18} color={colors.textSecondary} />
             <Text style={styles.featureText}>Daily menu items included</Text>
           </View>
         </View>
@@ -136,7 +137,7 @@ export default function AllPlansScreen() {
         <View style={styles.buttonContainer}>
           <TouchableOpacity onPress={() => handleSelectPlan(plan)}>
             <LinearGradient
-              colors={['#6366f1', '#a855f7']}
+              colors={[colors.primary, colors.primaryGradientEnd]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.subscribeButton}
@@ -165,12 +166,12 @@ export default function AllPlansScreen() {
         }
       >
         <View style={styles.promoBanner}>
-          <Ionicons name="gift-outline" size={24} color="#FF6B00" />
+          <Ionicons name="gift-outline" size={24} color={colors.primary} />
           <Text style={styles.promoText}>Save up to 30% with monthly subscription plans</Text>
         </View>
 
         {loading && !refreshing ? (
-          <ActivityIndicator size="large" color="#6366f1" style={{ marginTop: 40 }} />
+          <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
         ) : (
           plans.map(renderPlan)
         )}
@@ -185,7 +186,7 @@ export default function AllPlansScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fdf8f1', // Light cream background from screenshot
+    backgroundColor: colors.canvas, // Light cream background from screenshot
   },
   scrollContent: {
     paddingBottom: 20,
@@ -193,33 +194,33 @@ const styles = StyleSheet.create({
   promoBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     margin: 16,
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#ffe5d6',
+    borderColor: colors.primaryBorder,
     gap: 10,
   },
   promoText: {
     fontSize: 14,
-    color: '#FF6B00',
-    fontWeight: '600',
+    color: colors.primary,
+    fontFamily: fonts.semiBold,
     flex: 1,
   },
   planCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     marginHorizontal: 16,
     marginBottom: 24,
     borderRadius: 20,
     overflow: 'hidden',
     elevation: 4,
-    shadowColor: '#000',
+    shadowColor: '#403126',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     borderWidth: 1,
-    borderColor: '#f0f0f0',
+    borderColor: colors.border,
   },
   cardHeader: {
     height: 140,
@@ -246,9 +247,9 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   planNameTitle: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 22,
-    fontWeight: 'bold',
+    fontFamily: fonts.displayBold,
   },
   badgeContainer: {
     position: 'absolute',
@@ -259,14 +260,14 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   badgeText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 11,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
   },
   priceSection: {
     alignItems: 'center',
     paddingVertical: 20,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
   },
   priceRow: {
     flexDirection: 'row',
@@ -275,32 +276,32 @@ const styles = StyleSheet.create({
   },
   currencySymbol: {
     fontSize: 24,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.semiBold,
+    color: colors.text,
     marginTop: 4,
   },
   mainPrice: {
     fontSize: 44,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   priceForDays: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: 16, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     marginBottom: 12,
   },
   perDayBadge: {
-    backgroundColor: '#eefdf5',
+    backgroundColor: colors.successSoft,
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#dcfce7',
+    borderColor: colors.successSoft,
   },
   perDayText: {
-    color: '#16a34a',
+    color: colors.success,
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
   },
   featuresList: {
     paddingHorizontal: 20,
@@ -313,8 +314,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   featureText: {
-    fontSize: 14,
-    color: '#475569',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     flex: 1,
     lineHeight: 20,
   },
@@ -330,22 +331,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   subscribeButtonText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
   },
   detailsButton: {
     height: 52,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fdf8f1',
+    backgroundColor: colors.inputFill,
     borderWidth: 1,
-    borderColor: '#ffe5d6',
+    borderColor: colors.primaryBorder,
   },
   detailsButtonText: {
-    color: '#1a1a1a',
+    color: colors.text,
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
   },
 });

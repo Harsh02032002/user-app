@@ -1,66 +1,87 @@
 /**
  * Dabba Nation design tokens (Customer app).
- * Vibrant golden/red theme matching the web user panel.
+ *
+ * Source of truth: the seller/admin panels of the web app (dabba-delights/src/index.css).
+ * Every brand colour below is the hex form of one of those HSL tokens, so the customer
+ * app reads as the same product as the panels:
+ *   background 45 50% 92%  ·  card 45 45% 96%  ·  primary 0 72% 51%  ·  accent 142 69% 45%
+ * Type follows the panels too: Playfair Display for display text, Plus Jakarta Sans for UI.
  */
 import { Platform, StyleSheet, TextStyle, ViewStyle } from 'react-native';
 
 export const colors = {
-  // Brand
-  primary: '#FF6B00',
-  primaryPressed: '#E65F00',
-  primaryDisabled: '#FFB380',
-  primarySoft: '#FFF4EC',
-  primaryBorder: '#FFD8BD',
-  primaryInk: '#FF6B00',
-  brandGreen: '#4CAF50',
+  // Brand — Dabba Nation logo red (--primary)
+  primary: '#DC2828',
+  primaryPressed: '#C52020',
+  primaryDisabled: '#EC9A96',
+  primarySoft: '#F6E2DC', // primary/10 on card
+  primaryBorder: '#F3CEC8', // primary/20 on card
+  primaryInk: '#B81E1E', // red text on light surfaces
+  primaryGradientEnd: '#EE4B2B', // --gradient-primary end stop
+  brandGreen: '#24C25E', // --accent
 
-  // Surfaces — Warm golden background matching web user panel
-  canvas: '#FAF8F3', // warm cream page background
-  surface: '#FFFFFF',
-  surfaceMuted: '#F5F3EE',
-  surfaceSunken: '#EFECE6',
-  inkSurface: '#1F1A15',
-  overlay: 'rgba(17, 17, 17, 0.45)',
+  // Surfaces — golden theme
+  canvas: '#F5F0E0', // --background
+  surface: '#F9F7F0', // --card
+  surfaceRaised: '#FEFDFB', // --gradient-card top stop
+  surfaceMuted: '#F0E8D1', // --sidebar-background
+  surfaceSunken: '#F0E4C2', // --secondary
+  inputFill: '#F5EED9', // .input-styled: secondary/50
+  muted: '#E8DAB0', // --muted
+  inkSurface: '#30251D', // --foreground as a panel
+  overlay: 'rgba(48, 37, 29, 0.5)',
 
   // Text
-  text: '#1A1A1A',
-  textSecondary: '#5F6368',
-  textTertiary: '#9AA0A6',
+  text: '#30251D', // --foreground
+  textSecondary: '#6B6258', // foreground/70, sidebar link text
+  textTertiary: '#A8968A', // --muted-foreground
   textInverse: '#FFFFFF',
-  textOnInk: '#FFFFFF',
-  textOnInkMuted: '#9AA0A6',
+  textOnInk: '#F9F7F0',
+  textOnInkMuted: '#C9BBA6',
 
   // Lines
-  border: '#E8E5DE',
-  divider: '#F0EEE8',
+  border: '#ECE2C6', // --border
+  borderStrong: '#E6D9B3', // --sidebar-border
+  divider: '#F0E8D1',
 
   // Semantic
-  success: '#22C55E',
-  successStrong: '#15803D',
-  successSoft: '#ECFDF3',
-  warning: '#F59E0B',
-  warningStrong: '#B45309',
-  warningSoft: '#FFFBEB',
-  danger: '#DC2626',
-  dangerSoft: '#FEF2F2',
-  info: '#2563EB',
-  infoSoft: '#EFF6FF',
-  rating: '#F5A623',
-  veg: '#16A34A',
-  nonVeg: '#DC2626',
+  success: '#24C25E', // --success
+  successStrong: '#18813E',
+  successSoft: '#E4F2E1',
+  warning: '#F6AE31', // --warning
+  warningStrong: '#9D6607',
+  warningSoft: '#F9EED9',
+  danger: '#DC2828', // --destructive
+  dangerSoft: '#F6E2DC',
+  info: '#0DA2E7', // --info
+  infoStrong: '#0A73A4',
+  infoSoft: '#E1EFEF',
+  rating: '#F6AE31',
+  veg: '#18813E',
+  nonVeg: '#DC2828',
+  white: '#FFFFFF',
 } as const;
+
+/** Brand gradients (--gradient-primary / --gradient-success / --gradient-hero) */
+export const gradients = {
+  primary: [colors.primary, colors.primaryGradientEnd] as const,
+  success: ['#24C25E', '#1BE48D'] as const,
+  hero: ['#DC2828', '#F27436', '#DC2828'] as const,
+  card: ['#FEFDFB', '#F9F7F1'] as const,
+};
 
 /** Order status palette — shared with the Rider app and seller web */
 export const orderStatusColors: Record<string, { bg: string; fg: string; label: string }> = {
-  pending: { bg: '#FEF3C7', fg: '#92400E', label: 'Pending' },
-  confirmed: { bg: '#DBEAFE', fg: '#1E40AF', label: 'Confirmed' },
-  preparing: { bg: '#E9D5FF', fg: '#7C3AED', label: 'Preparing' },
-  ready: { bg: '#CCFBF1', fg: '#0F766E', label: 'Ready' },
-  out_for_delivery: { bg: '#FED7AA', fg: '#EA580C', label: 'Out for Delivery' },
-  delivered: { bg: '#D1FAE5', fg: '#065F46', label: 'Delivered' },
-  cancelled: { bg: '#FEE2E2', fg: '#DC2626', label: 'Cancelled' },
+  pending: { bg: colors.warningSoft, fg: colors.warningStrong, label: 'Pending' },
+  confirmed: { bg: colors.infoSoft, fg: colors.infoStrong, label: 'Confirmed' },
+  preparing: { bg: '#EFE3F6', fg: '#7C3AED', label: 'Preparing' },
+  ready: { bg: '#DDF1EC', fg: '#0F766E', label: 'Ready' },
+  out_for_delivery: { bg: colors.primarySoft, fg: colors.primaryInk, label: 'Out for Delivery' },
+  delivered: { bg: colors.successSoft, fg: colors.successStrong, label: 'Delivered' },
+  cancelled: { bg: colors.dangerSoft, fg: colors.danger, label: 'Cancelled' },
 };
 
+/** 4-pt spacing scale. `screen` is the one horizontal gutter used on every screen. */
 export const spacing = {
   xxs: 2,
   xs: 4,
@@ -70,10 +91,13 @@ export const spacing = {
   xl: 20,
   xxl: 24,
   xxxl: 32,
+  section: 28, // vertical gap between page sections
   screen: 16, // horizontal screen padding
 } as const;
 
+/** --radius is 0.75rem (12px); cards are rounded-xl / rounded-2xl in the panels */
 export const radius = {
+  xs: 6,
   sm: 8,
   md: 12,
   lg: 16,
@@ -82,16 +106,16 @@ export const radius = {
 } as const;
 
 export const sizes = {
-  buttonHeight: 48,
-  buttonHeightSm: 36,
-  inputHeight: 48,
+  buttonHeight: 50,
+  buttonHeightSm: 38,
+  inputHeight: 50,
   iconButton: 40,
   icon: 20,
   iconSm: 16,
   iconLg: 24,
   listRow: 56,
   headerHeight: 56,
-  tabBarHeight: 60,
+  tabBarHeight: 64,
 } as const;
 
 export const hairline: ViewStyle = {
@@ -107,44 +131,84 @@ export const mealOfTheDay = () => {
   return 'Dinner';
 };
 
-const font = (size: number, lineHeight: number, weight: TextStyle['fontWeight']): TextStyle => ({
+/** Font family names registered in App.tsx (useFonts) */
+export const fonts = {
+  regular: 'PlusJakartaSans_400Regular',
+  medium: 'PlusJakartaSans_500Medium',
+  semiBold: 'PlusJakartaSans_600SemiBold',
+  bold: 'PlusJakartaSans_700Bold',
+  heavy: 'PlusJakartaSans_800ExtraBold',
+  display: 'PlayfairDisplay_600SemiBold',
+  displayBold: 'PlayfairDisplay_700Bold',
+  displayItalic: 'PlayfairDisplay_500Medium',
+} as const;
+
+const font = (family: string, size: number, lineHeight: number, extra: TextStyle = {}): TextStyle => ({
+  fontFamily: family,
   fontSize: size,
   lineHeight,
-  fontWeight: weight,
   color: colors.text,
+  ...extra,
 });
 
-/** Restrained type scale: 3 weights (400 / 600 / 700) */
+/** Type scale: Playfair for display/title (like the panels' h1–h6), Jakarta for everything else */
 export const type = {
-  display: font(26, 32, '700'),
-  title: font(20, 26, '700'),
-  heading: font(17, 22, '600'),
-  subheading: font(15, 20, '600'),
-  body: font(15, 21, '400'),
-  bodyStrong: font(15, 21, '600'),
-  label: font(13, 18, '600'),
-  small: font(13, 18, '400'),
-  caption: { ...font(12, 16, '400'), color: colors.textSecondary } as TextStyle,
-  overline: { ...font(11, 14, '600'), letterSpacing: 0.6, textTransform: 'uppercase', color: colors.textSecondary } as TextStyle,
-  price: { ...font(15, 20, '700'), fontVariant: ['tabular-nums'] } as TextStyle,
+  display: font(fonts.displayBold, 28, 34),
+  title: font(fonts.displayBold, 22, 28),
+  heading: font(fonts.bold, 17, 22),
+  subheading: font(fonts.semiBold, 15, 20),
+  body: font(fonts.regular, 15, 22),
+  bodyStrong: font(fonts.semiBold, 15, 22),
+  label: font(fonts.semiBold, 13, 18),
+  small: font(fonts.regular, 13, 18),
+  caption: font(fonts.regular, 12, 16, { color: colors.textSecondary }),
+  overline: font(fonts.bold, 11, 14, { letterSpacing: 0.8, textTransform: 'uppercase', color: colors.textTertiary }),
+  price: font(fonts.bold, 15, 20, { fontVariant: ['tabular-nums'] }),
 };
 
-const shadow = (elevation: number, opacity: number, radiusPx: number, offsetY: number): ViewStyle =>
+const shadow = (elevation: number, opacity: number, radiusPx: number, offsetY: number, color = '#403126'): ViewStyle =>
   Platform.select({
-    android: { elevation },
+    android: { elevation, shadowColor: color },
     default: {
-      shadowColor: '#1A1A1A',
+      shadowColor: color,
       shadowOpacity: opacity,
       shadowRadius: radiusPx,
       shadowOffset: { width: 0, height: offsetY },
     },
   }) as ViewStyle;
 
+/** --shadow-card / --shadow-lg / --shadow-card-hover */
 export const elevation = {
   none: {} as ViewStyle,
-  card: shadow(1, 0.05, 6, 2),
-  raised: shadow(4, 0.08, 12, 4),
-  sticky: shadow(8, 0.1, 16, -4),
+  card: shadow(2, 0.08, 8, 2),
+  raised: shadow(5, 0.1, 15, 6),
+  sticky: shadow(10, 0.1, 18, -4),
+  brand: shadow(6, 0.22, 14, 6, colors.primary),
+};
+
+/** Shared surface recipes so cards look identical everywhere (.stat-card / .food-card) */
+export const surfaces = {
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    ...elevation.card,
+  } as ViewStyle,
+  flat: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  } as ViewStyle,
+  input: {
+    backgroundColor: colors.inputFill,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    minHeight: sizes.inputHeight,
+    paddingHorizontal: spacing.lg,
+  } as ViewStyle,
 };
 
 export const formatPrice = (amount: number | string | undefined | null) => {
@@ -153,16 +217,5 @@ export const formatPrice = (amount: number | string | undefined | null) => {
   return `₹${n % 1 === 0 ? n.toLocaleString('en-IN') : n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
-export const fonts = {
-  regular: Platform.select({ ios: 'System', android: 'sans-serif', default: 'sans-serif' }),
-  medium: Platform.select({ ios: 'System', android: 'sans-serif-medium', default: 'sans-serif' }),
-  semiBold: Platform.select({ ios: 'System', android: 'sans-serif-medium', default: 'sans-serif' }),
-  bold: Platform.select({ ios: 'System', android: 'sans-serif-bold', default: 'sans-serif' }),
-  displayBold: Platform.select({ ios: 'System', android: 'sans-serif-bold', default: 'sans-serif' }),
-  display: Platform.select({ ios: 'System', android: 'sans-serif-bold', default: 'sans-serif' }),
-  displayItalic: Platform.select({ ios: 'System', android: 'sans-serif', default: 'sans-serif' }),
-  heavy: Platform.select({ ios: 'System', android: 'sans-serif-bold', default: 'sans-serif' }),
-};
-
-export const theme = { colors, spacing, radius, sizes, type, elevation, orderStatusColors, fonts, hairline, mealOfTheDay };
+export const theme = { colors, gradients, spacing, radius, sizes, type, elevation, surfaces, orderStatusColors, fonts, hairline, mealOfTheDay };
 export default theme;

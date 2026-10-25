@@ -17,6 +17,9 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/RootNavigator';
 import { useAuth } from '../../context/AuthContext';
 import { Feather, Ionicons } from '@expo/vector-icons';
+import { colors, elevation, fonts, gradients, radius, spacing, surfaces, type } from '../../theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -142,35 +145,35 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Back to Home Button */}
-          <TouchableOpacity 
-            style={styles.backButton} 
-            onPress={() => navigation.navigate('Landing' as any)}
-          >
-            <Feather name="arrow-left" size={18} color="#666" />
-            <Text style={styles.backText}>Back to Home</Text>
-          </TouchableOpacity>
+          {/* Brand hero — same as Landing and the shared AuthLayout */}
+          <LinearGradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
+            <Image source={require('../../../assets/images/hero-bg.jpg')} style={styles.heroTexture} resizeMode="cover" />
+            <SafeAreaView edges={['top']} style={styles.heroInner}>
+              <View style={styles.heroTopRow}>
+                <TouchableOpacity
+                  style={styles.backButton}
+                  onPress={() => navigation.navigate('Landing' as any)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Back to Home"
+                >
+                  <Feather name="arrow-left" size={18} color={colors.white} />
+                </TouchableOpacity>
+                <View style={styles.logoContainer}>
+                  <Image source={require('../../../assets/images/logo.png')} style={styles.logoImage} resizeMode="cover" />
+                  <Text style={styles.brandName}>Dabba Nation</Text>
+                </View>
+                <View style={styles.backSpacer} />
+              </View>
 
-          {/* Logo Section */}
-          <View style={styles.logoContainer}>
-            <View style={styles.logoCircle}>
-              <Image 
-                source={require('../../../assets/images/logo.png')} 
-                style={styles.logoImage}
-                resizeMode="contain"
-              />
-            </View>
-          </View>
-
-          {/* Header Text */}
-          <View style={styles.headerSection}>
-            <Text style={styles.title}>{otpStep ? 'Verify OTP' : 'Welcome Back!'}</Text>
-            <Text style={styles.subtitle}>
-              {otpStep
-                ? `Enter the 6-digit OTP sent to ${[otpInfo.maskedEmail, otpInfo.maskedPhone].filter(Boolean).join(' & ') || 'your Email & Phone'}`
-                : 'Sign in with your Email or Phone Number'}
-            </Text>
-          </View>
+              {/* Header Text */}
+              <Text style={styles.title}>{otpStep ? 'Verify OTP' : 'Welcome back'}</Text>
+              <Text style={styles.subtitle}>
+                {otpStep
+                  ? `Enter the 6-digit OTP sent to ${[otpInfo.maskedEmail, otpInfo.maskedPhone].filter(Boolean).join(' & ') || 'your Email & Phone'}`
+                  : 'Sign in with your Email or Phone Number'}
+              </Text>
+            </SafeAreaView>
+          </LinearGradient>
 
           {/* Form Section */}
           <View style={styles.formContainer}>
@@ -199,14 +202,14 @@ export default function LoginScreen() {
                 <View style={styles.inputGroup}>
                   <Text style={styles.label}>Email or Phone Number</Text>
                   <View style={styles.inputWrapper}>
-                    <Feather name={isPhoneInput ? 'phone' : 'mail'} size={18} color="#999" />
+                    <Feather name={isPhoneInput ? 'phone' : 'mail'} size={18} color={colors.textTertiary} />
                     <TextInput
                       style={styles.input}
                       placeholder="Enter Email or 10-digit Phone Number"
                       value={identifier}
                       onChangeText={setIdentifier}
                       autoCapitalize="none"
-                      placeholderTextColor="#999"
+                      placeholderTextColor={colors.textTertiary}
                     />
                   </View>
                 </View>
@@ -215,17 +218,17 @@ export default function LoginScreen() {
                   <View style={styles.inputGroup}>
                     <Text style={styles.label}>Password</Text>
                     <View style={styles.inputWrapper}>
-                      <Feather name="lock" size={18} color="#999" />
+                      <Feather name="lock" size={18} color={colors.textTertiary} />
                       <TextInput
                         style={styles.input}
                         placeholder="Enter your password"
                         value={password}
                         onChangeText={setPassword}
                         secureTextEntry={!showPassword}
-                        placeholderTextColor="#999"
+                        placeholderTextColor={colors.textTertiary}
                       />
                       <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                        <Feather name={showPassword ? 'eye-off' : 'eye'} size={18} color="#999" />
+                        <Feather name={showPassword ? 'eye-off' : 'eye'} size={18} color={colors.textTertiary} />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -250,7 +253,7 @@ export default function LoginScreen() {
                   disabled={loading}
                 >
                   {loading ? (
-                    <ActivityIndicator color="#fff" />
+                    <ActivityIndicator color={colors.white} />
                   ) : (
                     <Text style={styles.buttonText}>Continue & Send OTP</Text>
                   )}
@@ -261,7 +264,7 @@ export default function LoginScreen() {
                 <View style={styles.inputGroup}>
                   <Text style={styles.label}>6-Digit OTP (Sent via SMS & Email)</Text>
                   <View style={styles.inputWrapper}>
-                    <Ionicons name="key-outline" size={18} color="#999" />
+                    <Ionicons name="key-outline" size={18} color={colors.textTertiary} />
                     <TextInput
                       style={[styles.input, styles.otpInput]}
                       placeholder="Enter 6-digit OTP"
@@ -269,7 +272,7 @@ export default function LoginScreen() {
                       onChangeText={(val) => setOtp(val.replace(/\D/g, '').slice(0, 6))}
                       keyboardType="number-pad"
                       maxLength={6}
-                      placeholderTextColor="#999"
+                      placeholderTextColor={colors.textTertiary}
                     />
                   </View>
                 </View>
@@ -280,7 +283,7 @@ export default function LoginScreen() {
                   disabled={loading}
                 >
                   {loading ? (
-                    <ActivityIndicator color="#fff" />
+                    <ActivityIndicator color={colors.white} />
                   ) : (
                     <Text style={styles.buttonText}>Verify OTP & Sign In</Text>
                   )}
@@ -303,12 +306,13 @@ export default function LoginScreen() {
               </>
             )}
 
-            <View style={styles.registerLinkContainer}>
-              <Text style={styles.registerText}>Don't have an account? </Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Register', { phone: '' })}>
-                <Text style={styles.registerLink}>Sign Up</Text>
-              </TouchableOpacity>
-            </View>
+          </View>
+
+          <View style={styles.registerLinkContainer}>
+            <Text style={styles.registerText}>Don't have an account? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Register', { phone: '' })}>
+              <Text style={styles.registerLink}>Sign Up</Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -319,71 +323,94 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FDF8F1',
+    backgroundColor: colors.canvas,
   },
   keyboardView: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 40,
-    paddingBottom: 40,
+    paddingBottom: spacing.xxxl,
   },
+  hero: {
+    paddingBottom: spacing.xxxl * 2,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    overflow: 'hidden',
+  },
+  heroTexture: { ...StyleSheet.absoluteFill, width: '100%', height: '100%', opacity: 0.12 },
+  heroInner: { width: '100%', maxWidth: 440, alignSelf: 'center', paddingHorizontal: spacing.xl },
+  heroTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: spacing.md },
+  backSpacer: { width: 38, height: 38 },
+  brandName: { fontFamily: fonts.displayBold, fontSize: 17, lineHeight: 22, color: colors.white },
   backButton: {
-    flexDirection: 'row',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
-    alignSelf: 'flex-end',
-    gap: 4,
-    marginBottom: 20,
+    justifyContent: 'center',
   },
   backText: {
-    fontSize: 13,
-    color: '#666',
+    fontSize: 13, fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
   logoContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 20,
+    gap: spacing.sm,
   },
   logoCircle: {
     width: 90,
     height: 90,
     borderRadius: 45,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
     ...Platform.select({
       web: { boxShadow: '0 4px 12px rgba(0,0,0,0.08)' },
-      default: { elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8 }
+      default: { elevation: 4, shadowColor: '#403126', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8 }
     })
   },
   logoImage: {
-    width: 70,
-    height: 70,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.white,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.6)',
   },
   headerSection: {
     alignItems: 'center',
     marginBottom: 24,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-    marginBottom: 8,
-    textAlign: 'center',
+    fontSize: 30,
+    lineHeight: 36,
+    fontFamily: fonts.displayBold,
+    color: colors.white,
+    marginTop: spacing.xxxl,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    paddingHorizontal: 10,
+    ...type.body,
+    color: 'rgba(255,255,255,0.85)',
+    marginTop: spacing.xs,
   },
   formContainer: {
-    width: '100%',
+    ...surfaces.card,
+    ...elevation.raised,
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: radius.xl,
+    marginTop: -spacing.xxxl,
+    marginHorizontal: spacing.screen,
+    padding: spacing.xl,
+    width: undefined,
+    maxWidth: 440,
+    alignSelf: 'stretch',
   },
   modeToggleContainer: {
     flexDirection: 'row',
-    backgroundColor: '#F3EDE2',
+    backgroundColor: colors.inputFill,
     borderRadius: 12,
     padding: 4,
     marginBottom: 20,
@@ -391,34 +418,34 @@ const styles = StyleSheet.create({
   modeTab: {
     flex: 1,
     paddingVertical: 10,
-    borderRadius: 9,
+    borderRadius: 8,
     alignItems: 'center',
   },
   modeTabActive: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     elevation: 2,
   },
   modeTabText: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#666',
+    fontFamily: fonts.semiBold,
+    color: colors.textSecondary,
   },
   modeTabTextActive: {
-    color: '#E86F2A',
+    color: colors.primary,
   },
   inputGroup: {
     marginBottom: 20,
   },
   label: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.semiBold,
+    color: colors.text,
     marginBottom: 8,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEFCE8',
+    backgroundColor: colors.warningSoft,
     borderRadius: 10,
     paddingHorizontal: 16,
     height: 50,
@@ -428,12 +455,12 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     paddingHorizontal: 12,
-    fontSize: 14,
-    color: '#1a1a1a',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.text,
   },
   otpInput: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
     letterSpacing: 6,
   },
   forgotPasswordContainer: {
@@ -442,25 +469,25 @@ const styles = StyleSheet.create({
   },
   forgotPasswordText: {
     fontSize: 13,
-    color: '#E86F2A',
-    fontWeight: '500',
+    color: colors.primary,
+    fontFamily: fonts.medium,
   },
   signInButton: {
-    backgroundColor: '#E86F2A',
+    backgroundColor: colors.primary,
     height: 50,
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 18,
+    marginBottom: 16,
     ...Platform.select({
-      web: { boxShadow: '0 4px 12px rgba(232, 111, 42, 0.25)' },
-      default: { elevation: 3, shadowColor: '#E86F2A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4 }
+      web: { boxShadow: '0 4px 12px rgba(220, 40, 40, 0.25)' },
+      default: { elevation: 3, shadowColor: colors.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4 }
     })
   },
   buttonText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
   },
   otpActionRow: {
     flexDirection: 'row',
@@ -471,27 +498,27 @@ const styles = StyleSheet.create({
   },
   changeAccountText: {
     fontSize: 13,
-    color: '#666',
-    fontWeight: '500',
+    color: colors.textSecondary,
+    fontFamily: fonts.medium,
   },
   resendOtpText: {
     fontSize: 13,
-    color: '#E86F2A',
-    fontWeight: '700',
+    color: colors.primary,
+    fontFamily: fonts.bold,
   },
   registerLinkContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: spacing.xl,
   },
   registerText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
   registerLink: {
     fontSize: 14,
-    color: '#E86F2A',
-    fontWeight: 'bold',
+    color: colors.primary,
+    fontFamily: fonts.bold,
   },
 });

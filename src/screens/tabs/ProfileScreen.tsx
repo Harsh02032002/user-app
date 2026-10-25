@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 import { api } from '../../services/api';
+import { colors, fonts } from '../../theme';
 
 interface UserProfile {
   name: string;
@@ -162,7 +163,7 @@ export function ProfileScreen() {
           <Ionicons 
             name={item.icon as any} 
             size={20} 
-            color={item.danger ? '#FF4444' : '#FF6B00'} 
+            color={item.danger ? colors.danger : colors.primary} 
           />
         </View>
         <View style={styles.menuItemContent}>
@@ -183,11 +184,11 @@ export function ProfileScreen() {
           <Switch
             value={notificationsEnabled}
             onValueChange={setNotificationsEnabled}
-            trackColor={{ false: '#e5e5e5', true: '#FFB380' }}
-            thumbColor={notificationsEnabled ? '#FF6B00' : '#fff'}
+            trackColor={{ false: colors.border, true: colors.primaryDisabled }}
+            thumbColor={notificationsEnabled ? colors.primary : colors.surface}
           />
         ) : (
-          <Ionicons name="chevron-forward" size={20} color="#ccc" />
+          <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
         )}
       </View>
     </TouchableOpacity>
@@ -200,7 +201,7 @@ export function ProfileScreen() {
           <View style={styles.avatarContainer}>
             <Image source={{ uri: user?.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150' }} style={styles.avatar} />
             <TouchableOpacity style={styles.editAvatarButton}>
-              <Ionicons name="camera" size={16} color="#fff" />
+              <Ionicons name="camera" size={16} color={colors.white} />
             </TouchableOpacity>
           </View>
           <Text style={styles.userName}>{user?.name || 'Guest'}</Text>
@@ -228,15 +229,15 @@ export function ProfileScreen() {
         {/* Quick Actions */}
         <View style={styles.quickActions}>
           <TouchableOpacity style={styles.quickAction}>
-            <Ionicons name="wallet-outline" size={24} color="#FF6B00" />
+            <Ionicons name="wallet-outline" size={24} color={colors.primary} />
             <Text style={styles.quickActionText}>Add Money</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.quickAction}>
-            <Ionicons name="gift-outline" size={24} color="#FF6B00" />
+            <Ionicons name="gift-outline" size={24} color={colors.primary} />
             <Text style={styles.quickActionText}>Rewards</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.quickAction}>
-            <Ionicons name="people-outline" size={24} color="#FF6B00" />
+            <Ionicons name="people-outline" size={24} color={colors.primary} />
             <Text style={styles.quickActionText}>Refer</Text>
           </TouchableOpacity>
         </View>
@@ -251,7 +252,7 @@ export function ProfileScreen() {
           <Text style={styles.versionText}>Dabba Delights v1.0.0</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Text style={styles.versionSubtext}>Made with</Text>
-            <Ionicons name="heart" size={12} color="#EF4444" />
+            <Ionicons name="heart" size={12} color={colors.danger} />
             <Text style={styles.versionSubtext}>in India</Text>
           </View>
         </View>
@@ -265,7 +266,7 @@ export function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F2E8',
+    backgroundColor: colors.canvas,
   },
   screenHeader: {
     flexDirection: 'row',
@@ -273,12 +274,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: colors.border,
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.displayBold,
+    color: colors.text,
   },
   editButton: {
     padding: 8,
@@ -294,16 +295,16 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 12,
-    fontSize: 16,
-    color: '#666',
+    fontSize: 16, fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
   profileHeader: {
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     margin: 16,
     borderRadius: 16,
-    shadowColor: '#000',
+    shadowColor: '#403126',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -317,14 +318,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     width: 32,
     height: 32,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: colors.white,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -334,20 +335,20 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: colors.border,
   },
   statValue: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FF6B00',
+    fontFamily: fonts.bold,
+    color: colors.primary,
     marginBottom: 4,
   },
   profileCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     margin: 16,
     borderRadius: 16,
     padding: 20,
-    shadowColor: '#000',
+    shadowColor: '#403126',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -369,25 +370,25 @@ const styles = StyleSheet.create({
   },
   userName: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
     marginBottom: 4,
   },
   userEmail: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     marginBottom: 2,
   },
   userPhone: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
   profileStats: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: colors.border,
   },
   statItem: {
     alignItems: 'center',
@@ -395,17 +396,17 @@ const styles = StyleSheet.create({
   },
   statNumber: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FF6B00',
+    fontFamily: fonts.bold,
+    color: colors.primary,
     marginBottom: 4,
   },
   statLabel: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
   statDivider: {
     width: 1,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: colors.inputFill,
   },
   quickActions: {
     flexDirection: 'row',
@@ -415,7 +416,7 @@ const styles = StyleSheet.create({
   },
   quickAction: {
     alignItems: 'center',
-    backgroundColor: '#FFF5F0',
+    backgroundColor: colors.primarySoft,
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderRadius: 12,
@@ -424,8 +425,8 @@ const styles = StyleSheet.create({
   },
   quickActionText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#FF6B00',
+    fontFamily: fonts.semiBold,
+    color: colors.primary,
     marginTop: 8,
   },
   menuSection: {
@@ -438,7 +439,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 4,
     borderBottomWidth: 1,
-    borderBottomColor: '#f5f5f5',
+    borderBottomColor: colors.border,
   },
   menuItemLeft: {
     flexDirection: 'row',
@@ -449,36 +450,36 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FFF5F0',
+    backgroundColor: colors.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   dangerIcon: {
-    backgroundColor: '#FFF5F5',
+    backgroundColor: colors.dangerSoft,
   },
   menuItemContent: {
     flex: 1,
   },
   menuItemTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.semiBold,
+    color: colors.text,
     marginBottom: 2,
   },
   dangerText: {
-    color: '#FF4444',
+    color: colors.danger,
   },
   menuItemSubtitle: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
   menuItemRight: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   badge: {
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -486,20 +487,20 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 10,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontFamily: fonts.bold,
+    color: colors.white,
   },
   versionContainer: {
     alignItems: 'center',
     paddingVertical: 32,
   },
   versionText: {
-    fontSize: 12,
-    color: '#999',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.textTertiary,
     marginBottom: 4,
   },
   versionSubtext: {
-    fontSize: 10,
-    color: '#ccc',
+    fontSize: 10, fontFamily: fonts.regular,
+    color: colors.textTertiary,
   },
 });

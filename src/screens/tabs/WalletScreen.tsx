@@ -17,7 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import api from '../../services/api';
 import { BottomSheet, Button, Card, Chip, Divider, EmptyState, ErrorState, ScreenHeader, Skeleton, SkeletonList } from '../../components/common';
 import { TAB_BAR_HEIGHT } from '../../components/common/MobileNavBar';
-import { colors, formatPrice, radius, spacing, type } from '../../theme';
+import { colors, formatPrice, radius, spacing, type, fonts } from '../../theme';
 import RazorpayCheckout, { isRazorpayAvailable } from '../../utils/razorpay';
 
 interface Transaction {
@@ -320,5 +320,5 @@ const styles = StyleSheet.create({
   txIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   amountField: { flexDirection: 'row', alignItems: 'center', height: 64, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.lg, backgroundColor: colors.surface },
   currency: { ...type.title, color: colors.textSecondary, marginRight: spacing.sm },
-  amountInput: { flex: 1, fontSize: 28, fontWeight: '700', color: colors.text },
+  amountInput: { flex: 1, fontSize: 28, fontFamily: fonts.bold, color: colors.text },
 });

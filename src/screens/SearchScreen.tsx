@@ -12,7 +12,7 @@ import { LOCATION_COORDS_KEY, LOCATION_NAME_KEY } from '../utils/location';
 import { useCart } from '../context/CartContext';
 import { AddToCartButton, Chip, Divider, EmptyState, ErrorState, IconButton, SkeletonList, VegIndicator } from '../components/common';
 import { getFoodPricing } from '../components/cards';
-import { colors, formatPrice, radius, spacing, type } from '../theme';
+import { colors, formatPrice, radius, spacing, type, fonts } from '../theme';
 import { SERVICE_RADIUS_KM } from '../config/serviceArea';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.surfaceMuted,
   },
-  searchInput: { flex: 1, fontSize: 15, color: colors.text },
+  searchInput: { flex: 1, fontSize: 15, fontFamily: fonts.regular, color: colors.text },
   idle: { padding: spacing.screen },
   idleHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },

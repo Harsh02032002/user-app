@@ -19,6 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import api, { API_ENDPOINTS, getImageUrl, getSubscriptionPlanImage } from '../config/api';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { AppHeader } from '../components/common/AppHeader';
+import { colors, fonts } from '../theme';
 
 const { width } = Dimensions.get('window');
 
@@ -178,7 +179,7 @@ export default function SubscriptionPlansScreen() {
       <View style={styles.container}>
         <AppHeader showSearch={true} />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#6366f1" />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Loading premium plans...</Text>
         </View>
       </View>
@@ -215,14 +216,14 @@ export default function SubscriptionPlansScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 }]}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadAllData(); }} colors={['#6366f1']} />
+          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadAllData(); }} colors={[colors.primary]} />
         }
       >
         {activeTab === 'plans' && (
           <>
             {/* Top Promo Banner */}
             <View style={styles.promoBanner}>
-              <Ionicons name="gift-outline" size={20} color="#FF6B00" />
+              <Ionicons name="gift-outline" size={20} color={colors.primary} />
               <Text style={styles.promoText}>Save up to 30% with monthly subscription plans</Text>
             </View>
 
@@ -247,10 +248,10 @@ export default function SubscriptionPlansScreen() {
                       />
                     ) : (
                       <LinearGradient
-                        colors={['#4a4a4a', '#2d2d2d']}
+                        colors={[colors.textSecondary, colors.text]}
                         style={styles.headerGradient}
                       >
-                        <MaterialCommunityIcons name="chef-hat" size={40} color="#cd853f" />
+                        <MaterialCommunityIcons name="chef-hat" size={40} color={colors.primary} />
                         <Text style={styles.planNameTitle}>{plan.plan_name}</Text>
                       </LinearGradient>
                     )}
@@ -266,7 +267,7 @@ export default function SubscriptionPlansScreen() {
                     
                     {plan.badge && (
                       <LinearGradient
-                        colors={['#6366f1', '#a855f7']}
+                        colors={[colors.primary, colors.primaryGradientEnd]}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
                         style={styles.badgeContainer}
@@ -283,14 +284,14 @@ export default function SubscriptionPlansScreen() {
                     </View>
                     <Text style={styles.priceForDays}>for {plan.total_days} days</Text>
                     <View style={styles.perDayBadge}>
-                      <Text style={styles.perDayText}>₹ {perDay} per day</Text>
+                      <Text style={styles.perDayText}>₹{Math.round(Number(perDay))} per day</Text>
                     </View>
                   </View>
 
                   <View style={styles.buttonContainer}>
                     <TouchableOpacity onPress={() => handleSelectPlan(plan)}>
                       <LinearGradient
-                        colors={['#6366f1', '#a855f7']}
+                        colors={[colors.primary, colors.primaryGradientEnd]}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
                         style={styles.subscribeButton}
@@ -326,7 +327,7 @@ export default function SubscriptionPlansScreen() {
                           />
                         ) : (
                           <View style={styles.chefSmallLogoPlaceholder}>
-                            <Ionicons name="home" size={14} color="#FF6B00" />
+                            <Ionicons name="home" size={14} color={colors.primary} />
                           </View>
                         )}
                         <Text style={styles.activePlanTitle}>{sub.plan_id?.plan_name || 'Active Plan'}</Text>
@@ -351,13 +352,13 @@ export default function SubscriptionPlansScreen() {
                     onPress={() => navigation.navigate('SubscriptionItems' as any, { subscriptionId: sub._id })}
                    >
                      <Text style={styles.usageBtnText}>View Usage History</Text>
-                     <Ionicons name="chevron-forward" size={16} color="#fff" />
+                     <Ionicons name="chevron-forward" size={16} color={colors.white} />
                    </TouchableOpacity>
                 </View>
               ))
             ) : (
               <View style={styles.emptyContainer}>
-                <Ionicons name="calendar-outline" size={64} color="#ccc" />
+                <Ionicons name="calendar-outline" size={64} color={colors.textTertiary} />
                 <Text style={styles.emptyText}>No active subscriptions</Text>
                 <TouchableOpacity onPress={() => setActiveTab('plans')} style={styles.browseBtn}>
                   <Text style={styles.browseBtnText}>Browse All Plans</Text>
@@ -376,11 +377,11 @@ export default function SubscriptionPlansScreen() {
                   <Text style={styles.historyDate}>Started: {new Date(sub.createdAt).toLocaleDateString()}</Text>
                   <View style={[
                     styles.historyStatus, 
-                    { backgroundColor: sub.status === 'active' ? '#dcfce7' : '#f1f5f9' }
+                    { backgroundColor: sub.status === 'active' ? colors.successSoft : colors.inputFill }
                   ]}>
                     <Text style={[
                       styles.historyStatusText,
-                      { color: sub.status === 'active' ? '#16a34a' : '#64748b' }
+                      { color: sub.status === 'active' ? colors.success : colors.textSecondary }
                     ]}>
                       {sub.status.toUpperCase()}
                     </Text>
@@ -389,7 +390,7 @@ export default function SubscriptionPlansScreen() {
               ))
             ) : (
               <View style={styles.emptyContainer}>
-                <Ionicons name="receipt-outline" size={64} color="#ccc" />
+                <Ionicons name="receipt-outline" size={64} color={colors.textTertiary} />
                 <Text style={styles.emptyText}>No subscription history</Text>
               </View>
             )}
@@ -411,7 +412,7 @@ export default function SubscriptionPlansScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{selectedPlan?.plan_name}</Text>
               <TouchableOpacity onPress={() => setSelectedPlan(null)}>
-                <Ionicons name="close" size={28} color="#666" />
+                <Ionicons name="close" size={28} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -427,12 +428,12 @@ export default function SubscriptionPlansScreen() {
                 <Text style={styles.featuresTitle}>What's Included:</Text>
                 {selectedPlan?.features?.map((feature, idx) => (
                   <View key={idx} style={styles.modalFeatureItem}>
-                    <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
+                    <Ionicons name="checkmark-circle" size={20} color={colors.success} />
                     <Text style={styles.modalFeatureText}>{feature}</Text>
                   </View>
                 )) || (
                   <View style={styles.modalFeatureItem}>
-                    <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
+                    <Ionicons name="checkmark-circle" size={20} color={colors.success} />
                     <Text style={styles.modalFeatureText}>Daily menu items included</Text>
                   </View>
                 )}
@@ -460,7 +461,7 @@ export default function SubscriptionPlansScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fdf8f1', // Light cream background from screenshot
+    backgroundColor: colors.canvas, // Light cream background from screenshot
   },
   scrollContent: {
     paddingBottom: 20,
@@ -473,39 +474,39 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#6366f1',
-    fontWeight: '500',
+    color: colors.primary,
+    fontFamily: fonts.medium,
   },
   promoBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     margin: 16,
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#ffe5d6',
+    borderColor: colors.primaryBorder,
     gap: 10,
   },
   promoText: {
     fontSize: 13,
-    color: '#1a1a1a',
-    fontWeight: '500',
+    color: colors.text,
+    fontFamily: fonts.medium,
     flex: 1,
   },
   planCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     marginHorizontal: 16,
     marginBottom: 24,
     borderRadius: 20,
     overflow: 'hidden',
     elevation: 4,
-    shadowColor: '#000',
+    shadowColor: '#403126',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     borderWidth: 1,
-    borderColor: '#f0f0f0',
+    borderColor: colors.border,
   },
   cardHeader: {
     height: 200,
@@ -523,7 +524,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     left: 0,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.inputFill,
   },
   imageOverlay: {
     position: 'absolute',
@@ -535,9 +536,9 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   planNameTitle: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 22,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
     ...Platform.select<any>({
       web: { textShadow: '-1px 1px 10px rgba(0, 0, 0, 0.75)' },
       default: {
@@ -556,14 +557,14 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   badgeText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 11,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
   },
   priceSection: {
     alignItems: 'center',
     paddingVertical: 20,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
   },
   priceRow: {
     flexDirection: 'row',
@@ -572,32 +573,32 @@ const styles = StyleSheet.create({
   },
   currencySymbol: {
     fontSize: 24,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.semiBold,
+    color: colors.text,
     marginTop: 4,
   },
   mainPrice: {
     fontSize: 44,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   priceForDays: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: 16, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     marginBottom: 12,
   },
   perDayBadge: {
-    backgroundColor: '#eefdf5',
+    backgroundColor: colors.successSoft,
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#dcfce7',
+    borderColor: colors.successSoft,
   },
   perDayText: {
-    color: '#16a34a',
+    color: colors.success,
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
   },
   featuresList: {
     paddingHorizontal: 20,
@@ -610,8 +611,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   featureText: {
-    fontSize: 14,
-    color: '#475569',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     flex: 1,
     lineHeight: 20,
   },
@@ -627,23 +628,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   subscribeButtonText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
   },
   detailsButton: {
     height: 52,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fdf8f1',
+    backgroundColor: colors.inputFill,
     borderWidth: 1,
-    borderColor: '#ffe5d6',
+    borderColor: colors.primaryBorder,
   },
   detailsButtonText: {
-    color: '#1a1a1a',
+    color: colors.text,
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
   },
   modalOverlay: {
     flex: 1,
@@ -651,7 +652,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     minHeight: '60%',
@@ -665,31 +666,31 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.displayBold,
+    color: colors.text,
   },
   modalBody: {
     flex: 1,
   },
   modalPriceContainer: {
     alignItems: 'center',
-    backgroundColor: '#FFF5F0',
+    backgroundColor: colors.primarySoft,
     padding: 16,
     borderRadius: 16,
     marginBottom: 20,
   },
   modalPrice: {
     fontSize: 32,
-    fontWeight: 'bold',
-    color: '#FF6B00',
+    fontFamily: fonts.bold,
+    color: colors.primary,
   },
   modalDuration: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
   modalDescription: {
-    fontSize: 15,
-    color: '#666',
+    fontSize: 15, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     lineHeight: 22,
     marginBottom: 24,
   },
@@ -698,8 +699,8 @@ const styles = StyleSheet.create({
   },
   featuresTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
     marginBottom: 12,
   },
   modalFeatureItem: {
@@ -709,11 +710,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   modalFeatureText: {
-    fontSize: 14,
-    color: '#475569',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
   modalButton: {
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     height: 56,
     borderRadius: 16,
     justifyContent: 'center',
@@ -721,45 +722,45 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   modalButtonText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: colors.border,
   },
   tab: {
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 8,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.inputFill,
   },
   activeTab: {
-    backgroundColor: '#6366f1',
+    backgroundColor: colors.primary,
   },
   tabText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
+    fontFamily: fonts.semiBold,
+    color: colors.textSecondary,
   },
   activeTabText: {
-    color: '#fff',
+    color: colors.white,
   },
   tabContent: {
     padding: 16,
   },
   activePlanCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 20,
     elevation: 4,
-    shadowColor: '#000',
+    shadowColor: '#403126',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -773,23 +774,23 @@ const styles = StyleSheet.create({
   },
   activePlanTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.displayBold,
+    color: colors.text,
   },
   activeBadge: {
-    backgroundColor: '#22c55e',
+    backgroundColor: colors.success,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
   },
   activeBadgeText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 10,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
   },
   activePlanChef: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     marginBottom: 20,
     marginLeft: 32, // Offset for logo
   },
@@ -803,13 +804,13 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.inputFill,
   },
   chefSmallLogoPlaceholder: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#fff5f0',
+    backgroundColor: colors.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -820,65 +821,65 @@ const styles = StyleSheet.create({
   },
   statBox: {
     flex: 1,
-    backgroundColor: '#fdf8f1',
+    backgroundColor: colors.inputFill,
     padding: 12,
     borderRadius: 12,
     alignItems: 'center',
   },
   statVal: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FF6B00',
+    fontFamily: fonts.bold,
+    color: colors.primary,
   },
   statLabel: {
-    fontSize: 11,
-    color: '#8b7355',
+    fontSize: 11, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     marginTop: 2,
   },
   usageBtn: {
-    backgroundColor: '#6366f1',
+    backgroundColor: colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 14,
+    padding: 16,
     borderRadius: 12,
     gap: 8,
   },
   usageBtnText: {
-    color: '#fff',
-    fontWeight: 'bold',
+    color: colors.white,
+    fontFamily: fonts.bold,
     fontSize: 14,
   },
   historyCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#eee',
+    borderColor: colors.border,
   },
   historyPlanName: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   historyDate: {
-    fontSize: 12,
-    color: '#888',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.textTertiary,
     marginTop: 4,
   },
   historyStatus: {
     marginTop: 8,
     alignSelf: 'flex-start',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: colors.inputFill,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
   },
   historyStatusText: {
     fontSize: 10,
-    fontWeight: 'bold',
-    color: '#666',
+    fontFamily: fonts.bold,
+    color: colors.textSecondary,
     textTransform: 'uppercase',
   },
   emptyContainer: {
@@ -887,22 +888,22 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
   },
   emptyText: {
-    fontSize: 16,
-    color: '#999',
+    fontSize: 16, fontFamily: fonts.regular,
+    color: colors.textTertiary,
     marginTop: 16,
     textAlign: 'center',
   },
   browseBtn: {
     marginTop: 20,
-    backgroundColor: '#fdf8f1',
+    backgroundColor: colors.inputFill,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#ffe5d6',
+    borderColor: colors.primaryBorder,
   },
   browseBtnText: {
-    color: '#FF6B00',
-    fontWeight: 'bold',
+    color: colors.primary,
+    fontFamily: fonts.bold,
   },
 });

@@ -183,6 +183,16 @@ export default function StaticPageScreen() {
             style={{ marginTop: spacing.xl }}
           />
         ) : null}
+
+        {type === 'privacy' || type === 'terms' ? (
+          <Button
+            title={type === 'privacy' ? 'Read the full privacy policy' : 'Read the full terms'}
+            icon="open-outline"
+            onPress={() => Linking.openURL(type === 'privacy' ? 'https://dabbanation.in/privacy-policy' : 'https://dabbanation.in/terms')}
+            fullWidth
+            style={{ marginTop: spacing.xl }}
+          />
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );

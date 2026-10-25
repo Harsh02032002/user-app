@@ -15,6 +15,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { useAuth } from '../context/AuthContext';
+import { colors, fonts } from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Wallet'>;
 
@@ -87,13 +88,13 @@ export default function WalletScreen() {
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>My Wallet</Text>
           <View style={{ width: 40 }} />
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF6B00" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </View>
     );
@@ -103,7 +104,7 @@ export default function WalletScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Wallet</Text>
         <View style={{ width: 40 }} />
@@ -116,7 +117,7 @@ export default function WalletScreen() {
           <Text style={styles.balanceAmount}>₹{balance.toFixed(2)}</Text>
           <View style={styles.balanceActions}>
             <TouchableOpacity style={styles.rechargeButton} onPress={() => {}}>
-              <Ionicons name="add-circle-outline" size={20} color="#fff" />
+              <Ionicons name="add-circle-outline" size={20} color={colors.white} />
               <Text style={styles.rechargeButtonText}>Recharge</Text>
             </TouchableOpacity>
           </View>
@@ -161,7 +162,7 @@ export default function WalletScreen() {
           <View style={styles.transactionsCard}>
             {transactions.length === 0 ? (
               <View style={styles.emptyContainer}>
-                <Ionicons name="receipt-outline" size={48} color="#ccc" />
+                <Ionicons name="receipt-outline" size={48} color={colors.textTertiary} />
                 <Text style={styles.emptyText}>No transactions yet</Text>
               </View>
             ) : (
@@ -176,7 +177,7 @@ export default function WalletScreen() {
                         <Ionicons 
                           name={transaction.type === 'credit' ? 'arrow-down' : 'arrow-up'} 
                           size={16} 
-                          color={transaction.type === 'credit' ? '#22c55e' : '#dc2626'} 
+                          color={transaction.type === 'credit' ? colors.success : colors.danger} 
                         />
                       </View>
                       <View>
@@ -207,7 +208,7 @@ export default function WalletScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.canvas,
   },
   header: {
     flexDirection: 'row',
@@ -216,9 +217,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 50,
     paddingBottom: 16,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: colors.border,
   },
   backButton: {
     width: 40,
@@ -228,8 +229,8 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.displayBold,
+    color: colors.text,
   },
   loadingContainer: {
     flex: 1,
@@ -241,20 +242,20 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   balanceCard: {
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     borderRadius: 16,
     padding: 24,
     marginBottom: 20,
   },
   balanceLabel: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: fonts.regular,
     color: 'rgba(255,255,255,0.8)',
     marginBottom: 8,
   },
   balanceAmount: {
     fontSize: 36,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontFamily: fonts.bold,
+    color: colors.white,
     marginBottom: 20,
   },
   balanceActions: {
@@ -271,17 +272,17 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   rechargeButtonText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
   },
   section: {
     marginBottom: 24,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.displayBold,
+    color: colors.text,
     marginBottom: 16,
   },
   presetAmounts: {
@@ -291,59 +292,59 @@ const styles = StyleSheet.create({
   },
   presetButton: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e5e5e5',
+    borderColor: colors.border,
   },
   presetText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#FF6B00',
+    fontFamily: fonts.semiBold,
+    color: colors.primary,
   },
   customAmountContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     paddingHorizontal: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#e5e5e5',
+    borderColor: colors.border,
   },
   currencySymbol: {
     fontSize: 20,
-    fontWeight: '600',
-    color: '#333',
+    fontFamily: fonts.semiBold,
+    color: colors.text,
     marginRight: 8,
   },
   amountInput: {
     flex: 1,
     paddingVertical: 16,
-    fontSize: 16,
-    color: '#1a1a1a',
+    fontSize: 16, fontFamily: fonts.regular,
+    color: colors.text,
   },
   rechargeNowButton: {
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
   },
   disabledButton: {
-    backgroundColor: '#ccc',
+    backgroundColor: colors.borderStrong,
   },
   rechargeNowText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
   },
   transactionsCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
-    shadowColor: '#000',
+    shadowColor: '#403126',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -368,42 +369,42 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   creditIcon: {
-    backgroundColor: '#dcfce7',
+    backgroundColor: colors.successSoft,
   },
   debitIcon: {
-    backgroundColor: '#fee2e2',
+    backgroundColor: colors.dangerSoft,
   },
   transactionDescription: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#1a1a1a',
+    fontFamily: fonts.medium,
+    color: colors.text,
   },
   transactionDate: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     marginTop: 2,
   },
   transactionAmount: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
   },
   creditText: {
-    color: '#22c55e',
+    color: colors.success,
   },
   debitText: {
-    color: '#dc2626',
+    color: colors.danger,
   },
   divider: {
     height: 1,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: colors.inputFill,
   },
   emptyContainer: {
     alignItems: 'center',
     paddingVertical: 40,
   },
   emptyText: {
-    fontSize: 14,
-    color: '#999',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textTertiary,
     marginTop: 12,
   },
 });

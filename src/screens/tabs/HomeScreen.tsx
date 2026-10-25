@@ -27,6 +27,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/RootNavigator';
 
 import * as Location from 'expo-location';
+import { colors, elevation, fonts, radius, spacing, surfaces, type } from '../../theme';
 
 const { width } = Dimensions.get('window');
 const CACHE_KEY = 'home_screen_data_cache';
@@ -328,7 +329,7 @@ export function HomeScreen() {
             <Ionicons 
               name={item.type === 'home_chef' ? 'home' : 'restaurant'} 
               size={10} 
-              color={item.type === 'home_chef' ? '#059669' : '#C2410C'} 
+              color={item.type === 'home_chef' ? colors.success : colors.primaryInk} 
             />
             <Text style={[styles.typeBadgeText, item.type === 'home_chef' ? styles.typeBadgeTextHome : styles.typeBadgeTextRest]}>
               {item.type === 'home_chef' ? 'Home-Cooked' : 'Restaurant'}
@@ -348,10 +349,10 @@ export function HomeScreen() {
             <View style={styles.sellerMetaRow}>
               <View style={styles.ratingRow}>
                 {Array.from({ length: fullStars }).map((_, i) => (
-                  <Ionicons key={`f${i}`} name="star" size={12} color="#FFD700" />
+                  <Ionicons key={`f${i}`} name="star" size={12} color={colors.warning} />
                 ))}
                 {Array.from({ length: emptyStars }).map((_, i) => (
-                  <Ionicons key={`e${i}`} name="star" size={12} color="#ccc" />
+                  <Ionicons key={`e${i}`} name="star" size={12} color={colors.textTertiary} />
                 ))}
                 <Text style={styles.ratingText}>{sellerRating > 0 ? sellerRating.toFixed(1) : ''}</Text>
               </View>
@@ -386,7 +387,7 @@ export function HomeScreen() {
               <Ionicons 
                 name={sellerType === 'home_chef' ? 'home' : 'restaurant'} 
                 size={10} 
-                color={sellerType === 'home_chef' ? '#059669' : '#C2410C'} 
+                color={sellerType === 'home_chef' ? colors.success : colors.primaryInk} 
               />
               <Text style={[styles.typeBadgeText, sellerType === 'home_chef' ? styles.typeBadgeTextHome : styles.typeBadgeTextRest]}>
                 {sellerType === 'home_chef' ? 'Home-Cooked' : 'Restaurant'}
@@ -415,7 +416,7 @@ export function HomeScreen() {
           <View style={styles.foodHeader}>
             <Text style={styles.foodTitle} numberOfLines={1}>{item.name}</Text>
             <View style={styles.timeContainer}>
-              <Ionicons name="time-outline" size={12} color="#999" />
+              <Ionicons name="time-outline" size={12} color={colors.textTertiary} />
               <Text style={styles.timeText}>{item.preparationTime || 30}m</Text>
             </View>
           </View>
@@ -426,7 +427,7 @@ export function HomeScreen() {
           {/* Rating & Orders */}
           <View style={styles.foodMeta}>
             <View style={styles.ratingContainer}>
-              <Ionicons name="star" size={12} color="#FFD700" />
+              <Ionicons name="star" size={12} color={colors.warning} />
               <Text style={styles.ratingText}>{item.rating?.toFixed(1) || '4.0'}</Text>
             </View>
 
@@ -458,7 +459,7 @@ export function HomeScreen() {
                 });
               }}
             >
-              <Ionicons name="add" size={14} color="#fff" />
+              <Ionicons name="add" size={14} color={colors.white} />
               <Text style={styles.addButtonText}>Add</Text>
             </TouchableOpacity>
           </View>
@@ -518,7 +519,7 @@ export function HomeScreen() {
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF6B00" />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Loading delicious food...</Text>
         </View>
       ) : (
@@ -526,7 +527,7 @@ export function HomeScreen() {
           showsVerticalScrollIndicator={false} 
           style={styles.scrollView}
           contentContainerStyle={{ paddingBottom: 110 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#FF6B00']} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
         >
           {/* Type Filter Toggle */}
           <View style={styles.filterSection}>
@@ -539,7 +540,7 @@ export function HomeScreen() {
                 style={[styles.filterButton, selectedType === 'all' && styles.filterButtonActive, { flexDirection: 'row', alignItems: 'center', gap: 5 }]}
                 onPress={() => setSelectedType('all')}
               >
-                <Ionicons name="sparkles-outline" size={14} color={selectedType === 'all' ? '#fff' : '#4B5563'} />
+                <Ionicons name="sparkles-outline" size={14} color={selectedType === 'all' ? colors.white : colors.textSecondary} />
                 <Text style={[styles.filterText, selectedType === 'all' && styles.filterTextActive]}>
                   All
                 </Text>
@@ -548,7 +549,7 @@ export function HomeScreen() {
                 style={[styles.filterButton, selectedType === 'home_chef' && styles.filterButtonActive, { flexDirection: 'row', alignItems: 'center', gap: 5 }]}
                 onPress={() => setSelectedType('home_chef')}
               >
-                <Ionicons name="home-outline" size={14} color={selectedType === 'home_chef' ? '#fff' : '#4B5563'} />
+                <Ionicons name="home-outline" size={14} color={selectedType === 'home_chef' ? colors.white : colors.textSecondary} />
                 <Text style={[styles.filterText, selectedType === 'home_chef' && styles.filterTextActive]}>
                   Home Chef
                 </Text>
@@ -557,7 +558,7 @@ export function HomeScreen() {
                 style={[styles.filterButton, selectedType === 'restaurant' && styles.filterButtonActive, { flexDirection: 'row', alignItems: 'center', gap: 5 }]}
                 onPress={() => setSelectedType('restaurant')}
               >
-                <Ionicons name="restaurant-outline" size={14} color={selectedType === 'restaurant' ? '#fff' : '#4B5563'} />
+                <Ionicons name="restaurant-outline" size={14} color={selectedType === 'restaurant' ? colors.white : colors.textSecondary} />
                 <Text style={[styles.filterText, selectedType === 'restaurant' && styles.filterTextActive]}>
                   Restaurant
                 </Text>
@@ -579,11 +580,13 @@ export function HomeScreen() {
 
         {/* Sellers Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {locationName ? `Near ${locationName}` :
-             selectedType === 'home_chef' ? 'Home Chefs Near You' : 
-             selectedType === 'restaurant' ? 'Top Restaurants' : 'All Sellers'}
-          </Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>
+              {locationName ? `Near ${locationName}` :
+               selectedType === 'home_chef' ? 'Home Chefs Near You' : 
+               selectedType === 'restaurant' ? 'Top Restaurants' : 'All Sellers'}
+            </Text>
+          </View>
           <FlatList
             data={sellers}
             renderItem={renderSellerCard}
@@ -591,6 +594,7 @@ export function HomeScreen() {
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.horizontalList}
+           ListEmptyComponent={<EmptyRow icon="storefront-outline" text="No kitchens are delivering here yet. Try another location." />}
           />
         </View>
 
@@ -609,6 +613,7 @@ export function HomeScreen() {
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.horizontalList}
+           ListEmptyComponent={<EmptyRow icon="fast-food-outline" text="Menus from nearby kitchens will show up here." />}
           />
         </View>
 
@@ -634,7 +639,7 @@ export function HomeScreen() {
 
         {/* Subscription Plans */}
         <View style={styles.subscriptionSection}>
-          <Text style={styles.sectionTitle}>Subscription Plans</Text>
+          <Text style={[styles.sectionTitle, { paddingHorizontal: spacing.xl }]}>Subscription Plans</Text>
           <Text style={styles.sectionSubtitle}>Save more with our flexible subscription plans</Text>
           
           <FlatList
@@ -651,7 +656,7 @@ export function HomeScreen() {
             onPress={() => navigation.navigate('AllPlans')}
           >
             <Text style={styles.viewAllPlansText}>View All Plans</Text>
-            <Ionicons name="chevron-forward" size={16} color="#FF6B00" />
+            <Ionicons name="chevron-forward" size={16} color={colors.white} />
           </TouchableOpacity>
         </View>
 
@@ -662,10 +667,39 @@ export function HomeScreen() {
   );
 }
 
+/** Inline placeholder for an empty horizontal rail */
+function EmptyRow({ icon, text }: { icon: React.ComponentProps<typeof Ionicons>['name']; text: string }) {
+  return (
+    <View style={styles.emptyRow}>
+      <View style={styles.emptyRowIcon}>
+        <Ionicons name={icon} size={20} color={colors.primary} />
+      </View>
+      <Text style={styles.emptyRowText}>{text}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  emptyRow: {
+    ...surfaces.flat,
+    width: width - spacing.screen * 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.lg,
+  },
+  emptyRowIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyRowText: { ...type.small, color: colors.textSecondary, flex: 1 },
   container: {
     flex: 1,
-    backgroundColor: '#F5F2E8',
+    backgroundColor: colors.canvas,
   },
   loadingContainer: {
     flex: 1,
@@ -676,8 +710,8 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#666',
-    fontWeight: '500',
+    color: colors.textSecondary,
+    fontFamily: fonts.medium,
   },
   scrollView: {
     flex: 1,
@@ -696,75 +730,58 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   homeChefBadge: {
-    backgroundColor: '#ECFDF5',
-    borderColor: '#D1FAE5',
+    backgroundColor: colors.successSoft,
+    borderColor: colors.successSoft,
   },
   restaurantBadge: {
-    backgroundColor: '#FFF7ED',
-    borderColor: '#FFEDD5',
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primaryBorder,
   },
   typeBadgeText: {
     fontSize: 10,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
   },
   typeBadgeTextHome: {
-    color: '#059669',
+    color: colors.success,
   },
   typeBadgeTextRest: {
-    color: '#C2410C',
+    color: colors.primaryInk,
   },
   filterContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 12,
-    gap: 10,
+    paddingHorizontal: spacing.screen,
+    gap: spacing.sm,
   },
   filterSection: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 16,
-    borderRadius: 12,
-    overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-      web: {
-        boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.08)',
-      },
-    }),
+    marginTop: spacing.md,
+    marginBottom: spacing.lg,
   },
   filterButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#f5f5f5',
+    height: 38,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: colors.border,
+    justifyContent: 'center',
   },
   filterButtonActive: {
-    backgroundColor: '#FF6B00',
-    borderColor: '#FF6B00',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+    ...elevation.brand,
   },
   filterText: {
     fontSize: 13,
-    fontWeight: '500',
-    color: '#666',
+    fontFamily: fonts.medium,
+    color: colors.textSecondary,
   },
   filterTextActive: {
-    color: '#fff',
-    fontWeight: '600',
+    color: colors.white,
+    fontFamily: fonts.semiBold,
   },
   preferenceSection: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     marginHorizontal: 16,
     marginTop: 12,
     marginBottom: 16,
@@ -772,7 +789,7 @@ const styles = StyleSheet.create({
     padding: 16,
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
+        shadowColor: '#403126',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.08,
         shadowRadius: 4,
@@ -795,35 +812,35 @@ const styles = StyleSheet.create({
   },
   preferenceLabel: {
     fontSize: 12,
-    color: '#999',
-    fontWeight: '600',
+    color: colors.textTertiary,
+    fontFamily: fonts.semiBold,
     marginBottom: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   preferenceValue: {
     fontSize: 16,
-    color: '#1a1a1a',
-    fontWeight: '600',
+    color: colors.text,
+    fontFamily: fonts.semiBold,
   },
   changeButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 107, 0, 0.1)',
+    backgroundColor: 'rgba(220, 40, 40, 0.1)',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     gap: 6,
     borderWidth: 1,
-    borderColor: '#FF6B00',
+    borderColor: colors.primary,
   },
   changeButtonText: {
     fontSize: 14,
-    color: '#FF6B00',
-    fontWeight: '600',
+    color: colors.primary,
+    fontFamily: fonts.semiBold,
   },
   section: {
-    marginBottom: 24,
+    marginBottom: spacing.section,
   },
   promoList: {
     paddingHorizontal: 16,
@@ -843,12 +860,12 @@ const styles = StyleSheet.create({
   },
   promoTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontFamily: fonts.displayBold,
+    color: colors.white,
     marginBottom: 4,
   },
   promoSubtitle: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: fonts.regular,
     color: 'rgba(255, 255, 255, 0.9)',
   },
   promoImage: {
@@ -864,18 +881,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
-    paddingHorizontal: 16,
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.screen,
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.displayBold,
+    color: colors.text,
   },
   viewAll: {
     fontSize: 14,
-    color: '#FF6B00',
-    fontWeight: '600',
+    color: colors.primary,
+    fontFamily: fonts.semiBold,
   },
   horizontalList: {
     paddingHorizontal: 16,
@@ -884,10 +901,10 @@ const styles = StyleSheet.create({
     width: 180,
     borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
+        shadowColor: '#403126',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.08,
         shadowRadius: 8,
@@ -899,11 +916,11 @@ const styles = StyleSheet.create({
   },
   sellerCard: {
     width: 280,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 20,
     marginRight: 16,
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: '#403126',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -929,8 +946,8 @@ const styles = StyleSheet.create({
     marginRight: 12,
     marginTop: -25,
     borderWidth: 2,
-    borderColor: '#fff',
-    backgroundColor: '#fff',
+    borderColor: colors.white,
+    backgroundColor: colors.surface,
   },
   sellerTextInfo: {
     flex: 1,
@@ -938,13 +955,13 @@ const styles = StyleSheet.create({
   },
   sellerName: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
     marginBottom: 2,
   },
   sellerCuisines: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     marginBottom: 6,
   },
   sellerMetaRow: {
@@ -958,19 +975,19 @@ const styles = StyleSheet.create({
     gap: 1,
   },
   locationText: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
   // Food Card Styles
   foodCard: {
     width: 200,
     borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     marginRight: 16,
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
+        shadowColor: '#403126',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.08,
         shadowRadius: 8,
@@ -1010,12 +1027,12 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   vegBadgeGreen: {
-    backgroundColor: '#fff',
-    borderColor: '#4CAF50',
+    backgroundColor: colors.surface,
+    borderColor: colors.success,
   },
   vegBadgeRed: {
-    backgroundColor: '#fff',
-    borderColor: '#F44336',
+    backgroundColor: colors.surface,
+    borderColor: colors.danger,
   },
   vegDot: {
     width: 8,
@@ -1023,24 +1040,24 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   vegDotGreen: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: colors.success,
   },
   vegDotRed: {
-    backgroundColor: '#F44336',
+    backgroundColor: colors.danger,
   },
   discountBadge: {
     position: 'absolute',
     bottom: 8,
     left: 8,
-    backgroundColor: '#4CAF50',
+    backgroundColor: colors.success,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
   },
   discountText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 10,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
   },
   foodCardContent: {
     padding: 12,
@@ -1055,8 +1072,8 @@ const styles = StyleSheet.create({
   foodTitle: {
     flex: 1,
     fontSize: 14,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.semiBold,
+    color: colors.text,
   },
   timeContainer: {
     flexDirection: 'row',
@@ -1064,12 +1081,12 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   timeText: {
-    fontSize: 11,
-    color: '#999',
+    fontSize: 11, fontFamily: fonts.regular,
+    color: colors.textTertiary,
   },
   foodDescription: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     lineHeight: 16,
     marginBottom: 8,
   },
@@ -1080,8 +1097,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   ordersText: {
-    fontSize: 11,
-    color: '#999',
+    fontSize: 11, fontFamily: fonts.regular,
+    color: colors.textTertiary,
   },
   foodFooter: {
     flexDirection: 'row',
@@ -1095,27 +1112,27 @@ const styles = StyleSheet.create({
   },
   priceText: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   originalPrice: {
-    fontSize: 13,
-    color: '#999',
+    fontSize: 13, fontFamily: fonts.regular,
+    color: colors.textTertiary,
     textDecorationLine: 'line-through',
   },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
     gap: 4,
   },
   addButtonText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
   },
   cardImage: {
     width: '100%',
@@ -1126,13 +1143,13 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 14,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
     marginBottom: 4,
   },
   cardSubtitle: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     marginBottom: 8,
   },
   ratingContainer: {
@@ -1142,76 +1159,78 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     fontSize: 12,
-    color: '#666',
-    fontWeight: '500',
+    color: colors.textSecondary,
+    fontFamily: fonts.medium,
   },
   howItWorks: {
-    backgroundColor: '#f9f9f9',
-    marginHorizontal: 16,
-    padding: 20,
-    borderRadius: 16,
-    marginBottom: 24,
+    ...surfaces.card,
+    marginHorizontal: spacing.screen,
+    paddingVertical: spacing.xxl,
+    paddingHorizontal: spacing.xl,
+    marginBottom: spacing.section,
   },
   howItWorksTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.displayBold,
+    color: colors.text,
     textAlign: 'center',
     marginBottom: 8,
   },
   howItWorksSubtitle: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 20,
   },
   stepCard: {
     alignItems: 'center',
-    marginBottom: 24,
+    paddingVertical: spacing.md,
   },
   stepNumber: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: 'rgba(255, 107, 0, 0.1)',
-    marginBottom: 8,
+    fontSize: 40,
+    lineHeight: 46,
+    fontFamily: fonts.displayBold,
+    color: colors.primaryBorder,
+    marginBottom: spacing.xs,
   },
   stepTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.semiBold,
+    color: colors.text,
     textAlign: 'center',
     marginBottom: 8,
   },
   stepDescription: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 18,
     paddingHorizontal: 20,
   },
   subscriptionSection: {
-    backgroundColor: '#f9f9f9',
-    marginHorizontal: 16,
-    padding: 20,
-    borderRadius: 16,
-    marginBottom: 24,
+    ...surfaces.card,
+    marginHorizontal: spacing.screen,
+    paddingVertical: spacing.xl,
+    marginBottom: spacing.section,
   },
   sectionSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 20,
+    fontSize: 13,
+    fontFamily: fonts.regular,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+    marginBottom: spacing.lg,
+    paddingHorizontal: spacing.xl,
   },
   planCard: {
     width: 200,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     marginRight: 12,
     overflow: 'hidden',
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
+        shadowColor: '#403126',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
@@ -1239,15 +1258,15 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     right: 0,
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderBottomLeftRadius: 8,
   },
   badgeText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 10,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
   },
   planHeader: {
     padding: 12,
@@ -1255,14 +1274,14 @@ const styles = StyleSheet.create({
   },
   planTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
     textAlign: 'center',
     marginBottom: 4,
   },
   planDescription: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   planPricing: {
@@ -1271,16 +1290,16 @@ const styles = StyleSheet.create({
   },
   planPrice: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   planDuration: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
   planDaily: {
-    fontSize: 12,
-    color: '#4CAF50',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.success,
     marginTop: 4,
   },
   featuresContainer: {
@@ -1292,42 +1311,44 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   featureText: {
-    fontSize: 11,
-    color: '#666',
+    fontSize: 11, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     marginLeft: 8,
     flex: 1,
   },
   viewPlanButton: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#FF6B00',
+    borderColor: colors.primary,
     borderRadius: 8,
     paddingVertical: 8,
     alignItems: 'center',
   },
   viewPlanText: {
     fontSize: 12,
-    color: '#FF6B00',
-    fontWeight: '600',
+    color: colors.primary,
+    fontFamily: fonts.semiBold,
   },
   viewAllPlansButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FF6B00',
-    borderRadius: 25,
-    paddingVertical: 12,
-    marginTop: 20,
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    height: 46,
+    marginTop: spacing.lg,
+    marginHorizontal: spacing.xl,
+    ...elevation.brand,
   },
   viewAllPlansText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
+    fontFamily: fonts.semiBold,
+    color: colors.white,
     marginRight: 8,
   },
   // Footer Styles
   footer: {
-    backgroundColor: '#1F2937',
+    backgroundColor: colors.inkSurface,
     marginTop: 40,
   },
   footerContent: {
@@ -1345,8 +1366,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   footerDescription: {
-    fontSize: 14,
-    color: '#D1D5DB',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textTertiary,
     lineHeight: 20,
     marginBottom: 20,
   },
@@ -1375,13 +1396,13 @@ const styles = StyleSheet.create({
   },
   linkTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontFamily: fonts.displayBold,
+    color: colors.white,
     marginBottom: 16,
   },
   linkText: {
-    fontSize: 14,
-    color: '#D1D5DB',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textTertiary,
     marginBottom: 8,
     lineHeight: 20,
   },
@@ -1392,27 +1413,27 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   contactText: {
-    fontSize: 14,
-    color: '#D1D5DB',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textTertiary,
     flex: 1,
     lineHeight: 20,
   },
   footerBottom: {
     borderTopWidth: 1,
-    borderTopColor: '#374151',
+    borderTopColor: colors.textSecondary,
     paddingHorizontal: 16,
     paddingVertical: 32,
     alignItems: 'center',
   },
   copyright: {
-    fontSize: 14,
-    color: '#9CA3AF',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textTertiary,
     marginBottom: 8,
     textAlign: 'center',
   },
   madeWith: {
-    fontSize: 14,
-    color: '#9CA3AF',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textTertiary,
     textAlign: 'center',
   },
 });

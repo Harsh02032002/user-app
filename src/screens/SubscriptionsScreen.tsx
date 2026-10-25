@@ -88,13 +88,13 @@ export default function SubscriptionsScreen() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active':
-        return '#22C55E';
+        return colors.success;
       case 'expired':
-        return '#EF4444';
+        return colors.danger;
       case 'exhausted':
-        return '#F59E0B';
+        return colors.warning;
       default:
-        return '#888';
+        return colors.textTertiary;
     }
   };
 

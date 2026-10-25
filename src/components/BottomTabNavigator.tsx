@@ -7,6 +7,7 @@ import { SubscriptionScreen } from '../screens/tabs/SubscriptionScreen';
 import { WishlistScreen } from '../screens/tabs/WishlistScreen';
 import { WalletScreen } from '../screens/tabs/WalletScreen';
 import { ProfileScreen } from '../screens/tabs/ProfileScreen';
+import { colors, fonts } from '../theme';
 
 const Tab = createBottomTabNavigator();
 
@@ -35,26 +36,26 @@ export function BottomTabNavigator() {
 
           return <Ionicons name={iconName as any} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#FF6B00',
-        tabBarInactiveTintColor: '#999',
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textTertiary,
         tabBarStyle: {
-          backgroundColor: '#fff',
+          backgroundColor: colors.surface,
           borderTopWidth: 1,
-          borderTopColor: '#e5e5e5',
-          paddingBottom: 5,
-          paddingTop: 5,
+          borderTopColor: colors.border,
+          paddingBottom: 4,
+          paddingTop: 4,
           height: 65,
         },
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: '600',
+          fontFamily: fonts.semiBold,
         },
         headerStyle: {
-          backgroundColor: '#fff',
+          backgroundColor: colors.surface,
           borderBottomWidth: 1,
-          borderBottomColor: '#e5e5e5',
+          borderBottomColor: colors.border,
         },
-        headerTintColor: '#1a1a1a',
+        headerTintColor: colors.text,
       })}
     >
       <Tab.Screen 

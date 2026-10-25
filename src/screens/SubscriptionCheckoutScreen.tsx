@@ -17,6 +17,7 @@ import RazorpayCheckout, { isRazorpayAvailable } from '../utils/razorpay';
 import api, { API_ENDPOINTS } from '../config/api';
 import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../navigation/RootNavigator';
+import { colors, fonts } from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteType = RouteProp<RootStackParamList, 'SubscriptionCheckout'>;
@@ -218,16 +219,16 @@ export default function SubscriptionCheckoutScreen() {
     try {
       const { data } = await api.post(API_ENDPOINTS.CREATE_RAZORPAY_ORDER, { amount: breakdown.razorpayAmount });
       const rzOrderId = data?.orderId;
-      if (!rzOrderId) throw new Error(data?.message || 'Could not start the payment');
+      if (!rzOrderId || !data?.key) throw new Error(data?.message || 'Could not start the payment');
       const paymentData = await RazorpayCheckout.open({
         description: `${planName} with ${homeChefName}`,
         currency: 'INR',
-        key: data.key || API_ENDPOINTS.RAZORPAY_KEY,
+        key: data.key,
         amount: data.amount,
         name: 'Dabba Nation',
         order_id: rzOrderId,
         prefill: { email: user?.email || '', contact: user?.phone || '', name: user?.name || '' },
-        theme: { color: '#FF6B00' },
+        theme: { color: colors.primary },
       });
       await verifyHybridPayment(paymentData, rzOrderId);
     } catch (error: any) {
@@ -245,13 +246,13 @@ export default function SubscriptionCheckoutScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Checkout</Text>
           <View style={{ width: 40 }} />
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF6B00" />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Loading payment details...</Text>
         </View>
       </SafeAreaView>
@@ -264,13 +265,13 @@ export default function SubscriptionCheckoutScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Checkout</Text>
           <View style={{ width: 40 }} />
         </View>
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={64} color="#FF6B00" />
+          <Ionicons name="alert-circle-outline" size={64} color={colors.primary} />
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={fetchWalletBalance}>
             <Text style={styles.retryText}>Retry</Text>
@@ -285,7 +286,7 @@ export default function SubscriptionCheckoutScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Checkout</Text>
         <View style={{ width: 24 }} />
@@ -295,17 +296,17 @@ export default function SubscriptionCheckoutScreen() {
         {/* Plan Summary */}
         <View style={styles.planCard}>
           <View style={styles.planIcon}>
-            <Ionicons name="card" size={32} color="#FF6B00" />
+            <Ionicons name="card" size={32} color={colors.primary} />
           </View>
           <Text style={styles.planName}>{planName}</Text>
           <Text style={styles.planSubtitle}>Home Chef: {homeChefName}</Text>
           <View style={styles.planMeta}>
             <View style={styles.metaItem}>
-              <Ionicons name="time-outline" size={16} color="#666" />
+              <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
               <Text style={styles.metaText}>{durationDays} Days</Text>
             </View>
             <View style={styles.metaItem}>
-              <Ionicons name="wallet-outline" size={16} color="#666" />
+              <Ionicons name="wallet-outline" size={16} color={colors.textSecondary} />
               <Text style={styles.metaText}>₹{perDayValue}/day value</Text>
             </View>
           </View>
@@ -319,14 +320,14 @@ export default function SubscriptionCheckoutScreen() {
           >
             <View style={styles.walletHeader}>
               <View style={styles.walletIcon}>
-                <Ionicons name="wallet" size={24} color={useWallet ? '#FF6B00' : '#666'} />
+                <Ionicons name="wallet" size={24} color={useWallet ? colors.primary : colors.textSecondary} />
               </View>
               <View style={styles.walletInfo}>
                 <Text style={styles.walletTitle}>Use Wallet Balance</Text>
                 <Text style={styles.walletBalance}>Available: ₹{walletBalance.toLocaleString()}</Text>
               </View>
               <View style={[styles.checkbox, useWallet && styles.checkboxActive]}>
-                {useWallet && <Ionicons name="checkmark" size={16} color="#fff" />}
+                {useWallet && <Ionicons name="checkmark" size={16} color={colors.white} />}
               </View>
             </View>
           </TouchableOpacity>
@@ -365,7 +366,7 @@ export default function SubscriptionCheckoutScreen() {
           <Text style={styles.paymentMethodTitle}>Payment Method</Text>
           <View style={styles.methodRow}>
             <View style={styles.methodIcon}>
-              <Ionicons name="qr-code" size={24} color="#059669" />
+              <Ionicons name="qr-code" size={24} color={colors.success} />
             </View>
             <View style={styles.methodInfo}>
               <Text style={styles.methodName}>Online Payment (UPI / QR Code)</Text>
@@ -376,7 +377,7 @@ export default function SubscriptionCheckoutScreen() {
 
         {/* Security Note */}
         <View style={styles.securityNote}>
-          <Ionicons name="shield-checkmark" size={20} color="#22C55E" />
+          <Ionicons name="shield-checkmark" size={20} color={colors.success} />
           <Text style={styles.securityText}>
             Fast & Secure Instant Payment via UPI QR Code
           </Text>
@@ -397,13 +398,13 @@ export default function SubscriptionCheckoutScreen() {
           disabled={processing}
         >
           {processing ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={colors.white} />
           ) : (
             <>
               <Text style={styles.payButtonText}>
                 {breakdown?.razorpayAmount === 0 ? 'Activate with Wallet' : 'Pay Online (QR Code)'}
               </Text>
-              <Ionicons name="arrow-forward" size={20} color="#fff" />
+              <Ionicons name="arrow-forward" size={20} color={colors.white} />
             </>
           )}
         </TouchableOpacity>
@@ -417,13 +418,13 @@ export default function SubscriptionCheckoutScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.canvas,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: colors.canvas,
   },
   header: {
     flexDirection: 'row',
@@ -432,19 +433,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: colors.border,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.displayBold,
+    color: colors.text,
   },
   content: {
     flex: 1,
     padding: 20,
   },
   planCard: {
-    backgroundColor: '#FFF5F0',
+    backgroundColor: colors.primarySoft,
     borderRadius: 16,
     padding: 24,
     alignItems: 'center',
@@ -454,20 +455,20 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#FFE5D6',
+    backgroundColor: colors.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
   },
   planName: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
     marginBottom: 4,
   },
   planSubtitle: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     marginBottom: 12,
   },
   planMeta: {
@@ -480,20 +481,20 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   metaText: {
-    fontSize: 13,
-    color: '#666',
+    fontSize: 13, fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
   walletCard: {
-    backgroundColor: '#f9f9f9',
+    backgroundColor: colors.inputFill,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#eee',
+    borderColor: colors.border,
   },
   walletCardActive: {
-    backgroundColor: '#FFF5F0',
-    borderColor: '#FF6B00',
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary,
   },
   walletHeader: {
     flexDirection: 'row',
@@ -503,7 +504,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: '#FFE5D6',
+    backgroundColor: colors.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -513,12 +514,12 @@ const styles = StyleSheet.create({
   },
   walletTitle: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.semiBold,
+    color: colors.text,
   },
   walletBalance: {
-    fontSize: 13,
-    color: '#666',
+    fontSize: 13, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     marginTop: 2,
   },
   checkbox: {
@@ -526,24 +527,24 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#ddd',
+    borderColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
   checkboxActive: {
-    backgroundColor: '#FF6B00',
-    borderColor: '#FF6B00',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   breakdownCard: {
-    backgroundColor: '#f9f9f9',
+    backgroundColor: colors.inputFill,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
   },
   breakdownTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.semiBold,
+    color: colors.text,
     marginBottom: 16,
   },
   breakdownRow: {
@@ -553,42 +554,42 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   breakdownLabel: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
   breakdownValue: {
     fontSize: 14,
-    color: '#1a1a1a',
-    fontWeight: '500',
+    color: colors.text,
+    fontFamily: fonts.medium,
   },
   successText: {
-    color: '#22C55E',
+    color: colors.success,
   },
   divider: {
     height: 1,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: colors.border,
     marginVertical: 12,
   },
   totalLabel: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.semiBold,
+    color: colors.text,
   },
   totalValue: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FF6B00',
+    fontFamily: fonts.bold,
+    color: colors.primary,
   },
   paymentMethodCard: {
-    backgroundColor: '#f9f9f9',
+    backgroundColor: colors.inputFill,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
   },
   paymentMethodTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.semiBold,
+    color: colors.text,
     marginBottom: 12,
   },
   methodRow: {
@@ -599,7 +600,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: colors.infoSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -608,18 +609,18 @@ const styles = StyleSheet.create({
   },
   methodName: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.semiBold,
+    color: colors.text,
   },
   methodDesc: {
-    fontSize: 13,
-    color: '#666',
+    fontSize: 13, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     marginTop: 2,
   },
   securityNote: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E8F5E9',
+    backgroundColor: colors.successSoft,
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
@@ -627,73 +628,73 @@ const styles = StyleSheet.create({
   securityText: {
     flex: 1,
     marginLeft: 12,
-    fontSize: 13,
-    color: '#1a1a1a',
+    fontSize: 13, fontFamily: fonts.regular,
+    color: colors.text,
     lineHeight: 18,
   },
   bottomContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     padding: 20,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: colors.border,
   },
   totalContainer: {
     marginBottom: 12,
   },
   totalAmountLabel: {
-    fontSize: 14,
-    color: '#888',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textTertiary,
   },
   totalAmountValue: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   payButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     borderRadius: 12,
     padding: 16,
   },
   payButtonDisabled: {
-    backgroundColor: '#FFB380',
+    backgroundColor: colors.primaryDisabled,
   },
   payButtonText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     marginRight: 8,
   },
   loadingText: {
     marginTop: 12,
-    fontSize: 14,
-    color: '#666',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
   },
   errorText: {
     marginTop: 16,
-    fontSize: 16,
-    color: '#666',
+    fontSize: 16, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 24,
   },
   retryButton: {
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 8,
   },
   retryText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
   },
 });

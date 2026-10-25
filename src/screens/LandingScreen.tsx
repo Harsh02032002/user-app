@@ -23,10 +23,11 @@ import { useAuth } from '../context/AuthContext';
 import { DEFAULT_LOCATION_LABEL, getReadableLocation, getCurrentCoordinates, LOCATION_COORDS_KEY, LOCATION_NAME_KEY } from '../utils/location';
 import * as Location from 'expo-location';
 import { Alert } from 'react-native';
+import { colors, elevation, fonts, gradients, radius, spacing, surfaces, type } from '../theme';
 
 const { width, height } = Dimensions.get('window');
 
-const PRIMARY = "#FF6B00";
+const PRIMARY = colors.primary;
 
 // Static image sources (module-level so their identity never changes between renders)
 const heroBg     = require('../../assets/images/hero-bg.jpg');
@@ -77,10 +78,10 @@ const AnimatedCharacter = ({ side, imageSource, delay = 0, onLoad }: AnimatedCha
 
   return (
     <Animated.View
+      pointerEvents="none"
       style={[
         styles.animatedChar,
-        side === 'left' ? styles.charLeft : styles.charRight,
-        { opacity, transform: [{ translateY }] },
+        { opacity, transform: [{ translateY: Animated.multiply(translateY, 0.5) }] },
       ]}
     >
       <Image
@@ -160,406 +161,308 @@ export default function LandingScreen() {
     }
   };
 
+  const kitchens = [
+    {
+      key: 'home_chef',
+      image: homeChef,
+      icon: 'home-heart' as const,
+      tag: 'Home-cooked',
+      title: 'Home Chef',
+      sub: 'Ghar jaisa swad. Fresh dabbas made with love.',
+    },
+    {
+      key: 'restaurant',
+      image: restaurant,
+      icon: 'storefront-outline' as const,
+      tag: 'Top rated',
+      title: 'Restaurant',
+      sub: 'Signature dishes from top-rated restaurants.',
+    },
+  ];
+
   return (
     <View style={styles.container}>
-      <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
-
-      {/* Background */}
-      <Image 
-        source={heroBg} 
-        style={styles.bg} 
-        resizeMode="cover" 
-        onLoad={handleImageLoad}
-        onError={handleImageLoad}
-      />
-      <View style={styles.overlay} />
+      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
 
       {!imagesLoaded ? (
         <View style={styles.loadingContainer}>
+          {/* Preload the hero texture; the screen appears once it has loaded (or after the 2.5s fallback) */}
+          <Image source={heroBg} style={styles.preload} onLoad={handleImageLoad} onError={handleImageLoad} />
           <ActivityIndicator size="large" color={PRIMARY} />
           <Text style={styles.loadingText}>Loading...</Text>
         </View>
       ) : (
-      <SafeAreaView style={{ flex: 1 }}>
-
-        {/* HEADER */}
-        <View style={styles.header}>
-          <Image 
-            source={logo} 
-            style={styles.logo}
-            resizeMode="cover"
-          />
-
-          {/* Join Us — only show if not logged in */}
-          {!user && (
-            <TouchableOpacity 
-              style={styles.joinBtnWrapper}
-              onPress={() => navigation.navigate('SimpleLogin')}
-            >
-              <LinearGradient
-                colors={['#FF6B00', '#4CAF50']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.joinBtn}
-              >
-                <Text style={styles.joinBtnText}>Join Us</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          )}
-        </View>
-
         <ScrollView
-          contentContainerStyle={[styles.scroll, { paddingBottom: 120 }]}
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: spacing.xxxl + 80 }}
           showsVerticalScrollIndicator={false}
         >
+          {/* HERO — brand gradient panel, same as .gradient-primary in the seller/admin panels */}
+          <LinearGradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
+            <Image source={heroBg} style={styles.heroTexture} resizeMode="cover" />
+            <SafeAreaView edges={['top']}>
+              <View style={styles.header}>
+                <View style={styles.brandRow}>
+                  <Image source={logo} style={styles.logo} resizeMode="cover" />
+                  <View>
+                    <Text style={styles.brandName}>Dabba Nation</Text>
+                    <Text style={styles.brandTag}>Ghar ka khana, delivered</Text>
+                  </View>
+                </View>
 
-          {/* LOCATION */}
-          <View style={{ width: '100%', alignItems: 'center' }}>
-            <TouchableOpacity style={styles.location} onPress={detectLocation}>
-              <Ionicons name="location" size={18} color={PRIMARY} />
-              <View style={{ marginHorizontal: 10 }}>
-                <Text style={styles.locLabel}>DELIVER TO</Text>
-                <Text style={styles.locValue}>
-                  {detecting ? 'Locating...' : location || 'Detect my location'}
-                </Text>
+                {/* Join Us — only show if not logged in */}
+                {!user && (
+                  <TouchableOpacity
+                    style={styles.joinBtn}
+                    onPress={() => navigation.navigate('SimpleLogin')}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.joinBtnText}>Join Us</Text>
+                  </TouchableOpacity>
+                )}
               </View>
-              <Ionicons name="chevron-down" size={16} color="#555" />
-            </TouchableOpacity>
 
-          </View>
+              {/* LOCATION */}
+              <TouchableOpacity style={styles.location} onPress={detectLocation} activeOpacity={0.85} accessibilityRole="button">
+                <View style={styles.locIcon}>
+                  <Ionicons name="location" size={16} color={PRIMARY} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.locLabel}>Deliver to</Text>
+                  <Text style={styles.locValue} numberOfLines={1}>
+                    {detecting ? 'Locating...' : location || 'Detect my location'}
+                  </Text>
+                </View>
+                {detecting ? (
+                  <ActivityIndicator size="small" color={PRIMARY} />
+                ) : (
+                  <Ionicons name="chevron-down" size={18} color={colors.textSecondary} />
+                )}
+              </TouchableOpacity>
 
-          {/* HERO TEXT */}
-          <View style={styles.hero}>
-            <Text style={styles.heroText}>
-              What are you{' '}
-              <Text style={{ color: PRIMARY, fontStyle: 'italic' }}>craving</Text>
-              {' '}today?
-            </Text>
-
-            {/* Fix: Added missing subtitle line from web */}
-            <Text style={styles.heroSub}>
-              From the warmth of a{' '}
-              <Text style={{ fontWeight: '700', color: PRIMARY }}>Home Kitchen</Text>
-              {' '}to the bold flavors of your{' '}
-              <Text style={{ fontWeight: '700', color: PRIMARY }}>Favorite Bistro</Text>
-            </Text>
-          </View>
+              {/* HERO TEXT */}
+              <Text style={styles.heroText}>
+                What are you{' '}
+                <Text style={styles.heroAccent}>craving</Text>
+                {'\n'}today?
+              </Text>
+              <Text style={styles.heroSub}>
+                From the warmth of a <Text style={styles.heroSubStrong}>Home Kitchen</Text> to the bold flavors of your{' '}
+                <Text style={styles.heroSubStrong}>Favorite Bistro</Text>
+              </Text>
+            </SafeAreaView>
+          </LinearGradient>
 
           {/* CARDS */}
-          <View style={styles.cards}>
+          <View style={styles.section}>
+            <Text style={styles.overline}>Choose your kitchen</Text>
+            {kitchens.map((k) => (
+              <TouchableOpacity
+                key={k.key}
+                style={styles.card}
+                activeOpacity={0.9}
+                onPress={() => handleSelectType(k.key)}
+                accessibilityRole="button"
+                accessibilityLabel={`${k.title}. ${k.sub}`}
+              >
+                <Image source={k.image} style={styles.cardImg} resizeMode="cover" />
+                <LinearGradient
+                  colors={['rgba(48,37,29,0)', 'rgba(48,37,29,0.35)', 'rgba(48,37,29,0.88)']}
+                  style={StyleSheet.absoluteFill}
+                />
+                <View style={styles.cardTag}>
+                  <MaterialCommunityIcons name={k.icon} size={13} color={PRIMARY} />
+                  <Text style={styles.cardTagText}>{k.tag}</Text>
+                </View>
+                <View style={styles.cardBody}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.cardTitle}>{k.title}</Text>
+                    <Text style={styles.cardSub} numberOfLines={2}>{k.sub}</Text>
+                  </View>
+                  <View style={styles.cardArrow}>
+                    <Ionicons name="arrow-forward" size={18} color={colors.white} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
 
-            {/* HOME CHEF */}
-            <TouchableOpacity 
-              style={styles.card} 
-              activeOpacity={0.9}
-              onPress={() => handleSelectType('home_chef')}
-            >
-              <Image 
-                source={homeChef} 
-                style={styles.cardImg} 
-                resizeMode="cover" 
-              />
-              <View style={styles.cardOverlay}>
-                <MaterialCommunityIcons name="home-heart" size={22} color="#fff" />
-                <Text style={styles.cardTitle}>Home Chef</Text>
-                <Text style={styles.cardSub}>Ghar jaisa swad. Fresh dabbas made with love.</Text>
+            {/* BROWSE */}
+            <TouchableOpacity style={styles.browseBtn} onPress={handleBrowseAll} activeOpacity={0.85} accessibilityRole="button">
+              <Text style={styles.browseLabel}>Can't decide?</Text>
+              <View style={styles.browseAction}>
+                <Text style={styles.browseActionText}>Browse everything</Text>
+                <Ionicons name="arrow-forward" size={16} color={PRIMARY} />
               </View>
             </TouchableOpacity>
-
-            {/* RESTAURANT */}
-            <TouchableOpacity 
-              style={styles.card} 
-              activeOpacity={0.9}
-              onPress={() => handleSelectType('restaurant')}
-            >
-              <Image 
-                source={restaurant} 
-                style={styles.cardImg} 
-                resizeMode="cover" 
-              />
-              <View style={styles.cardOverlay}>
-                <MaterialCommunityIcons name="store" size={22} color="#fff" />
-                <Text style={styles.cardTitle}>Restaurant</Text>
-                <Text style={styles.cardSub}>Signature dishes from top-rated restaurants.</Text>
-              </View>
-            </TouchableOpacity>
-
           </View>
 
-          {/* BROWSE */}
-          <TouchableOpacity onPress={handleBrowseAll}>
-            <Text style={styles.browse}>
-              Can't decide?{' '}
-              <Text style={{ color: PRIMARY, textDecorationLine: 'underline' }}>
-                Browse everything
-              </Text>
-            </Text>
-          </TouchableOpacity>
-
-          {/* Spacer so characters don't overlap browse text */}
-          <View style={{ height: 100 }} />
-
+          {/* MASCOTS — in their own card, so they never cover content */}
+          <View style={styles.mascotCard}>
+            <AnimatedCharacter side="left" imageSource={leftChar} delay={200} />
+            <View style={styles.mascotCopy}>
+              <Text style={styles.mascotTitle}>Made by real cooks</Text>
+              <Text style={styles.mascotSub}>Home chefs and local kitchens from your neighbourhood.</Text>
+            </View>
+            <AnimatedCharacter side="right" imageSource={rightChar} delay={400} />
+          </View>
         </ScrollView>
-      </SafeAreaView>
-      )}
-
-      {/* Characters rendered OUTSIDE ScrollView so they stay fixed at bottom */}
-      {imagesLoaded && (
-        <>
-          <AnimatedCharacter side="left"  imageSource={leftChar}  delay={200} />
-          <AnimatedCharacter side="right" imageSource={rightChar} delay={400} />
-        </>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-
-  bg: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    top: 0,
-    left: 0,
-  },
-
-  overlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(255,255,255,0.75)',
-  },
-
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    alignItems: 'center',
-  },
-
-  logo: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-  },
-
-  // Seller Portal — gradient border with transparent inner
-  sellerBtnWrapper: {
-    borderRadius: 20,
-    overflow: 'hidden',
-  },
-
-  sellerBtnGradientBorder: {
-    padding: 1.5,
-    borderRadius: 20,
-  },
-
-  sellerBtnInner: {
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 19,
-  },
-
-  sellerBtnText: {
-    fontWeight: '700',
-    fontSize: 13,
-    // gradient text effect via orange (closest we can do without extra lib)
-    color: '#FF6B00',
-  },
-
-  // Join Us — solid gradient fill
-  joinBtnWrapper: {
-    borderRadius: 20,
-    overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#FF6B00',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.35,
-        shadowRadius: 6,
-      },
-      android: {
-        elevation: 5,
-      },
-      web: {
-        boxShadow: '0px 3px 6px rgba(255, 107, 0, 0.35)',
-      },
-    }),
-  },
-
-  joinBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-    borderRadius: 20,
-  },
-
-  joinBtnText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 13,
-  },
-
-  scroll: {
-    alignItems: 'center',
-    paddingTop: 20,
-    paddingHorizontal: 16,
-  },
-
-  location: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 25,
-    marginBottom: 25,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 3,
-      },
-      web: {
-        boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.08)',
-      },
-    }),
-  },
-
-  locLabel: {
-    fontSize: 10,
-    color: '#888',
-    letterSpacing: 0.5,
-    fontWeight: '600',
-  },
-
-  locValue: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-
-  hero: {
-    marginBottom: 24,
-    alignItems: 'center',
-  },
-
-  heroText: {
-    fontSize: 30,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    lineHeight: 38,
-  },
-
-  // New: subtitle matching web
-  heroSub: {
-    marginTop: 8,
-    fontSize: 13,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 20,
-    maxWidth: width * 0.75,
-  },
-
-  cards: {
-    alignItems: 'center',
-    gap: 14,
-  },
-
-  card: {
-    width: width * 0.72,
-    height: width * 0.46,
-    borderRadius: 22,
-    overflow: 'hidden',
-    position: 'relative',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.18,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 6,
-      },
-      web: {
-        boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.18)',
-      },
-    }),
-  },
-
-  cardImg: {
-    width: '100%',
-    height: '100%',
-    position: 'absolute',
-  },
-
-  cardOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 14,
-    // gradient effect via semi-transparent black
-    backgroundColor: 'rgba(0,0,0,0.35)',
-  },
-
-  cardTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 2,
-  },
-
-  cardSub: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 11,
-    marginTop: 2,
-  },
-
-  browse: {
-    marginTop: 18,
-    color: '#666',
-    fontSize: 13,
-  },
-
-  // Fixed character positioning to prevent cutting and removed overflow: hidden
-  animatedChar: {
-    position: 'absolute',
-    width: width * 0.35,
-    height: width * 0.60,
-    zIndex: 10,
-    bottom: 45, // Moved up slightly
-  },
-
-  charLeft: {
-    left: -10,
-  },
-
-  charRight: {
-    right: -10,
-  },
-
-  charImage: {
-    width: '100%',
-    height: '100%',
-  },
+  container: { flex: 1, backgroundColor: colors.canvas },
 
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: colors.canvas,
+  },
+  preload: { width: 1, height: 1, opacity: 0, position: 'absolute' },
+  loadingText: { ...type.label, color: PRIMARY, marginTop: spacing.md },
+
+  // Hero
+  hero: {
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xxxl,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    overflow: 'hidden',
+  },
+  heroTexture: { ...StyleSheet.absoluteFill, width: '100%', height: '100%', opacity: 0.12 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: spacing.md,
+  },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  logo: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.white, borderWidth: 2, borderColor: 'rgba(255,255,255,0.6)' },
+  brandName: { fontFamily: fonts.displayBold, fontSize: 18, lineHeight: 22, color: colors.white },
+  brandTag: { ...type.caption, color: 'rgba(255,255,255,0.8)' },
+  joinBtn: {
+    height: 38,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.pill,
+    backgroundColor: colors.white,
+    justifyContent: 'center',
+  },
+  joinBtnText: { ...type.label, fontFamily: fonts.bold, color: PRIMARY },
+
+  location: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginTop: spacing.xl,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surfaceRaised,
+    ...elevation.raised,
+  },
+  locIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.md,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  locLabel: { ...type.overline, fontSize: 10, lineHeight: 12 },
+  locValue: { ...type.subheading, marginTop: 1 },
+
+  heroText: {
+    marginTop: spacing.xxl,
+    fontFamily: fonts.displayBold,
+    fontSize: 34,
+    lineHeight: 40,
+    color: colors.white,
+  },
+  heroAccent: { fontFamily: fonts.displayItalic, fontStyle: 'italic', color: '#FFE7A8' },
+  heroSub: {
+    ...type.body,
+    marginTop: spacing.sm,
+    color: 'rgba(255,255,255,0.85)',
+    maxWidth: 320,
+  },
+  heroSubStrong: { fontFamily: fonts.bold, color: colors.white },
+
+  // Kitchen cards
+  section: { paddingHorizontal: spacing.screen, marginTop: spacing.xxl },
+  overline: { ...type.overline, marginBottom: spacing.md },
+  card: {
+    height: 184,
+    borderRadius: radius.xl,
+    overflow: 'hidden',
+    marginBottom: spacing.lg,
+    backgroundColor: colors.surfaceMuted,
+    ...elevation.card,
+  },
+  cardImg: { ...StyleSheet.absoluteFill, width: '100%', height: '100%' },
+  cardTag: {
+    position: 'absolute',
+    top: spacing.md,
+    left: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm + 2,
+    height: 26,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceRaised,
+  },
+  cardTagText: { ...type.caption, fontFamily: fonts.bold, color: colors.text },
+  cardBody: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: spacing.md,
+    padding: spacing.lg,
+  },
+  cardTitle: { fontFamily: fonts.displayBold, fontSize: 24, lineHeight: 30, color: colors.white },
+  cardSub: { ...type.small, color: 'rgba(255,255,255,0.88)', marginTop: 2 },
+  cardArrow: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: PRIMARY,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...elevation.brand,
   },
 
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: PRIMARY,
-    fontWeight: '600',
+  browseBtn: {
+    ...surfaces.flat,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    height: 54,
+    paddingHorizontal: spacing.lg,
   },
+  browseLabel: { ...type.body, color: colors.textSecondary },
+  browseAction: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  browseActionText: { ...type.label, fontFamily: fonts.bold, color: PRIMARY },
+
+  // Mascots
+  mascotCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    marginHorizontal: spacing.screen,
+    marginTop: spacing.section,
+    paddingTop: spacing.lg,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.xl,
+    backgroundColor: colors.surfaceSunken,
+    overflow: 'hidden',
+  },
+  mascotCopy: { flex: 1, alignSelf: 'center', paddingBottom: spacing.lg },
+  mascotTitle: { fontFamily: fonts.displayBold, fontSize: 18, lineHeight: 24, color: colors.text, textAlign: 'center' },
+  mascotSub: { ...type.caption, textAlign: 'center', marginTop: spacing.xs },
+  animatedChar: { width: 76, height: 128 },
+  charImage: { width: '100%', height: '100%' },
 });

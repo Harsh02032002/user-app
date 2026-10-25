@@ -219,5 +219,4 @@ export const API_ENDPOINTS = {
   // Razorpay
   CREATE_RAZORPAY_ORDER: '/payment/razorpay/create-order',
   VERIFY_RAZORPAY_PAYMENT: '/payment/razorpay/verify',
-  RAZORPAY_KEY: 'rzp_test_TnuGwHi19zjhSx',
 };

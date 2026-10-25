@@ -18,6 +18,7 @@ import { extractCoordinates, getCurrentCoordinates } from '../utils/location';
 import { DeliveryMap } from '../components/common/DeliveryMap';
 import { DeliveryOtpCard } from '../components/DeliveryOtpCard';
 import { trackOrder, untrackOrder } from '../services/socket';
+import { colors, fonts } from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteType = RouteProp<RootStackParamList, 'OrderDetails'>;
@@ -86,7 +87,7 @@ const PAYMENT_STATUS_LABEL: Record<string, string> = {
   refunded: 'Refunded',
 };
 
-const formatRupees = (n: number) => `Rs. ${(Number(n) || 0).toFixed(2).replace(/\.00$/, '')}`;
+const formatRupees = (n: number) => `₹${(Number(n) || 0).toFixed(2).replace(/\.00$/, '')}`;
 
 export default function OrderDetailsScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -205,15 +206,15 @@ export default function OrderDetailsScreen() {
     switch (status) {
       case 'confirmed':
       case 'preparing':
-        return '#2196F3';
+        return colors.info;
       case 'out_for_delivery':
-        return '#FF9800';
+        return colors.primary;
       case 'delivered':
-        return '#22C55E';
+        return colors.success;
       case 'cancelled':
-        return '#EF4444';
+        return colors.danger;
       default:
-        return '#888';
+        return colors.textTertiary;
     }
   };
 
@@ -249,7 +250,7 @@ export default function OrderDetailsScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FF6B00" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -281,7 +282,7 @@ export default function OrderDetailsScreen() {
 
   const getLiveStageBanner = () => {
     if (order.status === 'delivered' || deliveryStatus === 'delivered') {
-      return { icon: 'checkmark-circle', title: 'Order Delivered!', subtitle: 'Enjoy your meal from Dabba Nation', bg: '#DCFCE7', color: '#166534' };
+      return { icon: 'checkmark-circle', title: 'Order Delivered!', subtitle: 'Enjoy your meal from Dabba Nation', bg: colors.successSoft, color: colors.successStrong };
     }
     if (currentStage === 'to_customer') {
       return {
@@ -290,8 +291,8 @@ export default function OrderDetailsScreen() {
         subtitle: riderInfo?.name
           ? `${riderInfo.name} has picked up your order and is riding to your location`
           : 'Delivery partner has picked up your order and is riding to your location',
-        bg: '#ECFDF5',
-        color: '#065F46',
+        bg: colors.successSoft,
+        color: colors.successStrong,
       };
     }
     if (deliveryStatus === 'arrived_at_restaurant') {
@@ -299,8 +300,8 @@ export default function OrderDetailsScreen() {
         icon: 'storefront',
         title: 'Rider reached the kitchen',
         subtitle: 'Waiting to pick up your freshly prepared order',
-        bg: '#FFF7ED',
-        color: '#9A3412',
+        bg: colors.primarySoft,
+        color: colors.primaryInk,
       };
     }
     if (riderInfo || deliveryStatus === 'assigned') {
@@ -308,16 +309,16 @@ export default function OrderDetailsScreen() {
         icon: 'bicycle',
         title: 'Delivery Partner Assigned',
         subtitle: `${riderInfo?.name || 'Rider'} is heading to the kitchen to pick up your order`,
-        bg: '#EFF6FF',
-        color: '#1E40AF',
+        bg: colors.infoSoft,
+        color: colors.infoStrong,
       };
     }
     return {
       icon: 'restaurant',
       title: 'Kitchen is preparing your order',
       subtitle: 'A delivery partner near the restaurant will be assigned shortly',
-      bg: '#FFF7ED',
-      color: '#9A3412',
+      bg: colors.primarySoft,
+      color: colors.primaryInk,
     };
   };
 
@@ -331,7 +332,7 @@ export default function OrderDetailsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Order Details</Text>
         <View style={{ width: 24 }} />
@@ -376,7 +377,7 @@ export default function OrderDetailsScreen() {
             >
               <Ionicons name={liveBanner.icon as any} size={24} color={liveBanner.color} />
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: liveBanner.color }}>
+                <Text style={{ fontSize: 14, fontFamily: fonts.bold, color: liveBanner.color }}>
                   {liveBanner.title}
                 </Text>
                 <Text style={{ fontSize: 12, color: liveBanner.color, opacity: 0.85, marginTop: 2 }}>
@@ -408,29 +409,29 @@ export default function OrderDetailsScreen() {
               <View style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                backgroundColor: '#F0FDF4',
+                backgroundColor: colors.successSoft,
                 borderRadius: 12,
                 padding: 12,
                 marginTop: 10,
                 borderWidth: 1,
-                borderColor: '#BBF7D0',
+                borderColor: colors.successSoft,
                 gap: 10,
               }}>
                 <View style={{
                   width: 40,
                   height: 40,
                   borderRadius: 20,
-                  backgroundColor: '#DCFCE7',
+                  backgroundColor: colors.successSoft,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}>
-                  <Ionicons name="bicycle" size={20} color="#166534" />
+                  <Ionicons name="bicycle" size={20} color={colors.successStrong} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#166534' }}>
+                  <Text style={{ fontSize: 14, fontFamily: fonts.bold, color: colors.successStrong }}>
                     {riderInfo.name || 'Delivery Partner'}
                   </Text>
-                  <Text style={{ fontSize: 12, color: '#15803D', marginTop: 1 }}>
+                  <Text style={{ fontSize: 12, color: colors.successStrong, marginTop: 1 }}>
                     {riderInfo.vehicleType ? String(riderInfo.vehicleType).toUpperCase() : 'SCOOTER'}
                     {riderInfo.vehicleNumber ? ` • ${riderInfo.vehicleNumber}` : ''}
                     {' '}| Rating: {riderInfo.rating || '5.0'}
@@ -439,7 +440,7 @@ export default function OrderDetailsScreen() {
                 {riderInfo.phone ? (
                   <TouchableOpacity
                     style={{
-                      backgroundColor: '#16A34A',
+                      backgroundColor: colors.success,
                       width: 36,
                       height: 36,
                       borderRadius: 18,
@@ -448,7 +449,7 @@ export default function OrderDetailsScreen() {
                     }}
                     onPress={() => Linking.openURL(`tel:${riderInfo.phone}`)}
                   >
-                    <Ionicons name="call" size={18} color="#fff" />
+                    <Ionicons name="call" size={18} color={colors.white} />
                   </TouchableOpacity>
                 ) : null}
               </View>
@@ -467,7 +468,7 @@ export default function OrderDetailsScreen() {
           <Text style={styles.sectionTitle}>Order From</Text>
           <View style={styles.sellerCard}>
             <View style={styles.sellerIcon}>
-              <Ionicons name="restaurant" size={24} color="#FF6B00" />
+              <Ionicons name="restaurant" size={24} color={colors.primary} />
             </View>
             <View style={styles.sellerInfo}>
               <Text style={styles.sellerName}>{order.sellerId?.shopName || order.sellerId?.businessName || order.sellerId?.name}</Text>
@@ -477,7 +478,7 @@ export default function OrderDetailsScreen() {
               style={styles.callBtn}
               onPress={() => order.sellerId?.phone && Linking.openURL(`tel:${order.sellerId.phone}`)}
             >
-              <Ionicons name="call" size={20} color="#FF6B00" />
+              <Ionicons name="call" size={20} color={colors.primary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -529,7 +530,7 @@ export default function OrderDetailsScreen() {
                     {order.daysDeducted} days deducted from subscription
                   </Text>
                 </View>
-                <Text style={styles.subscriptionValue}>- Rs. {order.subscriptionAmountUsed}</Text>
+                <Text style={styles.subscriptionValue}>- ₹{order.subscriptionAmountUsed}</Text>
               </View>
             )}
 
@@ -543,7 +544,7 @@ export default function OrderDetailsScreen() {
             </View>
 
             <View style={styles.paymentMethod}>
-              <Ionicons name="card" size={16} color="#888" />
+              <Ionicons name="card" size={16} color={colors.textTertiary} />
               <Text style={styles.paymentMethodText}>
                 {receipt
                   ? `${receipt.payment.methodLabel || 'Payment'} · ${PAYMENT_STATUS_LABEL[receipt.payment.status] || receipt.payment.status}`
@@ -563,7 +564,7 @@ Invoice ${receipt.invoiceNumber}` : ''}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Delivery Address</Text>
           <View style={styles.addressCard}>
-            <Ionicons name="location" size={20} color="#FF6B00" />
+            <Ionicons name="location" size={20} color={colors.primary} />
             <View style={styles.addressInfo}>
               <Text style={styles.addressText}>
                 {order.deliveryAddress?.fullAddress || order.deliveryAddress?.street || order.deliveryAddress?.address || 'Delivery Address'}
@@ -584,23 +585,23 @@ Invoice ${receipt.invoiceNumber}` : ''}
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.canvas,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.canvas,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.inputFill,
   },
   errorText: {
-    fontSize: 16,
-    color: '#888',
+    fontSize: 16, fontFamily: fonts.regular,
+    color: colors.textTertiary,
   },
   header: {
     flexDirection: 'row',
@@ -609,15 +610,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 60,
     paddingBottom: 16,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.displayBold,
+    color: colors.text,
   },
   statusCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     padding: 20,
     alignItems: 'center',
     marginBottom: 12,
@@ -630,27 +631,27 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
   },
   orderNumber: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
     marginBottom: 4,
   },
   orderDate: {
-    fontSize: 14,
-    color: '#888',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textTertiary,
   },
   section: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     padding: 16,
     marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#888',
+    fontFamily: fonts.semiBold,
+    color: colors.textTertiary,
     marginBottom: 12,
     textTransform: 'uppercase',
   },
@@ -662,7 +663,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#FFF5F0',
+    backgroundColor: colors.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -672,24 +673,24 @@ const styles = StyleSheet.create({
   },
   sellerName: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.semiBold,
+    color: colors.text,
   },
   sellerPhone: {
-    fontSize: 14,
-    color: '#888',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textTertiary,
     marginTop: 2,
   },
   callBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#FFF5F0',
+    backgroundColor: colors.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
   itemsCard: {
-    backgroundColor: '#f9f9f9',
+    backgroundColor: colors.inputFill,
     borderRadius: 12,
     padding: 12,
   },
@@ -699,28 +700,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: colors.border,
   },
   itemInfo: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   itemName: {
-    fontSize: 14,
-    color: '#1a1a1a',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.text,
   },
   itemQty: {
-    fontSize: 13,
-    color: '#888',
+    fontSize: 13, fontFamily: fonts.regular,
+    color: colors.textTertiary,
     marginLeft: 8,
   },
   itemPrice: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#1a1a1a',
+    fontFamily: fonts.medium,
+    color: colors.text,
   },
   billCard: {
-    backgroundColor: '#f9f9f9',
+    backgroundColor: colors.inputFill,
     borderRadius: 12,
     padding: 16,
   },
@@ -731,15 +732,15 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   billLabel: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
   billValue: {
-    fontSize: 14,
-    color: '#1a1a1a',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.text,
   },
   subscriptionRow: {
-    backgroundColor: '#FFF5F0',
+    backgroundColor: colors.primarySoft,
     marginHorizontal: -16,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -747,33 +748,33 @@ const styles = StyleSheet.create({
   },
   subscriptionLabel: {
     fontSize: 14,
-    color: '#FF6B00',
-    fontWeight: '500',
+    color: colors.primary,
+    fontFamily: fonts.medium,
   },
   daysDeducted: {
-    fontSize: 12,
-    color: '#FF6B00',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.primary,
     marginTop: 2,
   },
   subscriptionValue: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#FF6B00',
+    fontFamily: fonts.semiBold,
+    color: colors.primary,
   },
   divider: {
     height: 1,
-    backgroundColor: '#ddd',
+    backgroundColor: colors.border,
     marginBottom: 12,
   },
   totalLabel: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   totalValue: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.bold,
+    color: colors.text,
   },
   paymentMethod: {
     flexDirection: 'row',
@@ -781,14 +782,14 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   paymentMethodText: {
-    fontSize: 12,
-    color: '#888',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.textTertiary,
     marginLeft: 6,
   },
   addressCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#f9f9f9',
+    backgroundColor: colors.inputFill,
     borderRadius: 12,
     padding: 16,
   },
@@ -797,27 +798,27 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   addressText: {
-    fontSize: 14,
-    color: '#1a1a1a',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.text,
     lineHeight: 20,
   },
   addressCity: {
-    fontSize: 13,
-    color: '#888',
+    fontSize: 13, fontFamily: fonts.regular,
+    color: colors.textTertiary,
     marginTop: 4,
   },
   mapContainer: {
     height: 250,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: colors.inputFill,
   },
   map: {
     flex: 1,
   },
   webMapWrapper: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
   },
   webMapButton: {
     position: 'absolute',
@@ -833,12 +834,12 @@ const styles = StyleSheet.create({
   },
   webMapButtonText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#FF6B00',
+    fontFamily: fonts.semiBold,
+    color: colors.primary,
   },
   mapHint: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     marginTop: 8,
     lineHeight: 18,
   },
@@ -849,11 +850,11 @@ const styles = StyleSheet.create({
   mapFallback: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.inputFill,
   },
   mapFallbackText: {
     marginTop: 8,
-    fontSize: 14,
-    color: '#666',
+    fontSize: 14, fontFamily: fonts.regular,
+    color: colors.textSecondary,
   },
 });

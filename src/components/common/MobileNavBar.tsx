@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, sizes, type } from '../../theme';
+import { colors, elevation, fonts, radius, sizes, spacing, type } from '../../theme';
 
 /** Height of the bar above the safe-area inset — use for bottom content padding */
 export const TAB_BAR_HEIGHT = sizes.tabBarHeight;
@@ -76,7 +76,9 @@ export const MobileNavBar = () => {
             accessibilityState={{ selected: isActive }}
             accessibilityLabel={tab.label}
           >
-            <Ionicons name={(isActive ? tab.icon : tab.outline) as any} size={24} color={tint} />
+            <View style={[styles.iconPill, isActive && styles.iconPillActive]}>
+              <Ionicons name={(isActive ? tab.icon : tab.outline) as any} size={22} color={tint} />
+            </View>
             <Text style={[styles.label, { color: tint }, isActive && styles.labelActive]}>{tab.label}</Text>
           </TouchableOpacity>
         );
@@ -96,20 +98,26 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
     paddingTop: 6,
+    paddingHorizontal: spacing.xs,
     zIndex: 1000,
-    elevation: 12,
-    shadowColor: '#1A1A1A',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
+    ...elevation.sticky,
   },
   tab: {
     flex: 1,
     height: TAB_BAR_HEIGHT - 6,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
+    gap: 3,
   },
-  label: { ...type.caption, fontSize: 11, lineHeight: 14, fontWeight: '500' },
-  labelActive: { fontWeight: '600' },
+  // Mirrors .sidebar-link-active in the seller/admin panels (bg-primary/10)
+  iconPill: {
+    width: 56,
+    height: 30,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconPillActive: { backgroundColor: colors.primarySoft },
+  label: { ...type.caption, fontSize: 11, lineHeight: 14, fontFamily: fonts.medium },
+  labelActive: { fontFamily: fonts.bold },
 });

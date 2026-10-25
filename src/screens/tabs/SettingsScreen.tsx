@@ -25,6 +25,7 @@ import { useNavigation } from '@react-navigation/native';
 import { getImageUrl } from '../../services/api';
 import api from '../../services/api';
 import { deleteAccountFlow } from '../../utils/accountDeletion';
+import { colors, fonts } from '../../theme';
 
 interface UserProfile {
   name: string;
@@ -273,7 +274,7 @@ export function SettingsScreen() {
         {/* Profile Information Card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Ionicons name="person-outline" size={20} color="#FF6B00" />
+            <Ionicons name="person-outline" size={20} color={colors.primary} />
             <Text style={styles.cardTitle}>Profile Information</Text>
           </View>
 
@@ -293,16 +294,16 @@ export function SettingsScreen() {
                 />
               ) : (
                 <View style={styles.avatarPlaceholder}>
-                  <Ionicons name="person" size={40} color="#FF6B00" />
+                  <Ionicons name="person" size={40} color={colors.primary} />
                 </View>
               )}
               {uploadingType === 'profileImage' && (
                 <View style={styles.avatarLoadingOverlay}>
-                  <ActivityIndicator size="small" color="#fff" />
+                  <ActivityIndicator size="small" color={colors.white} />
                 </View>
               )}
               <View style={styles.cameraButton}>
-                <Ionicons name="camera" size={16} color="#fff" />
+                <Ionicons name="camera" size={16} color={colors.white} />
               </View>
             </TouchableOpacity>
             <TouchableOpacity
@@ -312,9 +313,9 @@ export function SettingsScreen() {
               activeOpacity={0.8}
             >
               {uploadingType === 'profileImage' ? (
-                <ActivityIndicator size="small" color="#FF6B00" />
+                <ActivityIndicator size="small" color={colors.primary} />
               ) : (
-                <Ionicons name="camera-outline" size={16} color="#FF6B00" />
+                <Ionicons name="camera-outline" size={16} color={colors.primary} />
               )}
               <Text style={styles.changePhotoText}>
                 {uploadingType === 'profileImage' ? 'Uploading...' : 'Change Photo'}
@@ -331,8 +332,8 @@ export function SettingsScreen() {
                 disabled={uploadingType === 'banner'}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
               >
-                <Ionicons name="cloud-upload-outline" size={15} color="#FF6B00" />
-                <Text style={{ fontSize: 13, fontWeight: '600', color: '#FF6B00' }}>
+                <Ionicons name="cloud-upload-outline" size={15} color={colors.primary} />
+                <Text style={{ fontSize: 13, fontFamily: fonts.semiBold, color: colors.primary }}>
                   {uploadingType === 'banner'
                     ? 'Uploading...'
                     : resolvedBannerUri && !bannerLoadError
@@ -356,23 +357,23 @@ export function SettingsScreen() {
                     onError={() => setBannerLoadError(true)}
                   />
                   <View style={styles.bannerEditBadge}>
-                    <Ionicons name="camera" size={14} color="#fff" />
+                    <Ionicons name="camera" size={14} color={colors.white} />
                     <Text style={styles.bannerEditBadgeText}>Tap to change</Text>
                   </View>
                 </>
               ) : (
                 <View style={styles.bannerPlaceholder}>
                   <View style={styles.bannerUploadIconCircle}>
-                    <Ionicons name="camera-outline" size={24} color="#FF6B00" />
+                    <Ionicons name="camera-outline" size={24} color={colors.primary} />
                   </View>
                   <Text style={styles.bannerPlaceholderText}>Tap to Upload Banner Photo</Text>
-                  <Text style={{ fontSize: 11, color: '#9CA3AF' }}>JPG, PNG or WEBP (16:9 recommended)</Text>
+                  <Text style={{ fontSize: 11, color: colors.textTertiary }}>JPG, PNG or WEBP (16:9 recommended)</Text>
                 </View>
               )}
               {uploadingType === 'banner' && (
                 <View style={styles.bannerLoadingOverlay}>
-                  <ActivityIndicator size="large" color="#fff" />
-                  <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600', marginTop: 6 }}>
+                  <ActivityIndicator size="large" color={colors.white} />
+                  <Text style={{ color: colors.white, fontSize: 13, fontFamily: fonts.semiBold, marginTop: 6 }}>
                     Uploading Banner...
                   </Text>
                 </View>
@@ -434,10 +435,10 @@ export function SettingsScreen() {
 
           <TouchableOpacity style={styles.saveButton} onPress={handleSaveProfile} disabled={loading}>
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.white} />
             ) : (
               <>
-                <Ionicons name="save-outline" size={18} color="#fff" />
+                <Ionicons name="save-outline" size={18} color={colors.white} />
                 <Text style={styles.saveButtonText}>Save Changes</Text>
               </>
             )}
@@ -447,7 +448,7 @@ export function SettingsScreen() {
         {/* Change Password */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Ionicons name="lock-closed-outline" size={20} color="#FF6B00" />
+            <Ionicons name="lock-closed-outline" size={20} color={colors.primary} />
             <Text style={styles.cardTitle}>Change Password</Text>
           </View>
 
@@ -485,7 +486,7 @@ export function SettingsScreen() {
 
           <TouchableOpacity style={styles.saveButton} onPress={handleChangePassword} disabled={loading}>
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.white} />
             ) : (
               <Text style={styles.saveButtonText}>Update Password</Text>
             )}
@@ -495,28 +496,28 @@ export function SettingsScreen() {
         {/* Account: policies and deletion (Play Store requirement) */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Ionicons name="shield-checkmark-outline" size={20} color="#FF6B00" />
+            <Ionicons name="shield-checkmark-outline" size={20} color={colors.primary} />
             <Text style={styles.cardTitle}>Account</Text>
           </View>
           <TouchableOpacity style={styles.accountRow} onPress={() => navigation.navigate('StaticPage', { type: 'privacy' })} accessibilityRole="link">
-            <Ionicons name="document-text-outline" size={18} color="#4B5563" />
+            <Ionicons name="document-text-outline" size={18} color={colors.textSecondary} />
             <Text style={styles.accountRowText}>Privacy policy</Text>
-            <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+            <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.accountRow} onPress={() => navigation.navigate('StaticPage', { type: 'terms' })} accessibilityRole="link">
-            <Ionicons name="reader-outline" size={18} color="#4B5563" />
+            <Ionicons name="reader-outline" size={18} color={colors.textSecondary} />
             <Text style={styles.accountRowText}>Terms of service</Text>
-            <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+            <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.accountRow} onPress={() => logout()} accessibilityRole="button">
-            <Ionicons name="log-out-outline" size={18} color="#4B5563" />
+            <Ionicons name="log-out-outline" size={18} color={colors.textSecondary} />
             <Text style={styles.accountRowText}>Log out</Text>
-            <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+            <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
           </TouchableOpacity>
           <TouchableOpacity style={[styles.accountRow, { borderBottomWidth: 0 }]} onPress={() => deleteAccountFlow(logout)} accessibilityRole="button">
-            <Ionicons name="trash-outline" size={18} color="#DC2626" />
-            <Text style={[styles.accountRowText, { color: '#DC2626' }]}>Delete account</Text>
-            <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+            <Ionicons name="trash-outline" size={18} color={colors.danger} />
+            <Text style={[styles.accountRowText, { color: colors.danger }]}>Delete account</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
           </TouchableOpacity>
         </View>
 
@@ -546,28 +547,28 @@ export function SettingsScreen() {
               style={styles.pickerOptionBtn}
               onPress={() => pickerModalType && launchCameraPicker(pickerModalType)}
             >
-              <View style={[styles.pickerOptionIcon, { backgroundColor: '#FFF5F0' }]}>
-                <Ionicons name="camera" size={22} color="#FF6B00" />
+              <View style={[styles.pickerOptionIcon, { backgroundColor: colors.primarySoft }]}>
+                <Ionicons name="camera" size={22} color={colors.primary} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.pickerOptionTitle}>Take Photo</Text>
                 <Text style={styles.pickerOptionDesc}>Use your camera to capture a new photo</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+              <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.pickerOptionBtn}
               onPress={() => pickerModalType && launchGalleryPicker(pickerModalType)}
             >
-              <View style={[styles.pickerOptionIcon, { backgroundColor: '#EFF6FF' }]}>
-                <Ionicons name="images" size={22} color="#3B82F6" />
+              <View style={[styles.pickerOptionIcon, { backgroundColor: colors.infoSoft }]}>
+                <Ionicons name="images" size={22} color={colors.info} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.pickerOptionTitle}>Choose from Gallery</Text>
                 <Text style={styles.pickerOptionDesc}>Select an existing photo from your device</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+              <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -586,29 +587,29 @@ export function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F2E8',
+    backgroundColor: colors.canvas,
   },
   header: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    backgroundColor: '#fff',
+    borderBottomColor: colors.border,
+    backgroundColor: colors.surface,
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.displayBold,
+    color: colors.text,
   },
   scrollView: {
     flex: 1,
     padding: 16,
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
-    shadowColor: '#000',
+    shadowColor: '#403126',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -622,21 +623,21 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.displayBold,
+    color: colors.text,
   },
   accountRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 14,
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.border,
   },
   accountRowText: {
     flex: 1,
-    fontSize: 15,
-    color: '#1a1a1a',
+    fontSize: 15, fontFamily: fonts.regular,
+    color: colors.text,
   },
   profileSection: {
     flexDirection: 'row',
@@ -654,18 +655,18 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     borderWidth: 2,
-    borderColor: '#FF6B00',
-    backgroundColor: '#FFF5F0',
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
   },
   avatarPlaceholder: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#FFF5F0',
+    backgroundColor: colors.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#FFCFB3',
+    borderColor: colors.primaryBorder,
   },
   avatarLoadingOverlay: {
     position: 'absolute',
@@ -682,38 +683,38 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     width: 32,
     height: 32,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: colors.white,
   },
   changePhotoButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF5F0',
+    backgroundColor: colors.primarySoft,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#FFCFB3',
+    borderColor: colors.primaryBorder,
     gap: 8,
   },
   changePhotoText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#FF6B00',
+    fontFamily: fonts.semiBold,
+    color: colors.primary,
   },
   bannerContainer: {
     height: 140,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: '#FFF9F5',
+    backgroundColor: colors.primarySoft,
     borderWidth: 2,
-    borderColor: '#FFCFB3',
+    borderColor: colors.primaryBorder,
     borderStyle: 'dashed',
     position: 'relative',
   },
@@ -731,14 +732,14 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#FFF0E5',
+    backgroundColor: colors.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
   bannerPlaceholderText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#FF6B00',
+    fontFamily: fonts.semiBold,
+    color: colors.primary,
   },
   bannerEditBadge: {
     position: 'absolute',
@@ -746,16 +747,16 @@ const styles = StyleSheet.create({
     right: 10,
     backgroundColor: 'rgba(0,0,0,0.65)',
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 4,
     borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
   },
   bannerEditBadgeText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
   },
   bannerLoadingOverlay: {
     position: 'absolute',
@@ -773,22 +774,22 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   pickerModalSheet: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    padding: 22,
+    padding: 24,
     paddingBottom: 32,
   },
   pickerModalTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
+    fontFamily: fonts.displayBold,
+    color: colors.text,
     marginBottom: 4,
   },
   pickerModalSubtitle: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginBottom: 18,
+    fontSize: 13, fontFamily: fonts.regular,
+    color: colors.textSecondary,
+    marginBottom: 16,
   },
   pickerOptionBtn: {
     flexDirection: 'row',
@@ -796,7 +797,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderRadius: 12,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.inputFill,
     marginBottom: 10,
     gap: 14,
   },
@@ -809,55 +810,55 @@ const styles = StyleSheet.create({
   },
   pickerOptionTitle: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#111827',
+    fontFamily: fonts.semiBold,
+    color: colors.text,
   },
   pickerOptionDesc: {
-    fontSize: 12,
-    color: '#6B7280',
+    fontSize: 12, fontFamily: fonts.regular,
+    color: colors.textSecondary,
     marginTop: 2,
   },
   pickerCancelBtn: {
     marginTop: 6,
-    paddingVertical: 13,
+    paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.inputFill,
     alignItems: 'center',
   },
   pickerCancelText: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#374151',
+    fontFamily: fonts.semiBold,
+    color: colors.textSecondary,
   },
   formRow: {
     flexDirection: 'row',
     gap: 12,
   },
   inputGroup: {
-    marginBottom: 14,
+    marginBottom: 16,
   },
   label: {
     fontSize: 13,
-    fontWeight: '500',
-    color: '#374151',
+    fontFamily: fonts.medium,
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    fontSize: 15,
-    color: '#111827',
-    backgroundColor: '#fff',
+    fontSize: 15, fontFamily: fonts.regular,
+    color: colors.text,
+    backgroundColor: colors.surface,
   },
   textArea: {
     height: 80,
     textAlignVertical: 'top',
   },
   saveButton: {
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -866,8 +867,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   saveButtonText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
   },
 });
