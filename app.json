@@ -21,11 +21,11 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "permissions": [
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
-        "CAMERA",
-        "POST_NOTIFICATIONS",
-        "VIBRATE"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.VIBRATE"
       ],
       "predictiveBackGestureEnabled": false,
       "package": "com.dabbnation.user",
@@ -69,6 +69,12 @@
     ],
     "experiments": {
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "d7c02064-c2b1-4017-8fe3-081b5e31967d"
+      }
+    },
+    "owner": "dhruvparmar2003"
   }
 }
