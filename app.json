@@ -28,6 +28,7 @@
         "android.permission.VIBRATE"
       ],
       "predictiveBackGestureEnabled": false,
+      "versionCode": 6,
       "package": "com.dabbnation.user",
       "googleServicesFile": "./google-services.json",
       "blockedPermissions": [
